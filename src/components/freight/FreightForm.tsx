@@ -250,11 +250,11 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="com-cargoWeight">Yükün Tonajı (*)</Label>
+              <Label htmlFor="com-cargoWeight">Yükün Miktarı/Tonajı (*)</Label>
               <div className="flex gap-2">
                 <Input id="com-cargoWeight" type="number" placeholder="00" value={cargoWeight} onChange={(e) => setCargoWeight(parseFloat(e.target.value) || '')} required className="flex-grow" />
                 <Select value={cargoWeightUnit} onValueChange={(value) => setCargoWeightUnit(value as WeightUnit)}>
-                  <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                   <SelectContent>{WEIGHT_UNITS.map(unit => <SelectItem key={unit} value={unit}>{unit}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
@@ -357,4 +357,3 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
     </form>
   );
 }
-

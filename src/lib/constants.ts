@@ -41,7 +41,7 @@ export const VEHICLES_NEEDED = [
   'Minivan',
   'Oto Taşıma',
   'Panelvan',
-  'Proje Yükü', // Added previously
+  'Proje Yükü',
   'Römork Tır',
   'Sal Kasa Dorse',
   'Tanker',
@@ -66,7 +66,7 @@ export const CARGO_FORMS = [
   'Diğer',
 ] as const;
 
-export const WEIGHT_UNITS = ['Ton', 'Kg'] as const;
+export const WEIGHT_UNITS = ['Ton', 'Kg', 'M³ (metreküp)'] as const;
 
 export const SHIPMENT_SCOPES = ['Yurt İçi', 'Yurt Dışı'] as const;
 

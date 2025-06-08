@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card'; // Ensure Card components are imported
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import Image from 'next/image';
 
 const mockFreightData: Freight[] = [
@@ -66,6 +66,32 @@ const mockFreightData: Freight[] = [
     postedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
     shipmentScope: 'Yurt İçi',
     postedBy: 'Demir Lojistik'
+  },
+  { 
+    id: '3', 
+    userId: 'user3',
+    freightType: 'Ticari',
+    companyName: 'Global Taşımacılık',
+    contactPerson: 'Mehmet Global',
+    contactEmail: 'mehmet@globaltasimacilik.com',
+    mobilePhone: '05441112233',
+    cargoType: 'İnşaat Malzemeleri',
+    vehicleNeeded: 'Damper Dorse',
+    loadingType: 'Tonajlı',
+    cargoForm: 'Diğer',
+    cargoWeight: 50,
+    cargoWeightUnit: 'M³ (metreküp)', // Example using new unit
+    description: 'Hacimli inşaat malzemesi, yaklaşık 50 metreküp.',
+    originCountry: 'TR',
+    originCity: 'Kocaeli',
+    originDistrict: 'Gebze',
+    destinationCountry: 'DE', // Example international
+    destinationCity: 'Berlin', // Example international city
+    loadingDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString().split('T')[0], // 3 days from now
+    isContinuousLoad: true,
+    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    shipmentScope: 'Yurt Dışı', // Example international
+    postedBy: 'Global Taşımacılık'
   },
   { 
     id: 'ev1', 
