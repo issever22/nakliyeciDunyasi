@@ -41,7 +41,7 @@ export const VEHICLES_NEEDED = [
   'Minivan',
   'Oto Taşıma',
   'Panelvan',
-  'Proje Yükü',
+  'Proje Yükü', // Added previously
   'Römork Tır',
   'Sal Kasa Dorse',
   'Tanker',
@@ -70,5 +70,35 @@ export const WEIGHT_UNITS = ['Ton', 'Kg'] as const;
 
 export const SHIPMENT_SCOPES = ['Yurt İçi', 'Yurt Dışı'] as const;
 
-// Eski VEHICLE_TYPES kaldırıldı, yerine VEHICLES_NEEDED geldi.
-// VehicleType tipi de güncellenmeli veya kaldırılmalı.
+export const FREIGHT_TYPES = ['Ticari', 'Evden Eve'] as const;
+
+export const RESIDENTIAL_TRANSPORT_TYPES = [
+  'Uluslararası Taşımacılık',
+  'Şehirlerarası Taşımacılık',
+  'Ofis Taşımacılığı',
+  'Fabrika Taşımacılığı',
+  'Fuar Taşımacılığı',
+  'Diğer',
+] as const;
+
+export const RESIDENTIAL_PLACE_TYPES = [
+  'Ev',
+  'İş Yeri',
+  'Malzeme',
+] as const;
+
+export const RESIDENTIAL_ELEVATOR_STATUSES = [
+  'Asansör Yok',
+  'Yükleme Adresinde Var',
+  'Boşaltma Adresinde Var',
+  'Her İkisinde de Var',
+] as const;
+
+export const RESIDENTIAL_FLOOR_LEVELS = [
+  'Giriş Kat',
+  '1’nci Kat',
+  '2’nci Kat',
+  '3’ncü Kat',
+  '4’ncü Kat',
+  '5’nci Kat ve Üzeri',
+] as const;

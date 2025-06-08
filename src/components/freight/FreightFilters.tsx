@@ -5,23 +5,31 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VEHICLES_NEEDED, SHIPMENT_SCOPES } from '@/lib/constants'; // Updated to VEHICLES_NEEDED
-import type { VehicleNeeded, ShipmentScope } from '@/types'; // Updated to VehicleNeeded
-import { Filter, RotateCcw, MapPin, Truck as VehicleIcon, Globe } from 'lucide-react';
+import { VEHICLES_NEEDED, SHIPMENT_SCOPES, FREIGHT_TYPES } from '@/lib/constants';
+import type { VehicleNeeded, ShipmentScope, FreightType } from '@/types';
+import { Filter, RotateCcw, MapPin, Truck as VehicleIcon, Globe, ListFilter } from 'lucide-react';
 
 interface FreightFiltersProps {
-  // Updated filter props to reflect new data structure
-  onFilter: (filters: { originCity?: string; destinationCity?: string; vehicleNeeded?: VehicleNeeded; shipmentScope?: ShipmentScope; sortBy?: string }) => void;
+  onFilter: (filters: { 
+    originCity?: string; 
+    destinationCity?: string; 
+    vehicleNeeded?: VehicleNeeded; 
+    shipmentScope?: ShipmentScope; 
+    freightType?: FreightType;
+    sortBy?: string 
+  }) => void;
 }
 
+const ALL_FREIGHT_TYPES_SENTINEL = "_ALL_FREIGHT_TYPES_";
 const ALL_VEHICLES_SENTINEL = "_ALL_VEHICLES_";
 const ALL_SHIPMENT_SCOPES_SENTINEL = "_ALL_SCOPES_";
 
 export default function FreightFilters({ onFilter }: FreightFiltersProps) {
-  const [originCity, setOriginCity] = useState(''); // Was origin
-  const [destinationCity, setDestinationCity] = useState(''); // Was destination
-  const [vehicleNeeded, setVehicleNeeded] = useState<VehicleNeeded | ''>(''); // Was vehicleType
+  const [originCity, setOriginCity] = useState('');
+  const [destinationCity, setDestinationCity] = useState('');
+  const [vehicleNeeded, setVehicleNeeded] = useState<VehicleNeeded | ''>('');
   const [shipmentScope, setShipmentScope] = useState<ShipmentScope | ''>('');
+  const [freightType, setFreightType] = useState<FreightType | ''>('');
   const [sortBy, setSortBy] = useState('newest');
 
   const handleFilter = () => {
@@ -30,6 +38,7 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
       destinationCity: destinationCity || undefined, 
       vehicleNeeded: vehicleNeeded || undefined, 
       shipmentScope: shipmentScope || undefined,
+      freightType: freightType || undefined,
       sortBy 
     });
   };
@@ -39,8 +48,9 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
     setDestinationCity('');
     setVehicleNeeded('');
     setShipmentScope('');
+    setFreightType('');
     setSortBy('newest');
-    onFilter({}); // Reset with empty filters, which now matches the updated types
+    onFilter({});
   };
 
   return (
@@ -48,7 +58,33 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
       <h2 className="text-2xl font-semibold text-primary flex items-center gap-2">
         <Filter size={24}/> İlanları Filtrele
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
+        <div>
+          <label htmlFor="freightType" className="block text-sm font-medium text-muted-foreground mb-1">İlan Tipi</label>
+          <div className="relative">
+            <ListFilter className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Select
+              value={freightType === '' ? ALL_FREIGHT_TYPES_SENTINEL : freightType}
+              onValueChange={(selectedValue) => {
+                if (selectedValue === ALL_FREIGHT_TYPES_SENTINEL) {
+                  setFreightType('');
+                } else {
+                  setFreightType(selectedValue as FreightType);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full pl-10">
+                <SelectValue placeholder="Tüm İlan Tipleri" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_FREIGHT_TYPES_SENTINEL}>Tüm İlan Tipleri</SelectItem>
+                {FREIGHT_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div>
           <label htmlFor="originCity" className="block text-sm font-medium text-muted-foreground mb-1">Nereden (Şehir)</label>
           <div className="relative">
@@ -75,58 +111,65 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
             />
           </div>
         </div>
-        <div>
-          <label htmlFor="shipmentScope" className="block text-sm font-medium text-muted-foreground mb-1">Gönderi Kapsamı</label>
-          <div className="relative">
-            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Select 
-              value={shipmentScope === '' ? ALL_SHIPMENT_SCOPES_SENTINEL : shipmentScope} 
-              onValueChange={(selectedValue) => {
-                if (selectedValue === ALL_SHIPMENT_SCOPES_SENTINEL) {
-                  setShipmentScope('');
-                } else {
-                  setShipmentScope(selectedValue as ShipmentScope);
-                }
-              }}
-            >
-              <SelectTrigger className="w-full pl-10">
-                <SelectValue placeholder="Tüm Kapsamlar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_SHIPMENT_SCOPES_SENTINEL}>Tüm Kapsamlar</SelectItem>
-                {SHIPMENT_SCOPES.map((scope) => (
-                  <SelectItem key={scope} value={scope}>{scope}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div>
-          <label htmlFor="vehicleNeeded" className="block text-sm font-medium text-muted-foreground mb-1">Araç Tipi</label>
-          <div className="relative">
-            <VehicleIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Select 
-              value={vehicleNeeded === '' ? ALL_VEHICLES_SENTINEL : vehicleNeeded} 
-              onValueChange={(selectedValue) => {
-                if (selectedValue === ALL_VEHICLES_SENTINEL) {
-                  setVehicleNeeded('');
-                } else {
-                  setVehicleNeeded(selectedValue as VehicleNeeded);
-                }
-              }}
-            >
-              <SelectTrigger className="w-full pl-10">
-                <SelectValue placeholder="Tüm Araç Tipleri" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_VEHICLES_SENTINEL}>Tüm Araç Tipleri</SelectItem>
-                {VEHICLES_NEEDED.map((type) => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        
+        {/* Conditional Commercial Filters */}
+        {(freightType === '' || freightType === 'Ticari') && (
+          <>
+            <div>
+              <label htmlFor="shipmentScope" className="block text-sm font-medium text-muted-foreground mb-1">Gönderi Kapsamı</label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Select 
+                  value={shipmentScope === '' ? ALL_SHIPMENT_SCOPES_SENTINEL : shipmentScope} 
+                  onValueChange={(selectedValue) => {
+                    if (selectedValue === ALL_SHIPMENT_SCOPES_SENTINEL) {
+                      setShipmentScope('');
+                    } else {
+                      setShipmentScope(selectedValue as ShipmentScope);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full pl-10">
+                    <SelectValue placeholder="Tüm Kapsamlar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_SHIPMENT_SCOPES_SENTINEL}>Tüm Kapsamlar</SelectItem>
+                    {SHIPMENT_SCOPES.map((scope) => (
+                      <SelectItem key={scope} value={scope}>{scope}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="vehicleNeeded" className="block text-sm font-medium text-muted-foreground mb-1">Araç Tipi (Ticari)</label>
+              <div className="relative">
+                <VehicleIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Select 
+                  value={vehicleNeeded === '' ? ALL_VEHICLES_SENTINEL : vehicleNeeded} 
+                  onValueChange={(selectedValue) => {
+                    if (selectedValue === ALL_VEHICLES_SENTINEL) {
+                      setVehicleNeeded('');
+                    } else {
+                      setVehicleNeeded(selectedValue as VehicleNeeded);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full pl-10">
+                    <SelectValue placeholder="Tüm Araç Tipleri" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_VEHICLES_SENTINEL}>Tüm Araç Tipleri</SelectItem>
+                    {VEHICLES_NEEDED.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </>
+        )}
+
         <div>
           <label htmlFor="sortBy" className="block text-sm font-medium text-muted-foreground mb-1">Sırala</label>
           <Select value={sortBy} onValueChange={setSortBy}>

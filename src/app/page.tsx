@@ -4,19 +4,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
 import FreightFilters from '@/components/freight/FreightFilters';
-import type { Freight, VehicleNeeded, ShipmentScope } from '@/types'; // Updated VehicleType to VehicleNeeded
+import type { Freight, VehicleNeeded, ShipmentScope, FreightType } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card'; // Ensure Card components are imported
 import Image from 'next/image';
 
-// Mock data - replace with API call in a real app
 const mockFreightData: Freight[] = [
   { 
     id: '1', 
     userId: 'user1',
+    freightType: 'Ticari',
     companyName: 'Yılmaz Nakliyat',
     contactPerson: 'Ahmet Yılmaz',
     contactEmail: 'ahmet@yilmaznakliyat.com',
@@ -43,6 +43,7 @@ const mockFreightData: Freight[] = [
   { 
     id: '2', 
     userId: 'user2',
+    freightType: 'Ticari',
     companyName: 'Demir Lojistik',
     contactPerson: 'Ayşe Demir',
     contactEmail: 'ayse@demirlojistik.com',
@@ -67,121 +68,84 @@ const mockFreightData: Freight[] = [
     postedBy: 'Demir Lojistik'
   },
   { 
-    id: '3', 
-    userId: 'user3',
-    companyName: 'Taşıma A.Ş.',
-    contactPerson: 'Mehmet Can',
-    contactEmail: 'mcan@tasima.com.tr',
-    mobilePhone: '05423332211',
-    cargoType: 'Hafif Tonajlı Yük',
-    vehicleNeeded: 'Kamyonet',
-    loadingType: 'Parsiyel',
-    cargoForm: 'Diğer',
-    cargoWeight: 500,
-    cargoWeightUnit: 'Kg',
-    description: 'Küçük paketler.',
-    originCountry: 'TR',
-    originCity: 'Adana',
-    originDistrict: 'Seyhan',
-    destinationCountry: 'TR',
-    destinationCity: 'Mersin',
-    destinationDistrict: 'Akdeniz',
-    loadingDate: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString().split('T')[0],
-    isContinuousLoad: true,
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    shipmentScope: 'Yurt İçi',
-    postedBy: 'Taşıma A.Ş.'
-  },
-   { 
-    id: '6', 
-    userId: 'user4',
-    companyName: 'Global Lojistik GmbH',
-    contactPerson: 'Hans Müller',
-    contactEmail: 'hans@globallog.de',
-    mobilePhone: '+491701234567',
-    cargoType: 'Sanayi Üretimi',
-    vehicleNeeded: 'Mega Araç',
-    loadingType: 'Komple',
-    cargoForm: 'Paletli',
-    cargoWeight: 24,
-    cargoWeightUnit: 'Ton',
-    description: 'Komple ithalat yükü, ADR gerektirmez.',
-    originCountry: 'DE',
-    originCity: 'Hamburg', // No district for non-TR example
-    destinationCountry: 'TR',
-    destinationCity: 'İstanbul',
-    destinationDistrict: 'Tuzla',
-    loadingDate: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString().split('T')[0],
-    isContinuousLoad: false,
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    shipmentScope: 'Yurt Dışı',
-    postedBy: 'Global Lojistik GmbH'
-  },
-  { 
-    id: '7', 
-    userId: 'user5',
-    companyName: 'Proje Taşımacılık A.Ş.',
-    contactPerson: 'Leyla Veli',
-    contactEmail: 'leyla@projetasima.com',
-    mobilePhone: '05339998877',
-    cargoType: 'İnşaat Malzemeleri',
-    vehicleNeeded: 'Proje Yükü', // using the new type
-    loadingType: 'Tonajlı',
-    cargoForm: 'Diğer',
-    cargoWeight: 150,
-    cargoWeightUnit: 'Ton',
-    description: 'Ağır sanayi ekipmanı, uzun vadeli proje.',
+    id: 'ev1', 
+    userId: 'userEv1',
+    freightType: 'Evden Eve',
+    companyName: 'Aslan Ev Taşıma',
+    contactPerson: 'Veli Aslan',
+    contactEmail: 'veli@aslannakliyat.com',
+    mobilePhone: '05331112233',
+    residentialTransportType: 'Şehirlerarası Taşımacılık',
+    residentialPlaceType: 'Ev',
+    residentialElevatorStatus: 'Yükleme Adresinde Var',
+    residentialFloorLevel: '3’ncü Kat',
+    description: '3+1 Ev eşyası, beyaz eşyalar ve mobilyalar. Paketleme dahil.',
     originCountry: 'TR',
     originCity: 'İstanbul',
-    originDistrict: 'Pendik',
-    destinationCountry: 'AZ', // Azerbaijan
-    destinationCity: 'Bakü',
-    loadingDate: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString().split('T')[0],
-    isContinuousLoad: true,
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
-    shipmentScope: 'Yurt Dışı',
-    postedBy: 'Proje Taşımacılık A.Ş.'
+    originDistrict: 'Kadıköy',
+    destinationCountry: 'TR',
+    destinationCity: 'İzmir',
+    destinationDistrict: 'Alsancak',
+    loadingDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 5).toISOString().split('T')[0], // 5 days from now
+    postedAt: new Date().toISOString(),
+    postedBy: 'Aslan Ev Taşıma'
   },
 ];
 
 export default function HomePage() {
   const [allFreights, setAllFreights] = useState<Freight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // Updated filters to reflect new data structure. Old origin/destination are now city-based.
-  const [filters, setFilters] = useState<{ originCity?: string; destinationCity?: string; vehicleNeeded?: VehicleNeeded; shipmentScope?: ShipmentScope; sortBy?: string }>({});
+  const [filters, setFilters] = useState<{ 
+    originCity?: string; 
+    destinationCity?: string; 
+    vehicleNeeded?: VehicleNeeded; 
+    shipmentScope?: ShipmentScope; 
+    freightType?: FreightType;
+    sortBy?: string 
+  }>({});
 
   useEffect(() => {
-    // Simulate API call
     setTimeout(() => {
       setAllFreights(mockFreightData);
       setIsLoading(false);
     }, 1000);
   }, []);
 
-  const handleFilter = (newFilters: { originCity?: string; destinationCity?: string; vehicleNeeded?: VehicleNeeded; shipmentScope?: ShipmentScope; sortBy?: string }) => {
+  const handleFilter = (newFilters: typeof filters) => {
     setFilters(newFilters);
   };
 
-  // Memoized filtering and sorting logic
   const filteredFreights = useMemo(() => {
     let freights = [...allFreights];
     if (filters.originCity) {
-      // Ensure originCity is treated as string for includes
       freights = freights.filter(f => String(f.originCity).toLowerCase().includes(filters.originCity!.toLowerCase()));
     }
     if (filters.destinationCity) {
-      // Ensure destinationCity is treated as string for includes
       freights = freights.filter(f => String(f.destinationCity).toLowerCase().includes(filters.destinationCity!.toLowerCase()));
     }
-    if (filters.vehicleNeeded) {
-      freights = freights.filter(f => f.vehicleNeeded === filters.vehicleNeeded);
+    if (filters.freightType) {
+      freights = freights.filter(f => f.freightType === filters.freightType);
     }
-    if (filters.shipmentScope) {
-      freights = freights.filter(f => f.shipmentScope === filters.shipmentScope);
+    // Commercial specific filters only apply if freightType is Ticari or no freightType filter is active
+    if (!filters.freightType || filters.freightType === 'Ticari') {
+        if (filters.vehicleNeeded) {
+        freights = freights.filter(f => f.freightType === 'Ticari' && f.vehicleNeeded === filters.vehicleNeeded);
+        }
+        if (filters.shipmentScope) {
+        freights = freights.filter(f => f.freightType === 'Ticari' && f.shipmentScope === filters.shipmentScope);
+        }
+    } else if (filters.freightType === 'Evden Eve') {
+        // If filtering for 'Evden Eve', exclude listings that don't match if vehicle/scope filters are also present
+        // This part might need more specific filters for Evden Eve later
+        if(filters.vehicleNeeded || filters.shipmentScope) {
+            freights = freights.filter(f => f.freightType === 'Evden Eve');
+        }
     }
+
+
     if (filters.sortBy === 'oldest') {
       freights.sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
-    } else { // Default to newest
+    } else { 
       freights.sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
     }
     return freights;

@@ -5,64 +5,94 @@ import type {
   LOADING_TYPES, 
   CARGO_FORMS, 
   WEIGHT_UNITS,
-  SHIPMENT_SCOPES
+  SHIPMENT_SCOPES,
+  FREIGHT_TYPES,
+  RESIDENTIAL_TRANSPORT_TYPES,
+  RESIDENTIAL_PLACE_TYPES,
+  RESIDENTIAL_ELEVATOR_STATUSES,
+  RESIDENTIAL_FLOOR_LEVELS
 } from '@/lib/constants';
 import type { CountryCode, TurkishCity } from '@/lib/locationData';
 
 export type CargoType = typeof CARGO_TYPES[number];
-export type VehicleNeeded = typeof VEHICLES_NEEDED[number];
-export type LoadingType = typeof LOADING_TYPES[number];
-export type CargoForm = typeof CARGO_FORMS[number];
-export type WeightUnit = typeof WEIGHT_UNITS[number];
-export type ShipmentScope = typeof SHIPMENT_SCOPES[number];
+export type VehicleNeeded = typeof VEHICLES_NEEDED[number]; // Used for Commercial
+export type LoadingType = typeof LOADING_TYPES[number]; // Commercial
+export type CargoForm = typeof CARGO_FORMS[number]; // Commercial
+export type WeightUnit = typeof WEIGHT_UNITS[number]; // Commercial
+export type ShipmentScope = typeof SHIPMENT_SCOPES[number]; // Commercial
 
-// This replaces the old VehicleType
-export type VehicleType = typeof VEHICLES_NEEDED[number];
+export type FreightType = typeof FREIGHT_TYPES[number];
+export type ResidentialTransportType = typeof RESIDENTIAL_TRANSPORT_TYPES[number];
+export type ResidentialPlaceType = typeof RESIDENTIAL_PLACE_TYPES[number];
+export type ResidentialElevatorStatus = typeof RESIDENTIAL_ELEVATOR_STATUSES[number];
+export type ResidentialFloorLevel = typeof RESIDENTIAL_FLOOR_LEVELS[number];
 
 
-export interface Freight {
+// Base interface with common fields
+interface BaseFreight {
   id: string;
-  userId: string; // ID of the user who posted
+  userId: string;
   
-  // Genel Bilgiler
-  companyName: string; // Firma Adı (replaces postedBy)
-  contactPerson: string; // Yetkili Kişi
-  contactEmail: string; // E-Posta (contact for the freight)
-  workPhone?: string; // İş Telefonu (optional)
-  mobilePhone: string; // Cep Telefonu
+  // Genel Bilgiler (Common to both)
+  companyName: string; 
+  contactPerson: string; 
+  contactEmail: string; 
+  workPhone?: string; 
+  mobilePhone: string; 
   
-  // Yüke Ait Bilgiler
-  cargoType: CargoType; // Yük Cinsi
-  vehicleNeeded: VehicleNeeded; // Aranılan Araç (replaces old vehicleType)
-  loadingType: LoadingType; // Yükün Yükleniş Şekli
-  cargoForm: CargoForm; // Yükün Biçimi
-  cargoWeight: number; // Yükün Tonajı
-  cargoWeightUnit: WeightUnit; // Tonaj Birimi
-  description: string; // Yükle İlgili Açıklama (replaces details)
+  // Yükleme ve Varış Bilgileri (Common to both)
+  originCountry: CountryCode | string; 
+  originCity: TurkishCity | string;    
+  originDistrict?: string;   
   
-  // Yükleme ve Varış Bilgileri
-  originCountry: CountryCode | string; // Yükleneceği Ülke (string for 'OTHER')
-  originCity: TurkishCity | string;    // Yükleneceği Şehir (string if not TR or 'OTHER' country)
-  originDistrict?: string;   // Yükleneceği İlçe (optional, string)
+  destinationCountry: CountryCode | string; 
+  destinationCity: TurkishCity | string;     
+  destinationDistrict?: string;    
   
-  destinationCountry: CountryCode | string; // Varış Ülkesi
-  destinationCity: TurkishCity | string;     // Varış Şehri
-  destinationDistrict?: string;    // Varış İlçesi (optional, string)
-  
-  loadingDate: string; // Yükleme Tarihi (ISO date string)
-  isContinuousLoad: boolean; // Sürekli (Proje) Yük
+  loadingDate: string; // YYYY-MM-DD
   
   // Meta data
-  postedAt: string; // ISO date string (when the ad was posted)
-  shipmentScope: ShipmentScope; // 'Yurt İçi' or 'Yurt Dışı', derived from countries
-  
-  // For compatibility with existing mock data structure and potential use, kept postedBy
-  // This will be set to companyName during form submission.
-  postedBy: string;
+  postedAt: string; // ISO date string
+  postedBy: string; // Usually companyName
 }
+
+// Commercial Freight specific fields
+export interface CommercialFreight extends BaseFreight {
+  freightType: 'Ticari';
+  
+  // Yüke Ait Bilgiler (Commercial)
+  cargoType: CargoType;
+  vehicleNeeded: VehicleNeeded;
+  loadingType: LoadingType;
+  cargoForm: CargoForm;
+  cargoWeight: number;
+  cargoWeightUnit: WeightUnit;
+  description: string; // Yükle İlgili Açıklama (Commercial specific)
+  
+  isContinuousLoad: boolean; // Sürekli (Proje) Yük (Commercial specific)
+  shipmentScope: ShipmentScope; // 'Yurt İçi' or 'Yurt Dışı' (Commercial specific)
+}
+
+// Residential Freight specific fields
+export interface ResidentialFreight extends BaseFreight {
+  freightType: 'Evden Eve';
+
+  // Taşımaya Ait Bilgiler (Residential)
+  residentialTransportType: ResidentialTransportType; // Taşımacılık Türü
+  residentialPlaceType: ResidentialPlaceType; // Nakliyesi Yapılacak Yer
+  residentialElevatorStatus: ResidentialElevatorStatus; // Asansör Durumu
+  residentialFloorLevel: ResidentialFloorLevel; // Eşyanın Bulunduğu Kat
+  description: string; // Taşınma ile İlgili Açıklama (Residential specific)
+}
+
+export type Freight = CommercialFreight | ResidentialFreight;
 
 export interface UserProfile {
   id: string;
-  email: string; // Auth email
-  name: string;  // User's registered name / fallback for company name if not provided
+  email: string; 
+  name: string;  
 }
+
+// Keep VehicleType for potential compatibility if old code references it, 
+// but new development should use VehicleNeeded for commercial.
+export type VehicleType = typeof VEHICLES_NEEDED[number];
