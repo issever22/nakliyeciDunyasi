@@ -1,14 +1,21 @@
+
 "use client";
 
-import type { UserProfile } from '@/types';
+import type { UserProfile, IndividualUserProfile, CompanyUserProfile } from '@/types';
 import { authService } from '@/lib/authService';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
 
+// Define more specific types for registration data
+type IndividualRegisterData = Omit<IndividualUserProfile, 'id'> & { password?: string };
+type CompanyRegisterData = Omit<CompanyUserProfile, 'id'> & { password?: string };
+export type RegisterData = IndividualRegisterData | CompanyRegisterData;
+
+
 interface AuthContextType {
   user: UserProfile | null;
   login: (email: string, pass: string) => Promise<UserProfile | null>;
-  register: (name: string, email: string, pass: string) => Promise<UserProfile | null>;
+  register: (data: RegisterData) => Promise<UserProfile | null>;
   logout: () => Promise<void>;
   loading: boolean;
   isAuthenticated: boolean;
@@ -38,9 +45,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return loggedInUser;
   }, [router]);
 
-  const register = useCallback(async (name: string, email: string, pass: string) => {
+  const register = useCallback(async (data: RegisterData) => {
     setLoading(true);
-    const registeredUser = await authService.register(name, email, pass);
+    // authService.register now expects a single object
+    const registeredUser = await authService.register(data);
     setUser(registeredUser);
     setLoading(false);
     if (registeredUser) {

@@ -41,7 +41,7 @@ export const VEHICLES_NEEDED = [
   'Minivan',
   'Oto Taşıma',
   'Panelvan',
-  'Proje Yükü',
+  'Proje Yükü', // Added based on previous request, ensuring it's here
   'Römork Tır',
   'Sal Kasa Dorse',
   'Tanker',
@@ -101,4 +101,23 @@ export const RESIDENTIAL_FLOOR_LEVELS = [
   '3’ncü Kat',
   '4’ncü Kat',
   '5’nci Kat ve Üzeri',
+] as const;
+
+// New constants for Company Registration
+export const COMPANY_TYPES = [
+  { value: 'local', label: 'Yerel Firma' },
+  { value: 'foreign', label: 'Yabancı Firma' },
+] as const;
+
+export const WORKING_METHODS = [
+  { id: 'international', label: 'Uluslararası Taşımacılık' },
+  { id: 'domestic_intercity', label: 'Yurt İçi Nakliyat (Şehirler Arası)' },
+  { id: 'city_transport', label: 'Şehir İçi Nakliyat' },
+] as const;
+
+export const WORKING_ROUTES = [
+  { id: 'road', label: 'Karayolu' },
+  { id: 'air', label: 'Havayolu' },
+  { id: 'sea', label: 'Denizyolu' },
+  { id: 'rail', label: 'Demiryolu' },
 ] as const;

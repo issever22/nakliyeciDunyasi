@@ -10,16 +10,19 @@ import type {
   RESIDENTIAL_TRANSPORT_TYPES,
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
-  RESIDENTIAL_FLOOR_LEVELS
+  RESIDENTIAL_FLOOR_LEVELS,
+  COMPANY_TYPES,
+  WORKING_METHODS,
+  WORKING_ROUTES
 } from '@/lib/constants';
 import type { CountryCode, TurkishCity } from '@/lib/locationData';
 
 export type CargoType = typeof CARGO_TYPES[number];
-export type VehicleNeeded = typeof VEHICLES_NEEDED[number]; // Used for Commercial
-export type LoadingType = typeof LOADING_TYPES[number]; // Commercial
-export type CargoForm = typeof CARGO_FORMS[number]; // Commercial
-export type WeightUnit = typeof WEIGHT_UNITS[number]; // Commercial
-export type ShipmentScope = typeof SHIPMENT_SCOPES[number]; // Commercial
+export type VehicleNeeded = typeof VEHICLES_NEEDED[number]; 
+export type LoadingType = typeof LOADING_TYPES[number]; 
+export type CargoForm = typeof CARGO_FORMS[number]; 
+export type WeightUnit = typeof WEIGHT_UNITS[number]; 
+export type ShipmentScope = typeof SHIPMENT_SCOPES[number]; 
 
 export type FreightType = typeof FREIGHT_TYPES[number];
 export type ResidentialTransportType = typeof RESIDENTIAL_TRANSPORT_TYPES[number];
@@ -27,72 +30,88 @@ export type ResidentialPlaceType = typeof RESIDENTIAL_PLACE_TYPES[number];
 export type ResidentialElevatorStatus = typeof RESIDENTIAL_ELEVATOR_STATUSES[number];
 export type ResidentialFloorLevel = typeof RESIDENTIAL_FLOOR_LEVELS[number];
 
-
-// Base interface with common fields
 interface BaseFreight {
   id: string;
   userId: string;
-  
-  // Genel Bilgiler (Common to both)
   companyName: string; 
   contactPerson: string; 
   contactEmail: string; 
   workPhone?: string; 
   mobilePhone: string; 
-  
-  // Yükleme ve Varış Bilgileri (Common to both)
   originCountry: CountryCode | string; 
   originCity: TurkishCity | string;    
   originDistrict?: string;   
-  
   destinationCountry: CountryCode | string; 
   destinationCity: TurkishCity | string;     
   destinationDistrict?: string;    
-  
-  loadingDate: string; // YYYY-MM-DD
-  
-  // Meta data
-  postedAt: string; // ISO date string
-  postedBy: string; // Usually companyName
+  loadingDate: string; 
+  postedAt: string; 
+  postedBy: string; 
 }
 
-// Commercial Freight specific fields
 export interface CommercialFreight extends BaseFreight {
   freightType: 'Ticari';
-  
-  // Yüke Ait Bilgiler (Commercial)
   cargoType: CargoType;
   vehicleNeeded: VehicleNeeded;
   loadingType: LoadingType;
   cargoForm: CargoForm;
   cargoWeight: number;
   cargoWeightUnit: WeightUnit;
-  description: string; // Yükle İlgili Açıklama (Commercial specific)
-  
-  isContinuousLoad: boolean; // Sürekli (Proje) Yük (Commercial specific)
-  shipmentScope: ShipmentScope; // 'Yurt İçi' or 'Yurt Dışı' (Commercial specific)
+  description: string; 
+  isContinuousLoad: boolean; 
+  shipmentScope: ShipmentScope; 
 }
 
-// Residential Freight specific fields
 export interface ResidentialFreight extends BaseFreight {
   freightType: 'Evden Eve';
-
-  // Taşımaya Ait Bilgiler (Residential)
-  residentialTransportType: ResidentialTransportType; // Taşımacılık Türü
-  residentialPlaceType: ResidentialPlaceType; // Nakliyesi Yapılacak Yer
-  residentialElevatorStatus: ResidentialElevatorStatus; // Asansör Durumu
-  residentialFloorLevel: ResidentialFloorLevel; // Eşyanın Bulunduğu Kat
-  description: string; // Taşınma ile İlgili Açıklama (Residential specific)
+  residentialTransportType: ResidentialTransportType; 
+  residentialPlaceType: ResidentialPlaceType; 
+  residentialElevatorStatus: ResidentialElevatorStatus; 
+  residentialFloorLevel: ResidentialFloorLevel; 
+  description: string; 
 }
 
 export type Freight = CommercialFreight | ResidentialFreight;
 
-export interface UserProfile {
+// User Profile Types
+export type UserRole = 'individual' | 'company';
+export type CompanyUserType = typeof COMPANY_TYPES[number]['value'];
+export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
+export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
+
+interface BaseUserProfile {
   id: string;
-  email: string; 
-  name: string;  
+  email: string;
+  role: UserRole;
+  name: string; // For individual: full name. For company: company title.
 }
 
-// Keep VehicleType for potential compatibility if old code references it, 
-// but new development should use VehicleNeeded for commercial.
+export interface IndividualUserProfile extends BaseUserProfile {
+  role: 'individual';
+}
+
+export interface CompanyUserProfile extends BaseUserProfile {
+  role: 'company';
+  username: string; // Company's login username
+  logoUrl?: string; // URL for the company logo
+  // name in BaseUserProfile will be companyTitle for companies
+  contactFullName: string; // Yetkili Adı Soyadı
+  workPhone?: string;
+  mobilePhone: string; // This might be company's main mobile or contact's
+  fax?: string;
+  website?: string;
+  companyDescription?: string;
+  companyType: CompanyUserType;
+  addressCity: TurkishCity | string;
+  addressDistrict?: string;
+  fullAddress: string;
+  workingMethods: WorkingMethodType[];
+  workingRoutes: WorkingRouteType[];
+  preferredCities: (TurkishCity | string)[]; // Max 5
+  preferredCountries: (CountryCode | string)[]; // Max 5
+}
+
+export type UserProfile = IndividualUserProfile | CompanyUserProfile;
+
+// Kept for potential compatibility, but new development should use VehicleNeeded
 export type VehicleType = typeof VEHICLES_NEEDED[number];
