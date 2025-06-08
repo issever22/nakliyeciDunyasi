@@ -1,12 +1,15 @@
-import type { VEHICLE_TYPES } from '@/lib/constants';
+
+import type { VEHICLE_TYPES, SHIPMENT_SCOPES } from '@/lib/constants';
 
 export type VehicleType = typeof VEHICLE_TYPES[number];
+export type ShipmentScope = typeof SHIPMENT_SCOPES[number]; // New type for shipment scope
 
 export interface Freight {
   id: string;
   origin: string;
   destination: string;
   vehicleType: VehicleType;
+  shipmentScope: ShipmentScope; // Added field for shipment scope
   details: string;
   postedAt: string; // ISO date string
   postedBy: string; // User's name or company name

@@ -2,7 +2,7 @@
 import type { Freight } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, Truck, CalendarDays, Info, User } from 'lucide-react'; // Added User icon
+import { MapPin, Truck, CalendarDays, Info, User, Globe, PackageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -14,6 +14,8 @@ interface FreightCardProps {
 export default function FreightCard({ freight }: FreightCardProps) {
   const timeAgo = formatDistanceToNow(new Date(freight.postedAt), { addSuffix: true, locale: tr });
   const loadingDate = format(new Date(freight.postedAt), 'dd.MM.yyyy', { locale: tr });
+
+  const ScopeIcon = freight.shipmentScope === 'Yurt Dışı' ? Globe : PackageIcon;
 
   return (
     <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
@@ -31,6 +33,13 @@ export default function FreightCard({ freight }: FreightCardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 space-y-3 flex-grow">
+        <div className="flex items-start gap-2 text-sm">
+          <ScopeIcon size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+          <div>
+            <span className="font-medium">Gönderi Kapsamı:</span>
+            <p>{freight.shipmentScope}</p>
+          </div>
+        </div>
         <div className="flex items-start gap-2 text-sm">
           <Truck size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
           <div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from 'react';
@@ -6,14 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VEHICLE_TYPES } from '@/lib/constants';
-import type { VehicleType, Freight } from '@/types'; // Ensure Freight is imported if used for typing submission data
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { VEHICLE_TYPES, SHIPMENT_SCOPES } from '@/lib/constants';
+import type { VehicleType, ShipmentScope, Freight } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Send, MapPin, Truck as VehicleIcon, Info } from 'lucide-react';
+import { Send, MapPin, Truck as VehicleIcon, Info, Globe, PackageIcon } from 'lucide-react';
 
 interface FreightFormProps {
-  onSubmitSuccess?: (newFreight: Freight) => void; // Callback for successful submission
+  onSubmitSuccess?: (newFreight: Freight) => void;
 }
 
 export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
@@ -22,6 +24,7 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [vehicleType, setVehicleType] = useState<VehicleType | ''>('');
+  const [shipmentScope, setShipmentScope] = useState<ShipmentScope | ''>('');
   const [details, setDetails] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,22 +38,25 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
       toast({ title: "Hata", description: "Lütfen araç tipini seçin.", variant: "destructive" });
       return;
     }
+    if (!shipmentScope) {
+      toast({ title: "Hata", description: "Lütfen gönderi kapsamını seçin.", variant: "destructive" });
+      return;
+    }
 
     setIsLoading(true);
 
-    // Mock submission
     const newFreight: Freight = {
       id: String(Date.now()),
       origin,
       destination,
-      vehicleType: vehicleType as VehicleType, // Ensure vehicleType is not empty
+      vehicleType: vehicleType as VehicleType,
+      shipmentScope: shipmentScope as ShipmentScope,
       details,
       postedAt: new Date().toISOString(),
       postedBy: user.name,
       userId: user.id,
     };
 
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     console.log("Yeni İlan:", newFreight);
@@ -59,10 +65,10 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
       description: `${origin} - ${destination} arası ilanınız yayında.`,
     });
 
-    // Reset form
     setOrigin('');
     setDestination('');
     setVehicleType('');
+    setShipmentScope('');
     setDetails('');
     setIsLoading(false);
 
@@ -90,6 +96,25 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
         </div>
       </div>
       
+      <div className="space-y-2">
+        <Label>Gönderi Kapsamı</Label>
+        <RadioGroup
+          value={shipmentScope}
+          onValueChange={(value) => setShipmentScope(value as ShipmentScope)}
+          className="flex gap-4 pt-1"
+        >
+          {SHIPMENT_SCOPES.map((scope) => (
+            <div key={scope} className="flex items-center space-x-2">
+              <RadioGroupItem value={scope} id={`scope-${scope}`} />
+              <Label htmlFor={`scope-${scope}`} className="font-normal">
+                {scope === 'Yurt İçi' ? <PackageIcon className="inline h-4 w-4 mr-1" /> : <Globe className="inline h-4 w-4 mr-1" />}
+                {scope}
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="vehicleType">Araç Tipi</Label>
         <div className="relative">

@@ -4,27 +4,29 @@
 import { useState, useEffect, useMemo } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
 import FreightFilters from '@/components/freight/FreightFilters';
-import type { Freight, VehicleType } from '@/types';
+import type { Freight, VehicleType, ShipmentScope } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import Image from 'next/image'; // Added import for next/image
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import Image from 'next/image';
 
 // Mock data - replace with API call in a real app
 const mockFreightData: Freight[] = [
-  { id: '1', origin: 'İstanbul', destination: 'Ankara', vehicleType: 'Kamyon', details: 'Ev eşyası taşınacak, acil.', postedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), postedBy: 'Ahmet Yılmaz', userId: 'user1' },
-  { id: '2', origin: 'İzmir', destination: 'Bursa', vehicleType: 'Tır', details: 'Paletli yük, 20 ton.', postedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), postedBy: 'Ayşe Demir', userId: 'user2' },
-  { id: '3', origin: 'Adana', destination: 'Mersin', vehicleType: 'Kamyonet', details: 'Küçük paketler.', postedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), postedBy: 'Taşıma A.Ş.', userId: 'user3' },
-  { id: '4', origin: 'Ankara', destination: 'İstanbul', vehicleType: 'Panelvan', details: 'Kırılacak eşya, özenli taşıma.', postedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), postedBy: 'Can Nakliyat', userId: 'user1' },
-  { id: '5', origin: 'İstanbul', destination: 'Antalya', vehicleType: 'Kamyon', details: 'Mobilya sevkiyatı.', postedAt: new Date().toISOString(), postedBy: 'Hızlı Kargo', userId: 'user2' },
+  { id: '1', origin: 'İstanbul', destination: 'Ankara', vehicleType: 'Kamyon', shipmentScope: 'Yurt İçi', details: 'Ev eşyası taşınacak, acil.', postedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), postedBy: 'Ahmet Yılmaz', userId: 'user1' },
+  { id: '2', origin: 'İzmir', destination: 'Bursa', vehicleType: 'Tır', shipmentScope: 'Yurt İçi', details: 'Paletli yük, 20 ton.', postedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), postedBy: 'Ayşe Demir', userId: 'user2' },
+  { id: '3', origin: 'Adana', destination: 'Mersin', vehicleType: 'Kamyonet', shipmentScope: 'Yurt İçi', details: 'Küçük paketler.', postedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), postedBy: 'Taşıma A.Ş.', userId: 'user3' },
+  { id: '4', origin: 'Ankara', destination: 'İstanbul', vehicleType: 'Panelvan', shipmentScope: 'Yurt İçi', details: 'Kırılacak eşya, özenli taşıma.', postedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), postedBy: 'Can Nakliyat', userId: 'user1' },
+  { id: '5', origin: 'İstanbul', destination: 'Antalya', vehicleType: 'Kamyon', shipmentScope: 'Yurt İçi', details: 'Mobilya sevkiyatı.', postedAt: new Date().toISOString(), postedBy: 'Hızlı Kargo', userId: 'user2' },
+  { id: '6', origin: 'Hamburg', destination: 'İstanbul', vehicleType: 'Tır', shipmentScope: 'Yurt Dışı', details: 'Komple ithalat yükü.', postedAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), postedBy: 'Global Lojistik', userId: 'user4' },
+  { id: '7', origin: 'İstanbul', destination: 'Bakü', vehicleType: 'Proje Yükü', shipmentScope: 'Yurt Dışı', details: 'Ağır sanayi ekipmanı, uzun vadeli proje.', postedAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), postedBy: 'Proje Taşımacılık A.Ş.', userId: 'user5' },
 ];
 
 export default function HomePage() {
   const [allFreights, setAllFreights] = useState<Freight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState<{ origin?: string; destination?: string; vehicleType?: VehicleType; sortBy?: string }>({});
+  const [filters, setFilters] = useState<{ origin?: string; destination?: string; vehicleType?: VehicleType; shipmentScope?: ShipmentScope; sortBy?: string }>({});
 
   useEffect(() => {
     // Simulate API call
@@ -34,7 +36,7 @@ export default function HomePage() {
     }, 1000);
   }, []);
 
-  const handleFilter = (newFilters: { origin?: string; destination?: string; vehicleType?: VehicleType; sortBy?: string }) => {
+  const handleFilter = (newFilters: { origin?: string; destination?: string; vehicleType?: VehicleType; shipmentScope?: ShipmentScope; sortBy?: string }) => {
     setFilters(newFilters);
   };
 
@@ -50,6 +52,9 @@ export default function HomePage() {
     if (filters.vehicleType) {
       freights = freights.filter(f => f.vehicleType === filters.vehicleType);
     }
+    if (filters.shipmentScope) {
+      freights = freights.filter(f => f.shipmentScope === filters.shipmentScope);
+    }
     if (filters.sortBy === 'oldest') {
       freights.sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
     } else { // Default to newest
@@ -60,13 +65,13 @@ export default function HomePage() {
 
 
   return (
-    <div className="space-y-10"> {/* Increased spacing */}
+    <div className="space-y-10">
       <section className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group">
         <Image
           src="https://placehold.co/1600x600.png"
           alt="Nakliye ve lojistik platformu arka planı"
-          layout="fill"
-          objectFit="cover"
+          fill
+          style={{objectFit:"cover"}}
           className="z-0 transition-transform duration-500 ease-in-out group-hover:scale-105"
           priority
           data-ai-hint="modern logistics"
@@ -94,7 +99,7 @@ export default function HomePage() {
         <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları</h2>
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map(i => ( // Increased skeleton count for better visual
+            {[1, 2, 3, 4, 5, 6].map(i => (
               <Card key={i} className="w-full shadow-md">
                 <CardHeader className="p-4"><Skeleton className="h-8 w-3/4 rounded" /></CardHeader>
                 <CardContent className="p-4 space-y-3">
@@ -107,7 +112,7 @@ export default function HomePage() {
             ))}
           </div>
         ) : filteredFreights.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8"> {/* Adjusted gap */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
             {filteredFreights.map((freight) => (
               <FreightCard key={freight.id} freight={freight} />
             ))}

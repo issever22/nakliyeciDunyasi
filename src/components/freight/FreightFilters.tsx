@@ -5,21 +5,22 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VEHICLE_TYPES } from '@/lib/constants';
-import type { VehicleType } from '@/types';
-import { Filter, RotateCcw, MapPin, Truck as VehicleIcon } from 'lucide-react';
+import { VEHICLE_TYPES, SHIPMENT_SCOPES } from '@/lib/constants';
+import type { VehicleType, ShipmentScope } from '@/types';
+import { Filter, RotateCcw, MapPin, Truck as VehicleIcon, Globe } from 'lucide-react';
 
 interface FreightFiltersProps {
-  onFilter: (filters: { origin?: string; destination?: string; vehicleType?: VehicleType; sortBy?: string }) => void;
+  onFilter: (filters: { origin?: string; destination?: string; vehicleType?: VehicleType; shipmentScope?: ShipmentScope; sortBy?: string }) => void;
 }
 
-// Use a unique sentinel value for the "All Vehicle Types" option
 const ALL_VEHICLE_TYPES_SENTINEL = "_ALL_VEHICLES_";
+const ALL_SHIPMENT_SCOPES_SENTINEL = "_ALL_SCOPES_";
 
 export default function FreightFilters({ onFilter }: FreightFiltersProps) {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [vehicleType, setVehicleType] = useState<VehicleType | ''>('');
+  const [shipmentScope, setShipmentScope] = useState<ShipmentScope | ''>('');
   const [sortBy, setSortBy] = useState('newest');
 
   const handleFilter = () => {
@@ -27,6 +28,7 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
       origin: origin || undefined, 
       destination: destination || undefined, 
       vehicleType: vehicleType || undefined, 
+      shipmentScope: shipmentScope || undefined,
       sortBy 
     });
   };
@@ -35,8 +37,9 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
     setOrigin('');
     setDestination('');
     setVehicleType('');
+    setShipmentScope('');
     setSortBy('newest');
-    onFilter({}); // Reset all filters
+    onFilter({});
   };
 
   return (
@@ -44,7 +47,7 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
       <h2 className="text-2xl font-semibold text-primary flex items-center gap-2">
         <Filter size={24}/> İlanları Filtrele
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
         <div>
           <label htmlFor="origin" className="block text-sm font-medium text-muted-foreground mb-1">Nereden</label>
           <div className="relative">
@@ -69,6 +72,32 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
               onChange={(e) => setDestination(e.target.value)}
               className="pl-10"
             />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="shipmentScope" className="block text-sm font-medium text-muted-foreground mb-1">Gönderi Kapsamı</label>
+          <div className="relative">
+            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Select 
+              value={shipmentScope === '' ? ALL_SHIPMENT_SCOPES_SENTINEL : shipmentScope} 
+              onValueChange={(selectedValue) => {
+                if (selectedValue === ALL_SHIPMENT_SCOPES_SENTINEL) {
+                  setShipmentScope('');
+                } else {
+                  setShipmentScope(selectedValue as ShipmentScope);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full pl-10">
+                <SelectValue placeholder="Tüm Kapsamlar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_SHIPMENT_SCOPES_SENTINEL}>Tüm Kapsamlar</SelectItem>
+                {SHIPMENT_SCOPES.map((scope) => (
+                  <SelectItem key={scope} value={scope}>{scope}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div>
@@ -121,4 +150,3 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
     </div>
   );
 }
-
