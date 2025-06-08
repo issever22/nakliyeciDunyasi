@@ -5,41 +5,42 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VEHICLE_TYPES, SHIPMENT_SCOPES } from '@/lib/constants';
-import type { VehicleType, ShipmentScope } from '@/types';
+import { VEHICLES_NEEDED, SHIPMENT_SCOPES } from '@/lib/constants'; // Updated to VEHICLES_NEEDED
+import type { VehicleNeeded, ShipmentScope } from '@/types'; // Updated to VehicleNeeded
 import { Filter, RotateCcw, MapPin, Truck as VehicleIcon, Globe } from 'lucide-react';
 
 interface FreightFiltersProps {
-  onFilter: (filters: { origin?: string; destination?: string; vehicleType?: VehicleType; shipmentScope?: ShipmentScope; sortBy?: string }) => void;
+  // Updated filter props to reflect new data structure
+  onFilter: (filters: { originCity?: string; destinationCity?: string; vehicleNeeded?: VehicleNeeded; shipmentScope?: ShipmentScope; sortBy?: string }) => void;
 }
 
-const ALL_VEHICLE_TYPES_SENTINEL = "_ALL_VEHICLES_";
+const ALL_VEHICLES_SENTINEL = "_ALL_VEHICLES_";
 const ALL_SHIPMENT_SCOPES_SENTINEL = "_ALL_SCOPES_";
 
 export default function FreightFilters({ onFilter }: FreightFiltersProps) {
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [vehicleType, setVehicleType] = useState<VehicleType | ''>('');
+  const [originCity, setOriginCity] = useState(''); // Was origin
+  const [destinationCity, setDestinationCity] = useState(''); // Was destination
+  const [vehicleNeeded, setVehicleNeeded] = useState<VehicleNeeded | ''>(''); // Was vehicleType
   const [shipmentScope, setShipmentScope] = useState<ShipmentScope | ''>('');
   const [sortBy, setSortBy] = useState('newest');
 
   const handleFilter = () => {
     onFilter({ 
-      origin: origin || undefined, 
-      destination: destination || undefined, 
-      vehicleType: vehicleType || undefined, 
+      originCity: originCity || undefined, 
+      destinationCity: destinationCity || undefined, 
+      vehicleNeeded: vehicleNeeded || undefined, 
       shipmentScope: shipmentScope || undefined,
       sortBy 
     });
   };
 
   const handleReset = () => {
-    setOrigin('');
-    setDestination('');
-    setVehicleType('');
+    setOriginCity('');
+    setDestinationCity('');
+    setVehicleNeeded('');
     setShipmentScope('');
     setSortBy('newest');
-    onFilter({});
+    onFilter({}); // Reset with empty filters, which now matches the updated types
   };
 
   return (
@@ -49,27 +50,27 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
         <div>
-          <label htmlFor="origin" className="block text-sm font-medium text-muted-foreground mb-1">Nereden</label>
+          <label htmlFor="originCity" className="block text-sm font-medium text-muted-foreground mb-1">Nereden (Şehir)</label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              id="origin" 
+              id="originCity" 
               placeholder="Örn: İstanbul" 
-              value={origin} 
-              onChange={(e) => setOrigin(e.target.value)}
+              value={originCity} 
+              onChange={(e) => setOriginCity(e.target.value)}
               className="pl-10"
             />
           </div>
         </div>
         <div>
-          <label htmlFor="destination" className="block text-sm font-medium text-muted-foreground mb-1">Nereye</label>
+          <label htmlFor="destinationCity" className="block text-sm font-medium text-muted-foreground mb-1">Nereye (Şehir)</label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              id="destination" 
+              id="destinationCity" 
               placeholder="Örn: Ankara" 
-              value={destination} 
-              onChange={(e) => setDestination(e.target.value)}
+              value={destinationCity} 
+              onChange={(e) => setDestinationCity(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -101,16 +102,16 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
           </div>
         </div>
         <div>
-          <label htmlFor="vehicleType" className="block text-sm font-medium text-muted-foreground mb-1">Araç Tipi</label>
+          <label htmlFor="vehicleNeeded" className="block text-sm font-medium text-muted-foreground mb-1">Araç Tipi</label>
           <div className="relative">
             <VehicleIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Select 
-              value={vehicleType === '' ? ALL_VEHICLE_TYPES_SENTINEL : vehicleType} 
+              value={vehicleNeeded === '' ? ALL_VEHICLES_SENTINEL : vehicleNeeded} 
               onValueChange={(selectedValue) => {
-                if (selectedValue === ALL_VEHICLE_TYPES_SENTINEL) {
-                  setVehicleType('');
+                if (selectedValue === ALL_VEHICLES_SENTINEL) {
+                  setVehicleNeeded('');
                 } else {
-                  setVehicleType(selectedValue as VehicleType);
+                  setVehicleNeeded(selectedValue as VehicleNeeded);
                 }
               }}
             >
@@ -118,8 +119,8 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
                 <SelectValue placeholder="Tüm Araç Tipleri" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL_VEHICLE_TYPES_SENTINEL}>Tüm Araç Tipleri</SelectItem>
-                {VEHICLE_TYPES.map((type) => (
+                <SelectItem value={ALL_VEHICLES_SENTINEL}>Tüm Araç Tipleri</SelectItem>
+                {VEHICLES_NEEDED.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
