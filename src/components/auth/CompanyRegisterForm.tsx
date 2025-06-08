@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type TurkishCity, type CountryCode } from '@/lib/locationData';
 import { COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import type { CompanyUserProfile, CompanyUserType, WorkingMethodType, WorkingRouteType } from '@/types';
-import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Link as LinkIconLucide, Info, MapPin, CheckSquare, Briefcase } from 'lucide-react';
+import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Info, MapPin, CheckSquare, Briefcase, Link as LinkIcon } from 'lucide-react'; // Added LinkIcon
 import Link from 'next/link';
 
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
@@ -59,7 +59,7 @@ export default function CompanyRegisterForm() {
       setAvailableDistricts([]);
     }
     setAddressDistrict('');
-  }, [addressCity]); // Initial setup for districts on addressCity change
+  }, [addressCity]);
 
   const handleAddressCityChange = (city: TurkishCity | string) => {
     setAddressCity(city);
@@ -111,7 +111,14 @@ export default function CompanyRegisterForm() {
       toast({ title: "Hata", description: "Lütfen üyelik sözleşmesini onaylayın.", variant: "destructive" });
       return;
     }
-    // Add more validations as needed
+    if (!companyType) {
+      toast({ title: "Hata", description: "Lütfen Firma Türü seçin.", variant: "destructive" });
+      return;
+    }
+    if (!username || !companyTitle || !contactFullName || !mobilePhone || !email || !addressCity || !fullAddress) {
+       toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları (*) doldurun.", variant: "destructive" });
+       return;
+    }
 
     setIsLoading(true);
     try {
@@ -120,7 +127,7 @@ export default function CompanyRegisterForm() {
         username,
         password, 
         logoUrl: logoUrl || undefined,
-        companyTitle, // This will be used as 'name' in UserProfile by authService
+        companyTitle, 
         contactFullName,
         workPhone: workPhone || undefined,
         mobilePhone,
@@ -128,7 +135,7 @@ export default function CompanyRegisterForm() {
         email,
         website: website || undefined,
         companyDescription: companyDescription || undefined,
-        companyType: companyType as CompanyUserType, // Assuming validation ensures it's set
+        companyType: companyType as CompanyUserType,
         addressCity,
         addressDistrict: addressDistrict || undefined,
         fullAddress,
@@ -147,7 +154,7 @@ export default function CompanyRegisterForm() {
       } else {
         toast({
           title: "Kayıt Başarısız",
-          description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin.",
+          description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin. E-posta adresi daha önce alınmış olabilir.",
           variant: "destructive",
         });
       }
@@ -165,142 +172,154 @@ export default function CompanyRegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Temel Bilgiler */}
-      <Card>
+      <Card className="shadow-md border">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Building size={20}/> Firma Temel Bilgileri</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-xl"><Building size={22}/> Firma Temel Bilgileri</CardTitle>
+          <CardDescription>Firma ve yetkili iletişim bilgilerinizi girin.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="company-logoUrl">Logo URL'si (Opsiyonel)</Label>
-            <div className="relative"> <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input id="company-logoUrl" placeholder="https://ornek.com/logo.png" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="pl-10"/>
+            <div className="relative">
+              <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input id="company-logoUrl" placeholder="https://ornek.com/logo.png" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="pl-10"/>
             </div>
             <p className="text-xs text-muted-foreground">Şimdilik logo için bir resim URL'si girin. Dosya yükleme özelliği eklenecektir.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="company-username">Kullanıcı Adı (*)</Label>
-              <div className="relative"> <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-username" value={username} onChange={(e) => setUsername(e.target.value)} required className="pl-10"/>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-username" value={username} onChange={(e) => setUsername(e.target.value)} required className="pl-10"/>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-companyTitle">Firma Ünvanı (*)</Label>
-              <div className="relative"> <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-companyTitle" value={companyTitle} onChange={(e) => setCompanyTitle(e.target.value)} required className="pl-10"/>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-companyTitle" value={companyTitle} onChange={(e) => setCompanyTitle(e.target.value)} required className="pl-10"/>
             </div>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="company-password">Şifre (*)</Label>
-               <div className="relative"> <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="pl-10"/>
-            </div>
+               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="pl-10"/>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-confirmPassword">Şifre Tekrar (*)</Label>
-              <div className="relative"> <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="pl-10"/>
-            </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="pl-10"/>
+              </div>
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="company-contactFullName">Yetkili Adı Soyadı (*)</Label>
-            <div className="relative"> <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input id="company-contactFullName" value={contactFullName} onChange={(e) => setContactFullName(e.target.value)} required className="pl-10"/>
-          </div>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input id="company-contactFullName" value={contactFullName} onChange={(e) => setContactFullName(e.target.value)} required className="pl-10"/>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="company-workPhone">İş Telefonu</Label>
-               <div className="relative"> <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-workPhone" value={workPhone} onChange={(e) => setWorkPhone(e.target.value)} className="pl-10"/>
-            </div>
+               <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-workPhone" placeholder="0212XXXXXXX" value={workPhone} onChange={(e) => setWorkPhone(e.target.value)} className="pl-10"/>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-mobilePhone">Cep Telefonu (*)</Label>
-               <div className="relative"> <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-mobilePhone" value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} required className="pl-10"/>
-            </div>
+               <div className="relative">
+                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-mobilePhone" placeholder="05XXXXXXXXX" value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} required className="pl-10"/>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-fax">Fax</Label>
-              <Input id="company-fax" value={fax} onChange={(e) => setFax(e.target.value)} />
+              <Input id="company-fax" placeholder="0212XXXXXXX" value={fax} onChange={(e) => setFax(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="company-email">E-Posta (*)</Label>
-               <div className="relative"> <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="pl-10"/>
-            </div>
+               <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-email" type="email" placeholder="info@firma.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="pl-10"/>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-website">Web Sitesi</Label>
-               <div className="relative"> <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-website" value={website} onChange={(e) => setWebsite(e.target.value)} className="pl-10"/>
-            </div>
+               <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-website" placeholder="www.firma.com" value={website} onChange={(e) => setWebsite(e.target.value)} className="pl-10"/>
+              </div>
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="company-companyDescription">Firma Tanıtım Yazısı</Label>
-            <Textarea id="company-companyDescription" value={companyDescription} onChange={(e) => setCompanyDescription(e.target.value)} rows={3} />
+            <Label htmlFor="company-companyDescription">Firma Tanıtım Yazısı (Opsiyonel)</Label>
+            <Textarea id="company-companyDescription" placeholder="Firmanız hakkında kısa bir tanıtım..." value={companyDescription} onChange={(e) => setCompanyDescription(e.target.value)} rows={3} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Firma Türü ve Adres Bilgileri */}
-      <Card>
+      <Card className="shadow-md border">
         <CardHeader>
-          <CardTitle  className="flex items-center gap-2"><Info size={20}/> Firma Detayları</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-xl"><Info size={22}/> Firma Detayları</CardTitle>
+          <CardDescription>Firmanızın türü ve adres bilgilerini belirtin.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Firma Türü (*)</Label>
-            <RadioGroup value={companyType} onValueChange={(value) => setCompanyType(value as CompanyUserType)} className="flex gap-4">
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <Label className="font-medium">Firma Türü (*)</Label>
+            <RadioGroup value={companyType} onValueChange={(value) => setCompanyType(value as CompanyUserType)} className="flex flex-col sm:flex-row gap-4 sm:gap-6">
               {COMPANY_TYPES.map(type => (
                 <div key={type.value} className="flex items-center space-x-2">
                   <RadioGroupItem value={type.value} id={`company-type-${type.value}`} />
-                  <Label htmlFor={`company-type-${type.value}`}>{type.label}</Label>
+                  <Label htmlFor={`company-type-${type.value}`} className="font-normal cursor-pointer">{type.label}</Label>
                 </div>
               ))}
             </RadioGroup>
           </div>
-          <CardTitle className="text-lg pt-2 flex items-center gap-2"><MapPin size={18}/> Adres Bilgileri</CardTitle>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="company-addressCity">Adres İl (*)</Label>
-              <Select value={addressCity} onValueChange={handleAddressCityChange}>
-                <SelectTrigger id="company-addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
-                <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
-              </Select>
+          <div className="border-t pt-6 space-y-4">
+             <h3 className="font-medium text-md flex items-center gap-2"><MapPin size={18}/> Adres Bilgileri</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="company-addressCity">Adres İl (*)</Label>
+                <Select value={addressCity} onValueChange={handleAddressCityChange} required>
+                  <SelectTrigger id="company-addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
+                  <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company-addressDistrict">Adres İlçe</Label>
+                <Select value={addressDistrict} onValueChange={setAddressDistrict} disabled={!availableDistricts.length}>
+                  <SelectTrigger id="company-addressDistrict"><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
+                  <SelectContent>{availableDistricts.map(district => <SelectItem key={district} value={district}>{district}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company-addressDistrict">Adres İlçe</Label>
-              <Select value={addressDistrict} onValueChange={setAddressDistrict} disabled={!availableDistricts.length}>
-                <SelectTrigger id="company-addressDistrict"><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
-                <SelectContent>{availableDistricts.map(district => <SelectItem key={district} value={district}>{district}</SelectItem>)}</SelectContent>
-              </Select>
+              <Label htmlFor="company-fullAddress">Açık Adres (*)</Label>
+              <Textarea id="company-fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={fullAddress} onChange={(e) => setFullAddress(e.target.value)} required />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="company-fullAddress">Açık Adres (*)</Label>
-            <Textarea id="company-fullAddress" value={fullAddress} onChange={(e) => setFullAddress(e.target.value)} required />
           </div>
         </CardContent>
       </Card>
 
-      {/* Çalışma Şekli ve Yolu */}
-      <Card>
+      <Card className="shadow-md border">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Briefcase size={20}/> Çalışma Alanları</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-xl"><Briefcase size={22}/> Çalışma Alanları</CardTitle>
+          <CardDescription>Firmanızın çalışma şekli ve uzmanlaştığı taşıma yolları.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <Label className="font-semibold">Çalışma Şekli (Birden fazla seçilebilir)</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 mt-2">
+            <Label className="font-medium text-md">Çalışma Şekli (Birden fazla seçilebilir)</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 mt-3">
               {WORKING_METHODS.map(method => (
                 <div key={method.id} className="flex items-center space-x-2">
                   <Checkbox 
@@ -308,14 +327,14 @@ export default function CompanyRegisterForm() {
                     checked={workingMethods.includes(method.id as WorkingMethodType)} 
                     onCheckedChange={() => handleMultiCheckboxChange(method.id, workingMethods, setWorkingMethods as React.Dispatch<React.SetStateAction<string[]>>)}
                   />
-                  <Label htmlFor={`working-method-${method.id}`} className="font-normal">{method.label}</Label>
+                  <Label htmlFor={`working-method-${method.id}`} className="font-normal cursor-pointer">{method.label}</Label>
                 </div>
               ))}
             </div>
           </div>
-          <div>
-            <Label className="font-semibold">Çalışma Yolu (Birden fazla seçilebilir)</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 mt-2">
+          <div className="border-t pt-6">
+            <Label className="font-medium text-md">Çalışma Yolu (Birden fazla seçilebilir)</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3 mt-3">
               {WORKING_ROUTES.map(route => (
                 <div key={route.id} className="flex items-center space-x-2">
                   <Checkbox 
@@ -323,7 +342,7 @@ export default function CompanyRegisterForm() {
                     checked={workingRoutes.includes(route.id as WorkingRouteType)}
                     onCheckedChange={() => handleMultiCheckboxChange(route.id, workingRoutes, setWorkingRoutes as React.Dispatch<React.SetStateAction<string[]>>)}
                   />
-                  <Label htmlFor={`working-route-${route.id}`} className="font-normal">{route.label}</Label>
+                  <Label htmlFor={`working-route-${route.id}`} className="font-normal cursor-pointer">{route.label}</Label>
                 </div>
               ))}
             </div>
@@ -331,19 +350,18 @@ export default function CompanyRegisterForm() {
         </CardContent>
       </Card>
 
-      {/* En İyi Çalıştığı İller ve Ülkeler */}
-      <Card>
+      <Card className="shadow-md border">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Globe size={20}/> Uzmanlık Alanları</CardTitle>
-          <CardDescription>En sık çalıştığınız lokasyonları belirtin (Opsiyonel, en fazla 5 adet).</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-xl"><Globe size={22}/> Uzmanlık Lokasyonları</CardTitle>
+          <CardDescription>En sık çalıştığınız il ve ülkeleri belirtin (Opsiyonel, en fazla 5 adet).</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <Label className="font-semibold mb-2 block">En İyi Çalıştığı İller (Türkiye)</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Label className="font-medium text-md mb-3 block">En İyi Çalıştığı İller (Türkiye)</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: MAX_PREFERRED_LOCATIONS }).map((_, index) => (
-              <div key={`city-${index}`} className="space-y-1">
-                <Label htmlFor={`preferred-city-${index}`} className="text-xs">Şehir {index + 1}</Label>
+              <div key={`city-${index}`} className="space-y-1.5">
+                <Label htmlFor={`preferred-city-${index}`} className="text-xs text-muted-foreground">Şehir {index + 1}</Label>
                 <Select value={preferredCities[index]} onValueChange={(val) => handlePreferredLocationChange(index, val, 'city')}>
                   <SelectTrigger id={`preferred-city-${index}`}><SelectValue placeholder="İl seçin..." /></SelectTrigger>
                   <SelectContent>
@@ -355,12 +373,12 @@ export default function CompanyRegisterForm() {
             ))}
             </div>
           </div>
-           <div>
-            <Label className="font-semibold mb-2 block">En İyi Çalıştığı Ülkeler</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+           <div className="border-t pt-6">
+            <Label className="font-medium text-md mb-3 block">En İyi Çalıştığı Ülkeler</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: MAX_PREFERRED_LOCATIONS }).map((_, index) => (
-              <div key={`country-${index}`} className="space-y-1">
-                <Label htmlFor={`preferred-country-${index}`} className="text-xs">Ülke {index + 1}</Label>
+              <div key={`country-${index}`} className="space-y-1.5">
+                <Label htmlFor={`preferred-country-${index}`} className="text-xs text-muted-foreground">Ülke {index + 1}</Label>
                 <Select value={preferredCountries[index]} onValueChange={(val) => handlePreferredLocationChange(index, val, 'country')}>
                   <SelectTrigger id={`preferred-country-${index}`}><SelectValue placeholder="Ülke seçin..." /></SelectTrigger>
                   <SelectContent>
@@ -375,19 +393,16 @@ export default function CompanyRegisterForm() {
         </CardContent>
       </Card>
 
-      {/* Sözleşme Onayı */}
-      <div className="space-y-2 flex items-start space-x-2 pt-4">
-         <Checkbox id="company-agreement" checked={agreement} onCheckedChange={(checked) => setAgreement(Boolean(checked))} className="mt-1"/>
-        <Label htmlFor="company-agreement" className="font-normal leading-snug">
-          <Link href="/uyelik-sozlesmesi" target="_blank" className="text-primary hover:underline">Üyelik Sözleşmesini</Link> Okudum ve Onaylıyorum. (*)
+      <div className="flex items-start space-x-3 p-4 border rounded-md bg-muted/30 shadow-sm">
+         <Checkbox id="company-agreement" checked={agreement} onCheckedChange={(checked) => setAgreement(Boolean(checked))} className="mt-1 flex-shrink-0"/>
+        <Label htmlFor="company-agreement" className="font-normal leading-relaxed text-sm cursor-pointer">
+          <Link href="/uyelik-sozlesmesi" target="_blank" className="text-primary hover:underline">Üyelik Sözleşmesini</Link> okudum, anladım ve tüm koşullarıyla kabul ediyorum. (*)
         </Label>
       </div>
 
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isLoading}>
-        {isLoading ? 'Firma Kaydı Yapılıyor...' : 'Firma Olarak Kayıt Ol'}
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center gap-2" disabled={isLoading}>
+        {isLoading ? 'Firma Kaydı Yapılıyor...' : <><CheckSquare size={20}/> Firma Olarak Kayıt Ol</>}
       </Button>
     </form>
   );
 }
-
-    
