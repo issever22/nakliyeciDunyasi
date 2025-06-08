@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,10 @@ import { useToast } from '@/hooks/use-toast';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type TurkishCity, type CountryCode } from '@/lib/locationData';
 import { COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import type { CompanyUserProfile, CompanyUserType, WorkingMethodType, WorkingRouteType } from '@/types';
-import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Link as LinkIcon, Info, MapPin, CheckSquare } from 'lucide-react';
+import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Link as LinkIconLucide, Info, MapPin, CheckSquare, Briefcase } from 'lucide-react';
+import Link from 'next/link';
+
+const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
 
 export default function CompanyRegisterForm() {
   const { register } = useAuth();
@@ -49,14 +52,14 @@ export default function CompanyRegisterForm() {
   
   const [agreement, setAgreement] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     if (TURKISH_CITIES.includes(addressCity as TurkishCity)) {
       setAvailableDistricts(DISTRICTS_BY_CITY_TR[addressCity as TurkishCity] || []);
     } else {
       setAvailableDistricts([]);
     }
     setAddressDistrict('');
-  }); // Initial setup for districts
+  }, [addressCity]); // Initial setup for districts on addressCity change
 
   const handleAddressCityChange = (city: TurkishCity | string) => {
     setAddressCity(city);
@@ -85,13 +88,14 @@ export default function CompanyRegisterForm() {
     value: string, 
     type: 'city' | 'country'
   ) => {
+    const actualValue = value === CLEAR_SELECTION_VALUE ? '' : value;
     if (type === 'city') {
       const newCities = [...preferredCities];
-      newCities[index] = value as TurkishCity | string;
+      newCities[index] = actualValue as TurkishCity | string;
       setPreferredCities(newCities);
     } else {
       const newCountries = [...preferredCountries];
-      newCountries[index] = value as CountryCode | string;
+      newCountries[index] = actualValue as CountryCode | string;
       setPreferredCountries(newCountries);
     }
   };
@@ -116,7 +120,7 @@ export default function CompanyRegisterForm() {
         username,
         password, 
         logoUrl: logoUrl || undefined,
-        companyTitle,
+        companyTitle, // This will be used as 'name' in UserProfile by authService
         contactFullName,
         workPhone: workPhone || undefined,
         mobilePhone,
@@ -343,7 +347,7 @@ export default function CompanyRegisterForm() {
                 <Select value={preferredCities[index]} onValueChange={(val) => handlePreferredLocationChange(index, val, 'city')}>
                   <SelectTrigger id={`preferred-city-${index}`}><SelectValue placeholder="İl seçin..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Seçimi Kaldır</SelectItem>
+                    <SelectItem value={CLEAR_SELECTION_VALUE}>Seçimi Kaldır</SelectItem>
                     {TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -360,7 +364,7 @@ export default function CompanyRegisterForm() {
                 <Select value={preferredCountries[index]} onValueChange={(val) => handlePreferredLocationChange(index, val, 'country')}>
                   <SelectTrigger id={`preferred-country-${index}`}><SelectValue placeholder="Ülke seçin..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Seçimi Kaldır</SelectItem>
+                    <SelectItem value={CLEAR_SELECTION_VALUE}>Seçimi Kaldır</SelectItem>
                     {COUNTRIES.map(country => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -385,3 +389,5 @@ export default function CompanyRegisterForm() {
     </form>
   );
 }
+
+    
