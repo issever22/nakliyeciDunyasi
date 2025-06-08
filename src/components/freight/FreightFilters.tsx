@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -11,6 +12,9 @@ import { Filter, RotateCcw, MapPin, Truck as VehicleIcon } from 'lucide-react';
 interface FreightFiltersProps {
   onFilter: (filters: { origin?: string; destination?: string; vehicleType?: VehicleType; sortBy?: string }) => void;
 }
+
+// Use a unique sentinel value for the "All Vehicle Types" option
+const ALL_VEHICLE_TYPES_SENTINEL = "_ALL_VEHICLES_";
 
 export default function FreightFilters({ onFilter }: FreightFiltersProps) {
   const [origin, setOrigin] = useState('');
@@ -71,12 +75,21 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
           <label htmlFor="vehicleType" className="block text-sm font-medium text-muted-foreground mb-1">Araç Tipi</label>
           <div className="relative">
             <VehicleIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Select value={vehicleType} onValueChange={(value) => setVehicleType(value as VehicleType | '')}>
+            <Select 
+              value={vehicleType === '' ? ALL_VEHICLE_TYPES_SENTINEL : vehicleType} 
+              onValueChange={(selectedValue) => {
+                if (selectedValue === ALL_VEHICLE_TYPES_SENTINEL) {
+                  setVehicleType('');
+                } else {
+                  setVehicleType(selectedValue as VehicleType);
+                }
+              }}
+            >
               <SelectTrigger className="w-full pl-10">
                 <SelectValue placeholder="Tüm Araç Tipleri" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tüm Araç Tipleri</SelectItem>
+                <SelectItem value={ALL_VEHICLE_TYPES_SENTINEL}>Tüm Araç Tipleri</SelectItem>
                 {VEHICLE_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
@@ -108,3 +121,4 @@ export default function FreightFilters({ onFilter }: FreightFiltersProps) {
     </div>
   );
 }
+
