@@ -18,7 +18,7 @@ export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
 
   return (
-    <header className="bg-background/90 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg">
+    <header className="bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <AppIcon className="h-8 w-8 text-primary" data-ai-hint="truck logistics" />
