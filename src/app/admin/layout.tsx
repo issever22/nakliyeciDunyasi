@@ -1,11 +1,14 @@
 
 "use client";
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarInset } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { LogOut, LayoutDashboard, ShieldCheck, Settings, Users, Package } from 'lucide-react'; 
+import { 
+  LogOut, LayoutDashboard, ShieldCheck, Settings, Users, Package,
+  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote 
+} from 'lucide-react'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ADMIN_AUTH_KEY = 'isAdminAuthenticated';
@@ -15,6 +18,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const isSettingsRouteActive = useMemo(() => pathname.startsWith('/admin/settings'), [pathname]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsRouteActive);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -30,12 +36,26 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
   }, [isLoading, isAdminAuthenticated, pathname, router]);
 
+  useEffect(() => {
+    if (isSettingsRouteActive && !isSettingsOpen) {
+      setIsSettingsOpen(true);
+    }
+    // Opsiyonel: Ayarlar dışındaki bir sayfaya gidildiğinde menüyü kapatmak isterseniz:
+    // else if (!isSettingsRouteActive && isSettingsOpen) {
+    //   setIsSettingsOpen(false);
+    // }
+  }, [isSettingsRouteActive, isSettingsOpen]);
+
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(ADMIN_AUTH_KEY);
     }
     setIsAdminAuthenticated(false); 
     router.push('/admin/login');
+  };
+
+  const handleToggleSettings = () => {
+    setIsSettingsOpen(!isSettingsOpen);
   };
 
   if (isLoading) {
@@ -86,11 +106,68 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 <Link href="/admin/listings"><Package /> <span>İlanlar</span></Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            
+            {/* Ayarlar Menüsü Başlangıcı */}
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings')} tooltip={{content: "Ayarlar", side: "right"}}>
-                <Link href="/admin/settings"><Settings /> <span>Ayarlar</span></Link>
+              <SidebarMenuButton 
+                onClick={handleToggleSettings} 
+                isActive={isSettingsRouteActive} 
+                tooltip={{content: "Ayarlar", side: "right"}}
+                className="w-full flex justify-between items-center"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings /> <span>Ayarlar</span>
+                </div>
+                {isSettingsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </SidebarMenuButton>
             </SidebarMenuItem>
+
+            {isSettingsOpen && (
+              <>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings'} tooltip={{content: "Genel Ayarlar", side: "right"}}>
+                    <Link href="/admin/settings"><Settings size={18}/> <span className="text-sm">Genel Ayarlar</span></Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/vehicle-types'} tooltip={{content: "Araç Tipleri", side: "right"}}>
+                    <Link href="/admin/settings/vehicle-types"><Truck size={18}/> <span className="text-sm">Araç Tipleri</span></Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/auth-docs'} tooltip={{content: "Yetki Belgeleri", side: "right"}}>
+                    <Link href="/admin/settings/auth-docs"><FileText size={18}/> <span className="text-sm">Yetki Belgeleri</span></Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/memberships'} tooltip={{content: "Üyelikler", side: "right"}}>
+                    <Link href="/admin/settings/memberships"><Star size={18}/> <span className="text-sm">Üyelikler</span></Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/cargo-types'} tooltip={{content: "Yük Cinsleri", side: "right"}}>
+                    <Link href="/admin/settings/cargo-types"><Boxes size={18}/> <span className="text-sm">Yük Cinsleri</span></Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/transport-types'} tooltip={{content: "Taşımacılık Türleri", side: "right"}}>
+                    <Link href="/admin/settings/transport-types"><RouteIcon size={18}/> <span className="text-sm">Taşımacılık Türleri</span></Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/announcements'} tooltip={{content: "Duyurular", side: "right"}}>
+                    <Link href="/admin/settings/announcements"><Megaphone size={18}/> <span className="text-sm">Duyurular</span></Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/notes'} tooltip={{content: "Notlar", side: "right"}}>
+                    <Link href="/admin/settings/notes"><StickyNote size={18}/> <span className="text-sm">Notlar</span></Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
+            {/* Ayarlar Menüsü Sonu */}
+
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
