@@ -43,8 +43,8 @@ const mockFreightData: Freight[] = [
 
 const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => {
   const base = {
-    id: `new-${Date.now()}`, // Temporary ID for new items
-    userId: 'admin-user', // Placeholder
+    id: `new-${Date.now()}`, 
+    userId: 'admin-user', 
     companyName: '',
     contactPerson: '',
     contactEmail: '',
@@ -76,7 +76,7 @@ const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => 
       isContinuousLoad: false,
       shipmentScope: 'Yurt İçi' as ShipmentScope,
     };
-  } else { // Evden Eve
+  } else { 
     return {
       ...base,
       freightType: 'Evden Eve',
@@ -109,7 +109,6 @@ export default function AdminListingsPage() {
       };
       setCurrentFormData(formDataToSet);
       
-      // Set districts for editing listing
       if (editingListing.originCountry === 'TR' && TURKISH_CITIES.includes(editingListing.originCity as TurkishCity)) {
         setAvailableOriginDistricts(DISTRICTS_BY_CITY_TR[editingListing.originCity as TurkishCity] || []);
       } else {
@@ -122,50 +121,56 @@ export default function AdminListingsPage() {
       }
 
     } else {
-      setCurrentFormData(createEmptyFormData('Ticari')); // Default to Ticari for new
+      setCurrentFormData(createEmptyFormData('Ticari')); 
       setAvailableOriginDistricts([]);
       setAvailableDestinationDistricts([]);
     }
   }, [editingListing, isAddEditDialogOpen]);
 
  useEffect(() => {
+    let newDistricts: readonly string[] = [];
     if (currentFormData.originCountry === 'TR' && TURKISH_CITIES.includes(currentFormData.originCity as TurkishCity)) {
-      setAvailableOriginDistricts(DISTRICTS_BY_CITY_TR[currentFormData.originCity as TurkishCity] || []);
-    } else {
-      setAvailableOriginDistricts([]);
+      newDistricts = DISTRICTS_BY_CITY_TR[currentFormData.originCity as TurkishCity] || [];
     }
-    if (!availableOriginDistricts.includes(currentFormData.originDistrict || '')) {
-        setCurrentFormData(prev => ({...prev, originDistrict: ''}));
+    setAvailableOriginDistricts(newDistricts);
+
+    if (currentFormData.originDistrict && !newDistricts.includes(currentFormData.originDistrict)) {
+        setCurrentFormData(prev => {
+            if (prev.originDistrict === '') return prev; 
+            return {...prev, originDistrict: ''};
+        });
     }
-  }, [currentFormData.originCity, currentFormData.originCountry, availableOriginDistricts]);
+  }, [currentFormData.originCity, currentFormData.originCountry, currentFormData.originDistrict]);
 
   useEffect(() => {
+    let newDistricts: readonly string[] = [];
     if (currentFormData.destinationCountry === 'TR' && TURKISH_CITIES.includes(currentFormData.destinationCity as TurkishCity)) {
-      setAvailableDestinationDistricts(DISTRICTS_BY_CITY_TR[currentFormData.destinationCity as TurkishCity] || []);
-    } else {
-      setAvailableDestinationDistricts([]);
+      newDistricts = DISTRICTS_BY_CITY_TR[currentFormData.destinationCity as TurkishCity] || [];
     }
-     if (!availableDestinationDistricts.includes(currentFormData.destinationDistrict || '')) {
-        setCurrentFormData(prev => ({...prev, destinationDistrict: ''}));
+    setAvailableDestinationDistricts(newDistricts);
+
+     if (currentFormData.destinationDistrict && !newDistricts.includes(currentFormData.destinationDistrict)) {
+        setCurrentFormData(prev => {
+            if (prev.destinationDistrict === '') return prev;
+            return {...prev, destinationDistrict: ''};
+        });
     }
-  }, [currentFormData.destinationCity, currentFormData.destinationCountry, availableDestinationDistricts]);
+  }, [currentFormData.destinationCity, currentFormData.destinationCountry, currentFormData.destinationDistrict]);
 
 
   const handleAddNew = () => {
     setEditingListing(null);
-    setCurrentFormData(createEmptyFormData('Ticari')); // Start with Ticari as default
+    setCurrentFormData(createEmptyFormData('Ticari')); 
     setIsAddEditDialogOpen(true);
   };
 
   const handleEdit = (listing: Freight) => {
     setEditingListing(listing);
-    // useEffect will set currentFormData
     setIsAddEditDialogOpen(true);
   };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Basic validation (can be expanded with Zod later)
     if (!currentFormData.freightType || !currentFormData.companyName || !currentFormData.contactPerson || !currentFormData.mobilePhone || !currentFormData.originCity || !currentFormData.destinationCity || !currentFormData.loadingDate) {
       toast({ title: "Hata", description: "Lütfen tüm zorunlu alanları doldurun.", variant: "destructive" });
       return;
@@ -175,14 +180,14 @@ export default function AdminListingsPage() {
 
     if (currentFormData.freightType === 'Ticari') {
       finalListingData = {
-        ...createEmptyFormData('Ticari'), // Ensures all fields are present
+        ...createEmptyFormData('Ticari'), 
         ...currentFormData,
         id: editingListing ? editingListing.id : `com-${Date.now()}`,
         shipmentScope: (currentFormData.originCountry === 'TR' && currentFormData.destinationCountry === 'TR') ? 'Yurt İçi' : 'Yurt Dışı',
       } as CommercialFreight;
-    } else { // Evden Eve
+    } else { 
       finalListingData = {
-        ...createEmptyFormData('Evden Eve'), // Ensures all fields are present
+        ...createEmptyFormData('Evden Eve'), 
         ...currentFormData,
         id: editingListing ? editingListing.id : `res-${Date.now()}`,
       } as ResidentialFreight;
@@ -230,7 +235,7 @@ export default function AdminListingsPage() {
     return <Input id={`com-${type}CityOther`} placeholder="Şehir (Elle Giriş)" value={city as string || ''} onChange={(e) => setCity(e.target.value)} />;
   };
 
-  const renderDistrictInput = (country: CountryCode | string | undefined, city: string | TurkishCity | undefined, district: string | undefined, setDistrict: (district: string) => void, availableDistricts: readonly string[], type: 'origin' | 'destination') => {
+  const renderDistrictInput = (country: CountryCode | string | undefined, city: string | TurkishCity | undefined, district: string | undefined, setDistrict: (district: string) => void, availableDistrictsForInput: readonly string[], type: 'origin' | 'destination') => {
     if (country === 'TR' && city && TURKISH_CITIES.includes(city as TurkishCity)) {
         const districtsForCity = DISTRICTS_BY_CITY_TR[city as TurkishCity] || [];
         if (districtsForCity.length > 0) {
@@ -248,8 +253,7 @@ export default function AdminListingsPage() {
   
   const handleFreightTypeChange = (newType: FreightType) => {
     setCurrentFormData(prev => ({
-      ...createEmptyFormData(newType), // Reset to defaults for the new type
-      // Preserve common fields if they were already entered
+      ...createEmptyFormData(newType), 
       companyName: prev.companyName,
       contactPerson: prev.contactPerson,
       contactEmail: prev.contactEmail,
@@ -257,13 +261,12 @@ export default function AdminListingsPage() {
       mobilePhone: prev.mobilePhone,
       isActive: prev.isActive,
       description: prev.description,
-      // Keep location if they are generic enough, or reset them too
       originCountry: prev.originCountry,
       originCity: prev.originCity,
       destinationCountry: prev.destinationCountry,
       destinationCity: prev.destinationCity,
       loadingDate: prev.loadingDate,
-      freightType: newType, // Ensure the new type is set
+      freightType: newType, 
     }));
   };
 
@@ -366,7 +369,7 @@ export default function AdminListingsPage() {
 
       <Dialog open={isAddEditDialogOpen} onOpenChange={(isOpen) => {
           setIsAddEditDialogOpen(isOpen);
-          if (!isOpen) setEditingListing(null); // Reset editing state when dialog closes
+          if (!isOpen) setEditingListing(null); 
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <form onSubmit={handleSubmit}>
@@ -383,7 +386,7 @@ export default function AdminListingsPage() {
                 <Select 
                     value={currentFormData.freightType || 'Ticari'} 
                     onValueChange={(value) => handleFreightTypeChange(value as FreightType)}
-                    disabled={!!editingListing} // Disable if editing
+                    disabled={!!editingListing} 
                 >
                   <SelectTrigger id="listingFreightType"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -392,7 +395,6 @@ export default function AdminListingsPage() {
                 </Select>
               </div>
 
-              {/* Genel Bilgiler */}
               <Card>
                 <CardHeader><CardTitle className="text-base">Genel İlan Bilgileri</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -423,7 +425,6 @@ export default function AdminListingsPage() {
                 </CardContent>
               </Card>
 
-              {/* İlan Tipine Özel Alanlar */}
               {currentFormData.freightType === 'Ticari' && (
                 <Card>
                     <CardHeader><CardTitle className="text-base">Ticari Yük Detayları</CardTitle></CardHeader>
@@ -518,7 +519,6 @@ export default function AdminListingsPage() {
                 </Card>
               )}
               
-              {/* Konum ve Tarih Bilgileri */}
                <Card>
                 <CardHeader><CardTitle className="text-base">Konum ve Tarih Bilgileri</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -605,7 +605,7 @@ export default function AdminListingsPage() {
 
 const initialListings: Freight[] = mockFreightData.map((listing, index) => ({
   ...listing,
-  id: listing.id || `listing-${index}-${Date.now()}`, // Ensure unique ID
-  isActive: listing.isActive === undefined ? true : listing.isActive, // Default to active
+  id: listing.id || `listing-${index}-${Date.now()}`, 
+  isActive: listing.isActive === undefined ? true : listing.isActive, 
 }));
 
