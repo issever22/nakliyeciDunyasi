@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -20,7 +21,7 @@ export default function AdminRootPage() {
 
   return (
     <div className="flex justify-center items-center h-screen bg-background">
-      <p className="text-foreground">Loading Admin Area...</p>
+      <p className="text-foreground">Yönetici Alanı Yükleniyor...</p>
     </div>
   );
 }

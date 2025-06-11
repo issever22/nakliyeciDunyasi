@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
 
 const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = '123'; // IMPORTANT: For testing only. NOT FOR PRODUCTION.
+const ADMIN_PASSWORD = '123'; 
 const ADMIN_AUTH_KEY = 'isAdminAuthenticated';
 
 export default function AdminLoginForm() {
@@ -24,17 +25,15 @@ export default function AdminLoginForm() {
     event.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
     setTimeout(() => {
       if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
         if (typeof window !== 'undefined') {
           localStorage.setItem(ADMIN_AUTH_KEY, 'true');
         }
-        toast({ title: "Login Successful", description: "Redirecting to dashboard..." });
+        toast({ title: "Giriş Başarılı", description: "Panele yönlendiriliyorsunuz..." });
         router.push('/admin/dashboard');
-        // router.refresh(); // Force re-evaluation of layout auth checks
       } else {
-        toast({ title: "Login Failed", description: "Invalid username or password.", variant: "destructive" });
+        toast({ title: "Giriş Başarısız", description: "Geçersiz kullanıcı adı veya şifre.", variant: "destructive" });
         setIsLoading(false);
       }
     }, 500);
@@ -43,13 +42,13 @@ export default function AdminLoginForm() {
   return (
     <Card className="w-full max-w-sm shadow-xl border">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-primary">Admin Panel Login</CardTitle>
-        <CardDescription>Enter your credentials to access the admin area.</CardDescription>
+        <CardTitle className="text-2xl font-bold text-primary">Admin Panel Girişi</CardTitle>
+        <CardDescription>Yönetici alanına erişmek için bilgilerinizi girin.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">Kullanıcı Adı</Label>
             <Input
               id="username"
               type="text"
@@ -61,7 +60,7 @@ export default function AdminLoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Şifre</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -78,7 +77,7 @@ export default function AdminLoginForm() {
                 size="sm"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </Button>
@@ -87,7 +86,7 @@ export default function AdminLoginForm() {
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
-            {isLoading ? 'Logging in...' : 'Login'}
+            {isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
           </Button>
         </CardFooter>
       </form>
