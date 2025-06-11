@@ -84,8 +84,8 @@ interface BaseUserProfile {
   email: string;
   role: UserRole;
   name: string; // For individual: full name. For company: company title.
-  isActive?: boolean; // Added for admin management
-  createdAt?: Date; // Added for admin management
+  isActive?: boolean; 
+  createdAt?: Date; 
 }
 
 export interface IndividualUserProfile extends BaseUserProfile {
@@ -94,12 +94,11 @@ export interface IndividualUserProfile extends BaseUserProfile {
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
-  username: string; // Company's login username
-  logoUrl?: string; // URL for the company logo
-  // name in BaseUserProfile will be companyTitle for companies
-  contactFullName: string; // Yetkili Adı Soyadı
+  username: string; 
+  logoUrl?: string; 
+  contactFullName: string; 
   workPhone?: string;
-  mobilePhone: string; // This might be company's main mobile or contact's
+  mobilePhone: string; 
   fax?: string;
   website?: string;
   companyDescription?: string;
@@ -109,17 +108,16 @@ export interface CompanyUserProfile extends BaseUserProfile {
   fullAddress: string;
   workingMethods: WorkingMethodType[];
   workingRoutes: WorkingRouteType[];
-  preferredCities: (TurkishCity | string)[]; // Max 5
-  preferredCountries: (CountryCode | string)[]; // Max 5
-  membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string; // Added for admin page
+  preferredCities: (TurkishCity | string)[]; 
+  preferredCountries: (CountryCode | string)[]; 
+  membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string; 
+  membershipEndDate?: Date; // Added for remaining membership days
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
 
-// Kept for potential compatibility, but new development should use VehicleNeeded
 export type VehicleType = typeof VEHICLES_NEEDED[number];
 
-// Sponsor Type
 export type SponsorEntityType = 'country' | 'city';
 
 export interface Sponsor {
@@ -128,7 +126,7 @@ export interface Sponsor {
   logoUrl?: string;
   linkUrl?: string; 
   entityType: SponsorEntityType; 
-  entityName: string; // Country name/code or City name
+  entityName: string; 
   startDate: Date;
   endDate?: Date;
   isActive: boolean;
