@@ -40,10 +40,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     if (isSettingsRouteActive && !isSettingsOpen) {
       setIsSettingsOpen(true);
     }
-    // Opsiyonel: Ayarlar dışındaki bir sayfaya gidildiğinde menüyü kapatmak isterseniz:
-    // else if (!isSettingsRouteActive && isSettingsOpen) {
-    //   setIsSettingsOpen(false);
-    // }
   }, [isSettingsRouteActive, isSettingsOpen]);
 
   const handleLogout = () => {
@@ -71,10 +67,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   if (pathname === '/admin/login') {
-    return <>{children}</>;
+    // For the login page, we don't want the admin layout, just the children
+    return <div className="min-h-screen">{children}</div>;
   }
   
   if (!isAdminAuthenticated) {
+     // If not authenticated and not on login page, don't render anything until redirect happens
      return null; 
   }
 
@@ -112,7 +110,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </SidebarMenuButton>
             </SidebarMenuItem>
             
-            {/* Ayarlar Menüsü Başlangıcı */}
             <SidebarMenuItem>
               <SidebarMenuButton 
                 onClick={handleToggleSettings} 
@@ -171,8 +168,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 </SidebarMenuItem>
               </>
             )}
-            {/* Ayarlar Menüsü Sonu */}
-
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
@@ -186,13 +181,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        {/* Mobile Header */}
+        {/* Mobile Header for Admin Panel */}
         <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 md:hidden">
             <SidebarTrigger className="md:hidden" /> 
              <Link href="/admin/dashboard" className="font-bold text-lg text-primary flex items-center gap-2">
               <ShieldCheck size={22} /> Yönetici
             </Link>
         </header>
+        {/* Main content area for admin pages */}
         <main className="flex-1 p-4 sm:px-6 sm:py-0 md:p-6 lg:p-8 bg-muted/30 min-h-[calc(100vh-theme(spacing.16))]">
           {children}
         </main>
