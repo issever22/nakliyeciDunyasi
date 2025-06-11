@@ -54,8 +54,8 @@ export default function AnnouncementsPage() {
         title: editingAnnouncement.title,
         content: editingAnnouncement.content,
         targetAudience: editingAnnouncement.targetAudience,
-        startDate: editingAnnouncement.startDate ? parseISO(editingAnnouncement.startDate as unknown as string) : undefined, // Handle potential string dates from mock
-        endDate: editingAnnouncement.endDate ? parseISO(editingAnnouncement.endDate as unknown as string) : undefined, // Handle potential string dates from mock
+        startDate: editingAnnouncement.startDate, // Directly use Date object or undefined
+        endDate: editingAnnouncement.endDate,     // Directly use Date object or undefined
         isActive: editingAnnouncement.isActive,
       });
     } else {
@@ -291,3 +291,4 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
+
