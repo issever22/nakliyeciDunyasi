@@ -18,7 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PlusCircle, Edit, Trash2, Search, Award, CalendarIcon, Link as LinkIcon, Globe, MapPin } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns"; // Removed parseISO as it's not needed for direct Date obj
 import { tr } from 'date-fns/locale';
 import type { Sponsor, SponsorEntityType } from '@/types';
 import { COUNTRIES, TURKISH_CITIES, type CountryCode, type TurkishCity } from '@/lib/locationData';
@@ -59,8 +59,8 @@ export default function SponsorsPage() {
         entityType: editingSponsor.entityType,
         selectedCountry: editingSponsor.entityType === 'country' ? editingSponsor.entityName as CountryCode : 'TR',
         selectedCity: editingSponsor.entityType === 'city' ? editingSponsor.entityName as TurkishCity : '',
-        startDate: editingSponsor.startDate ? parseISO(editingSponsor.startDate as unknown as string) : undefined,
-        endDate: editingSponsor.endDate ? parseISO(editingSponsor.endDate as unknown as string) : undefined,
+        startDate: editingSponsor.startDate, // Directly use Date object or undefined
+        endDate: editingSponsor.endDate,     // Directly use Date object or undefined
         isActive: editingSponsor.isActive,
       });
     } else {
@@ -109,8 +109,8 @@ export default function SponsorsPage() {
       linkUrl: currentFormData.linkUrl || undefined,
       entityType: currentFormData.entityType,
       entityName: entityName,
-      startDate: currentFormData.startDate!,
-      endDate: currentFormData.endDate,
+      startDate: currentFormData.startDate!, // startDate is now definitely a Date object or form validation would fail
+      endDate: currentFormData.endDate,       // endDate is Date object or undefined
       isActive: currentFormData.isActive,
       createdAt: editingSponsor ? editingSponsor.createdAt : new Date(),
     };
@@ -357,3 +357,6 @@ export default function SponsorsPage() {
     </div>
   );
 }
+
+
+    
