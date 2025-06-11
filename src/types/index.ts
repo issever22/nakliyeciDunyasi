@@ -84,6 +84,8 @@ interface BaseUserProfile {
   email: string;
   role: UserRole;
   name: string; // For individual: full name. For company: company title.
+  isActive?: boolean; // Added for admin management
+  createdAt?: Date; // Added for admin management
 }
 
 export interface IndividualUserProfile extends BaseUserProfile {
@@ -109,6 +111,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[]; // Max 5
   preferredCountries: (CountryCode | string)[]; // Max 5
+  membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string; // Added for admin page
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
