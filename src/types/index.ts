@@ -115,3 +115,19 @@ export type UserProfile = IndividualUserProfile | CompanyUserProfile;
 
 // Kept for potential compatibility, but new development should use VehicleNeeded
 export type VehicleType = typeof VEHICLES_NEEDED[number];
+
+// Sponsor Type
+export type SponsorEntityType = 'country' | 'city';
+
+export interface Sponsor {
+  id: string;
+  name: string; 
+  logoUrl?: string;
+  linkUrl?: string; 
+  entityType: SponsorEntityType; 
+  entityName: string; // Country name/code or City name
+  startDate: Date;
+  endDate?: Date;
+  isActive: boolean;
+  createdAt: Date;
+}
