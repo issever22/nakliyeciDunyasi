@@ -1,0 +1,284 @@
+
+"use client";
+
+import { useState, useEffect, type FormEvent } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PlusCircle, Edit, Trash2, Search, Star, BadgeDollarSign } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+
+type DurationUnit = 'Gün' | 'Ay' | 'Yıl';
+
+interface Membership {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  durationUnit: DurationUnit;
+  features: string[];
+  isActive: boolean;
+  description?: string;
+}
+
+const initialMemberships: Membership[] = [
+  { id: 'mem1', name: 'Standart Üyelik', price: 49, duration: 1, durationUnit: 'Ay', features: ['Sınırlı İlan Listeleme', 'Temel Profil'], isActive: true, description: 'Yeni başlayanlar için uygun fiyatlı paket.' },
+  { id: 'mem2', name: 'Premium Üyelik', price: 99, duration: 1, durationUnit: 'Ay', features: ['Sınırsız İlan Listeleme', 'Öne Çıkan Profil', 'Detaylı Raporlama'], isActive: true, description: 'Profesyoneller için kapsamlı özellikler.' },
+  { id: 'mem3', name: 'Yıllık Gold', price: 999, duration: 1, durationUnit: 'Yıl', features: ['Tüm Premium Özellikler', 'Özel Destek Hattı', 'Reklamsız Deneyim'], isActive: false, description: 'Uzun vadeli ve en avantajlı üyelik.' },
+];
+
+export default function MembershipsPage() {
+  const { toast } = useToast();
+  const [memberships, setMemberships] = useState<Membership[]>(initialMemberships);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
+  const [editingMembership, setEditingMembership] = useState<Membership | null>(null);
+  
+  const [currentFormData, setCurrentFormData] = useState<{ name: string; price: string; duration: string; durationUnit: DurationUnit; features: string; isActive: boolean; description: string }>({ name: '', price: '', duration: '', durationUnit: 'Ay', features: '', isActive: true, description: '' });
+
+  useEffect(() => {
+    if (editingMembership) {
+      setCurrentFormData({
+        name: editingMembership.name,
+        price: String(editingMembership.price),
+        duration: String(editingMembership.duration),
+        durationUnit: editingMembership.durationUnit,
+        features: editingMembership.features.join('\n'),
+        isActive: editingMembership.isActive,
+        description: editingMembership.description || '',
+      });
+    } else {
+      setCurrentFormData({ name: '', price: '', duration: '', durationUnit: 'Ay', features: '', isActive: true, description: '' });
+    }
+  }, [editingMembership, isAddEditDialogOpen]);
+
+  const handleAddNew = () => {
+    setEditingMembership(null);
+    setIsAddEditDialogOpen(true);
+  };
+
+  const handleEdit = (membership: Membership) => {
+    setEditingMembership(membership);
+    setIsAddEditDialogOpen(true);
+  };
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const priceNum = parseFloat(currentFormData.price);
+    const durationNum = parseInt(currentFormData.duration, 10);
+
+    if (!currentFormData.name.trim()) {
+        toast({ title: "Hata", description: "Üyelik adı boş bırakılamaz.", variant: "destructive" });
+        return;
+    }
+    if (isNaN(priceNum) || priceNum < 0) {
+      toast({ title: "Hata", description: "Geçerli bir fiyat girin.", variant: "destructive" });
+      return;
+    }
+    if (isNaN(durationNum) || durationNum <= 0) {
+      toast({ title: "Hata", description: "Geçerli bir süre girin.", variant: "destructive" });
+      return;
+    }
+
+    const featuresArray = currentFormData.features.split('\n').map(f => f.trim()).filter(f => f);
+
+    const membershipData = {
+      name: currentFormData.name,
+      price: priceNum,
+      duration: durationNum,
+      durationUnit: currentFormData.durationUnit,
+      features: featuresArray,
+      isActive: currentFormData.isActive,
+      description: currentFormData.description,
+    };
+
+    if (editingMembership) {
+      setMemberships(memberships.map(mem => mem.id === editingMembership.id ? { ...editingMembership, ...membershipData } : mem));
+      toast({ title: "Başarılı", description: "Üyelik paketi güncellendi." });
+    } else {
+      const newMembership: Membership = { 
+        id: `mem${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
+        ...membershipData 
+      };
+      setMemberships([newMembership, ...memberships]);
+      toast({ title: "Başarılı", description: "Yeni üyelik paketi eklendi." });
+    }
+    setIsAddEditDialogOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    setMemberships(memberships.filter(mem => mem.id !== id));
+    toast({ title: "Başarılı", description: "Üyelik paketi silindi.", variant: "destructive" });
+  };
+
+  const filteredMemberships = memberships.filter(mem => 
+    mem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (mem.description && mem.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div className="space-y-6">
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center gap-2"><Star className="h-6 w-6 text-primary" /> Üyelik Paketleri Yönetimi</CardTitle>
+          <CardDescription>Kullanıcılar için sunulan üyelik paketlerini yönetin.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Paket ara..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 w-full"
+              />
+            </div>
+            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+              <PlusCircle className="mr-2 h-4 w-4" /> Yeni Paket Ekle
+            </Button>
+          </div>
+
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[150px]">Paket Adı</TableHead>
+                  <TableHead className="w-[100px]">Fiyat</TableHead>
+                  <TableHead className="w-[120px]">Süre</TableHead>
+                  <TableHead className="min-w-[200px]">Özellikler</TableHead>
+                  <TableHead className="w-[100px] text-center">Aktif</TableHead>
+                  <TableHead className="w-[120px] text-right">Eylemler</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMemberships.length > 0 ? filteredMemberships.map((mem) => (
+                  <TableRow key={mem.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">{mem.name}</TableCell>
+                    <TableCell>{mem.price} TL</TableCell>
+                    <TableCell>{mem.duration} {mem.durationUnit}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <ul className="list-disc list-inside">
+                        {mem.features.slice(0,3).map((feature, i) => <li key={i}>{feature}</li>)}
+                        {mem.features.length > 3 && <li>...ve daha fazlası</li>}
+                      </ul>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={mem.isActive ? "default" : "outline"} className={mem.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-red-500/10 text-red-700 border-red-400"}>
+                        {mem.isActive ? 'Evet' : 'Hayır'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(mem)} title="Düzenle" className="hover:bg-accent">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" title="Sil" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                "{mem.name}" adlı üyelik paketini silmek üzeresiniz. Bu işlem geri alınamaz.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>İptal</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(mem.id)} className="bg-destructive hover:bg-destructive/90">
+                                Sil
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Kayıtlı üyelik paketi bulunamadı.'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isAddEditDialogOpen} onOpenChange={(isOpen) => {
+          setIsAddEditDialogOpen(isOpen);
+          if (!isOpen) setEditingMembership(null);
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>{editingMembership ? 'Üyelik Paketini Düzenle' : 'Yeni Üyelik Paketi Ekle'}</DialogTitle>
+               <DialogDescription>
+                 {editingMembership ? `"${editingMembership.name}" paketinin bilgilerini güncelleyin.` : 'Yeni bir üyelik paketi için gerekli bilgileri girin.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-6">
+              <div className="space-y-1.5">
+                <Label htmlFor="memName" className="font-medium">Paket Adı (*)</Label>
+                <Input id="memName" value={currentFormData.name} onChange={(e) => setCurrentFormData({...currentFormData, name: e.target.value})} placeholder="Örn: Premium Üyelik" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5 sm:col-span-1">
+                  <Label htmlFor="memPrice" className="font-medium">Fiyat (TL) (*)</Label>
+                  <Input id="memPrice" type="number" value={currentFormData.price} onChange={(e) => setCurrentFormData({...currentFormData, price: e.target.value})} placeholder="Örn: 99" />
+                </div>
+                <div className="space-y-1.5 sm:col-span-1">
+                  <Label htmlFor="memDuration" className="font-medium">Süre (*)</Label>
+                  <Input id="memDuration" type="number" value={currentFormData.duration} onChange={(e) => setCurrentFormData({...currentFormData, duration: e.target.value})} placeholder="Örn: 1" />
+                </div>
+                <div className="space-y-1.5 sm:col-span-1">
+                  <Label htmlFor="memDurationUnit" className="font-medium">Süre Birimi (*)</Label>
+                  <Select value={currentFormData.durationUnit} onValueChange={(value: DurationUnit) => setCurrentFormData({...currentFormData, durationUnit: value})}>
+                    <SelectTrigger id="memDurationUnit"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Gün">Gün</SelectItem>
+                      <SelectItem value="Ay">Ay</SelectItem>
+                      <SelectItem value="Yıl">Yıl</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+               <div className="space-y-1.5">
+                <Label htmlFor="memDesc" className="font-medium">Açıklama</Label>
+                <Textarea id="memDesc" value={currentFormData.description} onChange={(e) => setCurrentFormData({...currentFormData, description: e.target.value})} placeholder="Paket hakkında kısa bir açıklama" rows={2}/>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="memFeatures" className="font-medium">Özellikler (Her satıra bir özellik)</Label>
+                <Textarea id="memFeatures" value={currentFormData.features} onChange={(e) => setCurrentFormData({...currentFormData, features: e.target.value})} placeholder="Sınırsız ilan verme&#10;Öne çıkan ilanlar&#10;7/24 Destek" rows={4}/>
+              </div>
+              <div className="flex items-center space-x-2 pt-2">
+                 <Switch id="memIsActive" checked={currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData({...currentFormData, isActive: checked})} />
+                <Label htmlFor="memIsActive" className="font-medium cursor-pointer">Aktif mi?</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">İptal</Button>
+              </DialogClose>
+              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingMembership ? 'Değişiklikleri Kaydet' : 'Paket Ekle'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
