@@ -36,7 +36,7 @@ interface Announcement {
 const initialAnnouncements: Announcement[] = [
   { id: 'an1', title: 'Yeni Yıl Kampanyası!', content: 'Tüm premium üyeliklerde %20 indirim başladı.', targetAudience: 'Tümü', startDate: new Date(2024, 11, 20), endDate: new Date(2025, 0, 5), isActive: true, createdAt: new Date(2024, 11, 15) },
   { id: 'an2', title: 'Mobil Uygulama Güncellemesi', content: 'Mobil uygulamamız yeni özelliklerle güncellendi. Hemen indirin!', targetAudience: 'Tümü', isActive: true, createdAt: new Date(2024, 10, 1) },
-  { id: 'an3', name: 'Firma Doğrulama Sistemi', content: 'Firma hesapları için yeni doğrulama adımları eklendi.', targetAudience: 'Firma Kullanıcıları', startDate: new Date(2025,0,10), isActive: false, createdAt: new Date(2024, 11, 28) },
+  { id: 'an3', title: 'Firma Doğrulama Sistemi', content: 'Firma hesapları için yeni doğrulama adımları eklendi.', targetAudience: 'Firma Kullanıcıları', startDate: new Date(2025,0,10), isActive: false, createdAt: new Date(2024, 11, 28) },
 ];
 
 export default function AnnouncementsPage() {

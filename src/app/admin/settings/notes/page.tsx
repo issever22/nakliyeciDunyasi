@@ -33,7 +33,7 @@ interface AdminNote {
 const initialNotes: AdminNote[] = [
   { id: 'note1', title: 'Yeni Üyelik Fiyatlarını Gözden Geçir', content: 'Premium üyelik fiyatı %10 artırılabilir mi? Rakip analizi yapılacak.', category: 'Yönetici', createdDate: new Date(2024, 5, 10), lastModifiedDate: new Date(2024, 5, 12), isImportant: true },
   { id: 'note2', title: 'Filtreleme Sorunu - Mobil', content: 'Kullanıcılar mobil cihazlarda şehir filtresinin bazen çalışmadığını bildiriyor.', category: 'Kullanıcı Geri Bildirimi', createdDate: new Date(2024, 5, 15), lastModifiedDate: new Date(2024, 5, 15), isImportant: true },
-  { id: 'note3', name: 'Firestore Kuralları Güncellemesi', content: 'Yeni yetki belgeleri koleksiyonu için Firestore güvenlik kuralları yazılacak.', category: 'Geliştirme', createdDate: new Date(2024, 5, 18), lastModifiedDate: new Date(2024, 5, 18), isImportant: false },
+  { id: 'note3', title: 'Firestore Kuralları Güncellemesi', content: 'Yeni yetki belgeleri koleksiyonu için Firestore güvenlik kuralları yazılacak.', category: 'Geliştirme', createdDate: new Date(2024, 5, 18), lastModifiedDate: new Date(2024, 5, 18), isImportant: false },
 ];
 
 export default function AdminNotesPage() {
