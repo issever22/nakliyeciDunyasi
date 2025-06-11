@@ -2,25 +2,52 @@
 "use client";
 
 import { useState } from 'react';
-import CommercialFreightForm from '@/components/freight/FreightForm'; // Renamed for clarity
+import CommercialFreightForm from '@/components/freight/FreightForm'; 
 import ResidentialFreightForm from '@/components/freight/ResidentialFreightForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRequireAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import type { Freight, CommercialFreight, ResidentialFreight } from '@/types'; // Import all types
+import type { Freight, CommercialFreight, ResidentialFreight } from '@/types'; 
 import { Skeleton } from '@/components/ui/skeleton';
-import { Truck, Home } from 'lucide-react';
+import { Truck, Home, Loader2 } from 'lucide-react';
+import { addListing } from '@/services/listingsService'; // Firestore service
+import { useToast } from "@/hooks/use-toast";
+
 
 export default function NewFreightPage() {
   const { user, loading } = useRequireAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [selectedFreightType, setSelectedFreightType] = useState<'Ticari' | 'Evden Eve'>('Ticari');
 
-  const handleSuccessfulSubmit = (newFreight: Freight) => { // Freight can be Commercial or Residential
-    console.log("New freight posted:", newFreight);
-    // Optionally, redirect after successful submission
-    // router.push('/'); 
+  const handleSuccessfulSubmit = async (newFreightData: Omit<Freight, 'id' | 'postedAt' | 'userId' | 'postedBy'>) => {
+    if (!user) {
+        toast({ title: "Hata", description: "İlan vermek için giriş yapmalısınız.", variant: "destructive" });
+        return;
+    }
+
+    const freightToSave: Omit<Freight, 'id' | 'postedAt'> = {
+        ...newFreightData,
+        userId: user.id,
+        postedBy: newFreightData.companyName || user.name, // postedBy'ı companyName olarak ayarla, yoksa user.name
+    };
+    
+    const newListingId = await addListing(freightToSave);
+
+    if (newListingId) {
+      toast({
+        title: "İlan Başarıyla Oluşturuldu!",
+        description: `${newFreightData.originCity} - ${newFreightData.destinationCity} arası ilanınız yayında.`,
+      });
+      // Formu temizlemek veya kullanıcıyı başka bir sayfaya yönlendirmek için
+      // form bileşenlerinin kendi içlerinde reset mekanizmaları olmalı veya burada state'leri sıfırlamalıyız.
+      // Şimdilik ana sayfaya yönlendirelim.
+      router.push('/'); 
+    } else {
+      toast({ title: "Hata", description: "İlan oluşturulurken bir sorun oluştu.", variant: "destructive" });
+    }
   };
+
 
   if (loading) {
      return (
@@ -41,7 +68,11 @@ export default function NewFreightPage() {
   }
 
   if (!user) {
-    return <p>İlan vermek için giriş yapmalısınız. Yönlendiriliyorsunuz...</p>;
+    // useRequireAuth zaten yönlendirme yapacak, ama bir fallback mesajı iyi olabilir.
+    return <div className="flex justify-center items-center min-h-[calc(100vh-12rem)]">
+        <Loader2 className="mr-2 h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Giriş sayfasına yönlendiriliyorsunuz...</p>
+    </div>;
   }
 
   return (
@@ -61,10 +92,12 @@ export default function NewFreightPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="Ticari">
-          <CommercialFreightForm onSubmitSuccess={handleSuccessfulSubmit as (newFreight: CommercialFreight) => void} />
+          {/* onSubmitSuccess şimdi Omit<CommercialFreight, 'id' | 'postedAt' | 'userId' | 'postedBy'> bekliyor */}
+          <CommercialFreightForm onSubmitSuccess={handleSuccessfulSubmit as (data: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId' | 'postedBy'>) => void} />
         </TabsContent>
         <TabsContent value="Evden Eve">
-          <ResidentialFreightForm onSubmitSuccess={handleSuccessfulSubmit as (newFreight: ResidentialFreight) => void} />
+          {/* onSubmitSuccess şimdi Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId' | 'postedBy'> bekliyor */}
+          <ResidentialFreightForm onSubmitSuccess={handleSuccessfulSubmit as (data: Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId' | 'postedBy'>) => void} />
         </TabsContent>
       </Tabs>
     </div>

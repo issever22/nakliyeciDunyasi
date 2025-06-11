@@ -20,51 +20,68 @@ import {
   SHIPMENT_SCOPES
 } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
-import type { CommercialFreight, CargoType, VehicleNeeded, LoadingType, CargoForm, WeightUnit, ShipmentScope } from '@/types'; // Changed Freight to CommercialFreight
+import type { CommercialFreight, CargoType, VehicleNeeded, LoadingType, CargoForm, WeightUnit, ShipmentScope } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import { Send, Briefcase, User, Mail, Phone, Smartphone, Package, Truck, Layers, Scale, FileText, MapPin, CalendarIcon, Repeat } from 'lucide-react';
+import { Send, Briefcase, User, Mail, Phone, Smartphone, Package, Truck, Layers, Scale, FileText, MapPin, CalendarIcon, Repeat, Loader2 } from 'lucide-react';
 
 interface FreightFormProps {
-  onSubmitSuccess?: (newFreight: CommercialFreight) => void; // Changed Freight to CommercialFreight
+  onSubmitSuccess?: (newFreightData: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId' | 'postedBy'>) => void;
+  initialData?: Partial<CommercialFreight>; // For editing, not used in this context yet
 }
 
-export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
+export default function FreightForm({ onSubmitSuccess, initialData }: FreightFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
 
   // Genel Bilgiler
-  const [companyName, setCompanyName] = useState('');
-  const [contactPerson, setContactPerson] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [workPhone, setWorkPhone] = useState('');
-  const [mobilePhone, setMobilePhone] = useState('');
+  const [companyName, setCompanyName] = useState(initialData?.companyName || '');
+  const [contactPerson, setContactPerson] = useState(initialData?.contactPerson || '');
+  const [contactEmail, setContactEmail] = useState(initialData?.contactEmail || '');
+  const [workPhone, setWorkPhone] = useState(initialData?.workPhone || '');
+  const [mobilePhone, setMobilePhone] = useState(initialData?.mobilePhone || '');
 
   // Yüke Ait Bilgiler
-  const [cargoType, setCargoType] = useState<CargoType | ''>('');
-  const [vehicleNeeded, setVehicleNeeded] = useState<VehicleNeeded | ''>('');
-  const [loadingType, setLoadingType] = useState<LoadingType | ''>('');
-  const [cargoForm, setCargoForm] = useState<CargoForm | ''>('');
-  const [cargoWeight, setCargoWeight] = useState<number | ''>('');
-  const [cargoWeightUnit, setCargoWeightUnit] = useState<WeightUnit>('Ton');
-  const [description, setDescription] = useState('');
+  const [cargoType, setCargoType] = useState<CargoType | ''>(initialData?.cargoType || '');
+  const [vehicleNeeded, setVehicleNeeded] = useState<VehicleNeeded | ''>(initialData?.vehicleNeeded || '');
+  const [loadingType, setLoadingType] = useState<LoadingType | ''>(initialData?.loadingType || '');
+  const [cargoForm, setCargoForm] = useState<CargoForm | ''>(initialData?.cargoForm || '');
+  const [cargoWeight, setCargoWeight] = useState<number | ''>(initialData?.cargoWeight || '');
+  const [cargoWeightUnit, setCargoWeightUnit] = useState<WeightUnit>(initialData?.cargoWeightUnit ||'Ton');
+  const [description, setDescription] = useState(initialData?.description || '');
 
   // Yükleme ve Varış Bilgileri
-  const [originCountry, setOriginCountry] = useState<CountryCode | string>('TR');
-  const [originCity, setOriginCity] = useState<TurkishCity | string>('');
-  const [originDistrict, setOriginDistrict] = useState('');
-  const [destinationCountry, setDestinationCountry] = useState<CountryCode | string>('TR');
-  const [destinationCity, setDestinationCity] = useState<TurkishCity | string>('');
-  const [destinationDistrict, setDestinationDistrict] = useState('');
-  const [loadingDate, setLoadingDate] = useState<Date | undefined>(undefined);
-  const [isContinuousLoad, setIsContinuousLoad] = useState(false);
+  const [originCountry, setOriginCountry] = useState<CountryCode | string>(initialData?.originCountry || 'TR');
+  const [originCity, setOriginCity] = useState<TurkishCity | string>(initialData?.originCity || '');
+  const [originDistrict, setOriginDistrict] = useState(initialData?.originDistrict || '');
+  const [destinationCountry, setDestinationCountry] = useState<CountryCode | string>(initialData?.destinationCountry || 'TR');
+  const [destinationCity, setDestinationCity] = useState<TurkishCity | string>(initialData?.destinationCity || '');
+  const [destinationDistrict, setDestinationDistrict] = useState(initialData?.destinationDistrict || '');
   
-  const [isLoading, setIsLoading] = useState(false);
+  const initialLoadingDate = initialData?.loadingDate && isValid(parseISO(initialData.loadingDate)) ? parseISO(initialData.loadingDate) : undefined;
+  const [loadingDate, setLoadingDate] = useState<Date | undefined>(initialLoadingDate);
+  
+  const [isContinuousLoad, setIsContinuousLoad] = useState(initialData?.isContinuousLoad || false);
+  
+  const [formSubmitting, setFormSubmitting] = useState(false);
 
   const [availableOriginDistricts, setAvailableOriginDistricts] = useState<readonly string[]>([]);
   const [availableDestinationDistricts, setAvailableDestinationDistricts] = useState<readonly string[]>([]);
+  
+  // Populate form if editing user provides company details
+  useEffect(() => {
+    if (user && user.role === 'company' && !initialData) { // Only on new listing and if user is a company
+      const companyUser = user as CommercialFreight; // Cast to access company specific fields - this is not ideal, user type is different
+      // A better approach: user.companyProfile.companyName etc. if user object is structured that way
+      // For now, we assume companyName and contact details might come from the user object if available
+      setCompanyName(user.name || ''); // User.name is companyTitle for company users
+      // setContactPerson(user.contactFullName || ''); // Need a way to get contactFullName
+      // setMobilePhone(user.mobilePhone || ''); // Need a way to get mobilePhone
+    }
+  }, [user, initialData]);
+
 
   useEffect(() => {
     if (originCountry === 'TR' && TURKISH_CITIES.includes(originCity as TurkishCity)) {
@@ -72,8 +89,10 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
     } else {
       setAvailableOriginDistricts([]);
     }
-    setOriginDistrict(''); 
-  }, [originCity, originCountry]);
+    if (!initialData || originCity !== initialData.originCity) { // Only reset district if city changed or not initial load
+        setOriginDistrict(''); 
+    }
+  }, [originCity, originCountry, initialData]);
 
   useEffect(() => {
     if (destinationCountry === 'TR' && TURKISH_CITIES.includes(destinationCity as TurkishCity)) {
@@ -81,8 +100,10 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
     } else {
       setAvailableDestinationDistricts([]);
     }
-    setDestinationDistrict(''); 
-  }, [destinationCity, destinationCountry]);
+    if (!initialData || destinationCity !== initialData.destinationCity) {
+        setDestinationDistrict(''); 
+    }
+  }, [destinationCity, destinationCountry, initialData]);
 
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -96,14 +117,12 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
        return;
     }
 
-    setIsLoading(true);
+    setFormSubmitting(true);
 
     const determinedShipmentScope: ShipmentScope = (originCountry === 'TR' && destinationCountry === 'TR') ? 'Yurt İçi' : 'Yurt Dışı';
 
-    const newCommercialFreight: CommercialFreight = { // Changed type to CommercialFreight
-      id: String(Date.now()),
-      userId: user.id,
-      freightType: 'Ticari', // Set freightType
+    const newCommercialFreightData: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId' | 'postedBy'> = {
+      freightType: 'Ticari',
       companyName,
       contactPerson,
       contactEmail,
@@ -124,30 +143,22 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
       destinationDistrict: destinationCountry === 'TR' ? destinationDistrict : '', 
       loadingDate: format(loadingDate, "yyyy-MM-dd"),
       isContinuousLoad,
-      postedAt: new Date().toISOString(),
       shipmentScope: determinedShipmentScope,
-      postedBy: companyName, 
+      isActive: true, // Default to active for new listings
     };
-
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    console.log("Yeni Ticari İlan:", newCommercialFreight);
-    toast({
-      title: "Ticari İlan Başarıyla Oluşturuldu!",
-      description: `${newCommercialFreight.originCity} - ${newCommercialFreight.destinationCity} arası ticari ilanınız yayında.`,
-    });
-
+    
+    if (onSubmitSuccess) {
+      await onSubmitSuccess(newCommercialFreightData); // Call the passed submit handler
+    }
+    
+    // Reset form fields after successful submission handled by parent
     setCompanyName(''); setContactPerson(''); setContactEmail(''); setWorkPhone(''); setMobilePhone('');
     setCargoType(''); setVehicleNeeded(''); setLoadingType(''); setCargoForm(''); setCargoWeight(''); setCargoWeightUnit('Ton'); setDescription('');
     setOriginCountry('TR'); setOriginCity(''); setOriginDistrict('');
     setDestinationCountry('TR'); setDestinationCity(''); setDestinationDistrict('');
     setLoadingDate(undefined); setIsContinuousLoad(false);
     
-    setIsLoading(false);
-
-    if (onSubmitSuccess) {
-      onSubmitSuccess(newCommercialFreight);
-    }
+    setFormSubmitting(false);
   };
 
   const renderCityInput = (country: CountryCode | string, city: string | TurkishCity, setCity: Function, type: 'origin' | 'destination') => {
@@ -163,15 +174,17 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
   };
 
   const renderDistrictInput = (country: CountryCode | string, city: string | TurkishCity, district: string, setDistrict: Function, availableDistricts: readonly string[], type: 'origin' | 'destination') => {
-    if (country === 'TR' && availableDistricts.length > 0) {
-      return (
-        <Select value={district} onValueChange={(value) => setDistrict(value)}>
-          <SelectTrigger id={`com-${type}DistrictTR`}><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
-          <SelectContent>{availableDistricts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-        </Select>
-      );
-    } else if (country === 'TR' && !availableDistricts.length && TURKISH_CITIES.includes(city as TurkishCity) ) {
-         return <Input id={`com-${type}DistrictOtherTR`} placeholder="İlçe (Elle Giriş)" value={district} onChange={(e) => setDistrict(e.target.value)} />;
+    if (country === 'TR' && city && TURKISH_CITIES.includes(city as TurkishCity)) {
+        const districtsForCity = DISTRICTS_BY_CITY_TR[city as TurkishCity] || [];
+        if (districtsForCity.length > 0) {
+             return (
+                <Select value={district} onValueChange={(value) => setDistrict(value)}>
+                <SelectTrigger id={`com-${type}DistrictTR`}><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
+                <SelectContent>{districtsForCity.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                </Select>
+            );
+        }
+        return <Input id={`com-${type}DistrictOtherTR`} placeholder="İlçe (Elle Giriş)" value={district} onChange={(e) => setDistrict(e.target.value)} />;
     }
     return null; 
   };
@@ -337,6 +350,7 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
                     onSelect={setLoadingDate}
                     initialFocus
                     locale={tr}
+                    disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} // Disable past dates
                   />
                 </PopoverContent>
               </Popover>
@@ -351,8 +365,9 @@ export default function FreightForm({ onSubmitSuccess }: FreightFormProps) {
         </CardContent>
       </Card>
       
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isLoading}>
-        {isLoading ? 'İlan Yayınlanıyor...' : <><Send size={20} className="mr-2" /> Ticari İlanı Yayınla</>}
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={formSubmitting}>
+        {formSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send size={20} className="mr-2" />}
+        {formSubmitting ? 'İlan Yayınlanıyor...' : 'Ticari İlanı Yayınla'}
       </Button>
     </form>
   );

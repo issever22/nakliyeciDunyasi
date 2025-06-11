@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent, useMemo } from 'react';
+import { useState, useEffect, type FormEvent, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,9 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon, Repeat, Truck, Home } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon, Repeat, Truck, Home, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
 import type { Freight, CommercialFreight, ResidentialFreight, FreightType, CargoType, VehicleNeeded, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel } from '@/types';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
@@ -34,12 +34,9 @@ import {
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS
 } from '@/lib/constants';
+import { getAllListingsForAdmin, addListing, updateListing, deleteListing } from '@/services/listingsService';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const mockFreightData: Freight[] = [
-  { id: 'com1', userId: 'user1', freightType: 'Ticari', companyName: 'Yılmaz Nakliyat', contactPerson: 'Ahmet Yılmaz', contactEmail: 'ahmet@yilmaznakliyat.com', mobilePhone: '05321234567', cargoType: 'Gıda', vehicleNeeded: 'Kamyon', loadingType: 'Komple', cargoForm: 'Paletli', cargoWeight: 10, cargoWeightUnit: 'Ton', description: 'Ev eşyası taşınacak, acil.', originCountry: 'TR', originCity: 'İstanbul', originDistrict: 'Esenyurt', destinationCountry: 'TR', destinationCity: 'Ankara', destinationDistrict: 'Çankaya', loadingDate: new Date(Date.now() - 1000 * 60 * 30).toISOString().split('T')[0], isContinuousLoad: false, postedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), shipmentScope: 'Yurt İçi', postedBy: 'Yılmaz Nakliyat', isActive: true },
-  { id: 'res1', userId: 'userEv1', freightType: 'Evden Eve', companyName: 'Aslan Ev Taşıma', contactPerson: 'Veli Aslan', contactEmail: 'veli@aslannakliyat.com', mobilePhone: '05331112233', residentialTransportType: 'Şehirlerarası Taşımacılık', residentialPlaceType: 'Ev', residentialElevatorStatus: 'Yükleme Adresinde Var', residentialFloorLevel: '3’ncü Kat', description: '3+1 Ev eşyası, beyaz eşyalar ve mobilyalar. Paketleme dahil.', originCountry: 'TR', originCity: 'İstanbul', originDistrict: 'Kadıköy', destinationCountry: 'TR', destinationCity: 'İzmir', destinationDistrict: 'Alsancak', loadingDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 5).toISOString().split('T')[0], postedAt: new Date().toISOString(), postedBy: 'Aslan Ev Taşıma', isActive: true },
-  { id: 'com2', userId: 'user2', freightType: 'Ticari', companyName: 'Demir Lojistik', contactPerson: 'Ayşe Demir', contactEmail: 'ayse@demirlojistik.com', mobilePhone: '05559876543', cargoType: 'Sanayi Üretimi', vehicleNeeded: '13.60 Kapalı Tır', loadingType: 'Komple', cargoForm: 'Kolili', cargoWeight: 20, cargoWeightUnit: 'Ton', description: 'Paletli yük, 20 ton.', originCountry: 'TR', originCity: 'İzmir', originDistrict: 'Bornova', destinationCountry: 'TR', destinationCity: 'Bursa', destinationDistrict: 'Osmangazi', loadingDate: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString().split('T')[0], isContinuousLoad: false, postedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), shipmentScope: 'Yurt İçi', postedBy: 'Demir Lojistik', isActive: false },
-];
 
 const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => {
   const base = {
@@ -57,8 +54,8 @@ const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => 
     destinationCity: '' as TurkishCity,
     destinationDistrict: '',
     loadingDate: format(new Date(), "yyyy-MM-dd"),
-    postedAt: new Date().toISOString(),
-    postedBy: '',
+    // postedAt Firestore'a kayıtta eklenecek
+    postedBy: '', // companyName ile aynı olacak
     isActive: true,
     description: '',
   };
@@ -91,21 +88,41 @@ const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => 
 
 export default function AdminListingsPage() {
   const { toast } = useToast();
-  const [listings, setListings] = useState<Freight[]>(initialListings);
+  const [allListings, setAllListings] = useState<Freight[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<Freight | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   
   const [currentFormData, setCurrentFormData] = useState<Partial<Freight>>(createEmptyFormData());
   
   const [availableOriginDistricts, setAvailableOriginDistricts] = useState<readonly string[]>([]);
   const [availableDestinationDistricts, setAvailableDestinationDistricts] = useState<readonly string[]>([]);
 
+  const fetchListings = useCallback(async () => {
+    setIsLoading(true);
+    const listingsFromDb = await getAllListingsForAdmin();
+    setAllListings(listingsFromDb);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchListings();
+  }, [fetchListings]);
+
   useEffect(() => {
     if (editingListing) {
+      let loadingDateToSet = format(new Date(), "yyyy-MM-dd");
+      if (editingListing.loadingDate) {
+        const parsedDate = parseISO(editingListing.loadingDate);
+        if (isValid(parsedDate)) {
+          loadingDateToSet = format(parsedDate, "yyyy-MM-dd");
+        }
+      }
       const formDataToSet: Partial<Freight> = {
         ...editingListing,
-        loadingDate: editingListing.loadingDate ? format(parseISO(editingListing.loadingDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        loadingDate: loadingDateToSet,
       };
       setCurrentFormData(formDataToSet);
       
@@ -169,59 +186,71 @@ export default function AdminListingsPage() {
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentFormData.freightType || !currentFormData.companyName || !currentFormData.contactPerson || !currentFormData.mobilePhone || !currentFormData.originCity || !currentFormData.destinationCity || !currentFormData.loadingDate) {
+    setFormSubmitting(true);
+    if (!currentFormData.freightType || !currentFormData.companyName || !currentFormData.contactPerson || !currentFormData.mobilePhone || !currentFormData.originCity || !currentFormData.destinationCity || !currentFormData.loadingDate || !currentFormData.description) {
       toast({ title: "Hata", description: "Lütfen tüm zorunlu alanları doldurun.", variant: "destructive" });
+      setFormSubmitting(false);
       return;
     }
 
-    let finalListingData: Freight;
-
-    if (currentFormData.freightType === 'Ticari') {
-      finalListingData = {
-        ...createEmptyFormData('Ticari'), 
-        ...currentFormData,
-        id: editingListing ? editingListing.id : `com-${Date.now()}`,
-        shipmentScope: (currentFormData.originCountry === 'TR' && currentFormData.destinationCountry === 'TR') ? 'Yurt İçi' : 'Yurt Dışı',
-      } as CommercialFreight;
-    } else { 
-      finalListingData = {
-        ...createEmptyFormData('Evden Eve'), 
-        ...currentFormData,
-        id: editingListing ? editingListing.id : `res-${Date.now()}`,
-      } as ResidentialFreight;
-    }
-    finalListingData.postedAt = editingListing ? editingListing.postedAt : new Date().toISOString();
-
+    // postedBy'ı companyName ile set et
+    const dataToSubmit = {
+      ...currentFormData,
+      postedBy: currentFormData.companyName,
+    };
 
     if (editingListing) {
-      setListings(listings.map(l => l.id === editingListing.id ? finalListingData : l));
-      toast({ title: "Başarılı", description: "İlan güncellendi." });
+      const { id, postedAt, ...updateData } = dataToSubmit; // id ve postedAt'ı update datasına dahil etme
+      const success = await updateListing(editingListing.id, updateData as Partial<Freight>);
+      if (success) {
+        toast({ title: "Başarılı", description: "İlan güncellendi." });
+        fetchListings();
+      } else {
+        toast({ title: "Hata", description: "İlan güncellenemedi.", variant: "destructive" });
+      }
     } else {
-      setListings([finalListingData, ...listings]);
-      toast({ title: "Başarılı", description: "Yeni ilan eklendi." });
+      // id ve postedAt Omit<Freight, 'id' | 'postedAt'> type'ı tarafından yönetiliyor.
+      const { id, postedAt, ...createData } = dataToSubmit;
+      const newListingId = await addListing(createData as Omit<Freight, 'id' | 'postedAt'>);
+      if (newListingId) {
+        toast({ title: "Başarılı", description: "Yeni ilan eklendi." });
+        fetchListings();
+      } else {
+        toast({ title: "Hata", description: "Yeni ilan eklenemedi.", variant: "destructive" });
+      }
     }
+    setFormSubmitting(false);
     setIsAddEditDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setListings(listings.filter(l => l.id !== id));
-    toast({ title: "Başarılı", description: "İlan silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await deleteListing(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "İlan silindi.", variant: "destructive" });
+      fetchListings();
+    } else {
+      toast({ title: "Hata", description: "İlan silinemedi.", variant: "destructive" });
+    }
   };
 
   const filteredListings = useMemo(() => {
-    return listings.filter(listing => {
+    return allListings.filter(listing => {
       const searchTermLower = searchTerm.toLowerCase();
       return (
         listing.id.toLowerCase().includes(searchTermLower) ||
-        listing.companyName.toLowerCase().includes(searchTermLower) ||
-        listing.freightType.toLowerCase().includes(searchTermLower) ||
-        (listing.originCity as string).toLowerCase().includes(searchTermLower) ||
-        (listing.destinationCity as string).toLowerCase().includes(searchTermLower)
+        (listing.companyName && listing.companyName.toLowerCase().includes(searchTermLower)) ||
+        (listing.freightType && listing.freightType.toLowerCase().includes(searchTermLower)) ||
+        (listing.originCity && (listing.originCity as string).toLowerCase().includes(searchTermLower)) ||
+        (listing.destinationCity && (listing.destinationCity as string).toLowerCase().includes(searchTermLower))
       );
-    }).sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
-  }, [listings, searchTerm]);
+    }).sort((a, b) => {
+       const dateA = a.postedAt ? parseISO(a.postedAt).getTime() : 0;
+       const dateB = b.postedAt ? parseISO(b.postedAt).getTime() : 0;
+       return dateB - dateA;
+    });
+  }, [allListings, searchTerm]);
 
   const renderCityInput = (country: CountryCode | string | undefined, city: string | TurkishCity | undefined, setCity: (city: string | TurkishCity) => void, type: 'origin' | 'destination') => {
     if (country === 'TR') {
@@ -293,7 +322,14 @@ export default function AdminListingsPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni İlan Ekle
             </Button>
           </div>
-
+          {isLoading ? (
+             <div className="space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+            </div>
+          ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -319,7 +355,11 @@ export default function AdminListingsPage() {
                     </TableCell>
                     <TableCell className="font-medium">{listing.companyName}</TableCell>
                     <TableCell className="text-sm">{listing.originCity as string} &rarr; {listing.destinationCity as string}</TableCell>
-                    <TableCell className="text-sm">{format(parseISO(listing.loadingDate), "dd.MM.yyyy", { locale: tr })}</TableCell>
+                    <TableCell className="text-sm">
+                      {listing.loadingDate && isValid(parseISO(listing.loadingDate)) 
+                        ? format(parseISO(listing.loadingDate), "dd.MM.yyyy", { locale: tr }) 
+                        : 'Geçersiz Tarih'}
+                    </TableCell>
                     <TableCell className="text-center">
                        <Badge variant={listing.isActive ? "default" : "outline"} className={listing.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-red-500/10 text-red-700 border-red-400"}>
                         {listing.isActive ? 'Evet' : 'Hayır'}
@@ -364,6 +404,7 @@ export default function AdminListingsPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -401,7 +442,7 @@ export default function AdminListingsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                         <Label htmlFor="listingCompanyName">Firma Adı (*)</Label>
-                        <Input id="listingCompanyName" value={currentFormData.companyName || ''} onChange={(e) => setCurrentFormData({...currentFormData, companyName: e.target.value, postedBy: e.target.value})} required />
+                        <Input id="listingCompanyName" value={currentFormData.companyName || ''} onChange={(e) => setCurrentFormData({...currentFormData, companyName: e.target.value})} required />
                         </div>
                         <div className="space-y-1.5">
                         <Label htmlFor="listingContactPerson">Yetkili Kişi (*)</Label>
@@ -570,11 +611,19 @@ export default function AdminListingsPage() {
                             <PopoverTrigger asChild>
                             <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!currentFormData.loadingDate && "text-muted-foreground"}`}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {currentFormData.loadingDate ? format(parseISO(currentFormData.loadingDate), "PPP", { locale: tr }) : <span>Tarih seçin</span>}
+                                {currentFormData.loadingDate && isValid(parseISO(currentFormData.loadingDate)) 
+                                  ? format(parseISO(currentFormData.loadingDate), "PPP", { locale: tr }) 
+                                  : <span>Tarih seçin</span>}
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={currentFormData.loadingDate ? parseISO(currentFormData.loadingDate) : undefined} onSelect={(date) => setCurrentFormData({...currentFormData, loadingDate: date ? format(date, "yyyy-MM-dd") : undefined})} initialFocus locale={tr} />
+                            <Calendar 
+                                mode="single" 
+                                selected={currentFormData.loadingDate && isValid(parseISO(currentFormData.loadingDate)) ? parseISO(currentFormData.loadingDate) : undefined} 
+                                onSelect={(date) => setCurrentFormData({...currentFormData, loadingDate: date ? format(date, "yyyy-MM-dd") : undefined})} 
+                                initialFocus 
+                                locale={tr} 
+                            />
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -592,9 +641,12 @@ export default function AdminListingsPage() {
             </div>
             <DialogFooter>
                  <DialogClose asChild>
-                    <Button type="button" variant="outline">İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingListing ? 'Değişiklikleri Kaydet' : 'İlanı Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingListing ? 'Değişiklikleri Kaydet' : 'İlanı Ekle'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -602,10 +654,3 @@ export default function AdminListingsPage() {
     </div>
   );
 }
-
-const initialListings: Freight[] = mockFreightData.map((listing, index) => ({
-  ...listing,
-  id: listing.id || `listing-${index}-${Date.now()}`, 
-  isActive: listing.isActive === undefined ? true : listing.isActive, 
-}));
-

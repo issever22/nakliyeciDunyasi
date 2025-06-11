@@ -20,45 +20,55 @@ import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type
 import type { ResidentialFreight, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import { Send, Briefcase, User, Mail, Phone, Smartphone, Package, Truck, Layers, Scale, FileText, MapPin, CalendarIcon, Home, Building, ArrowUpDown, ChevronsUpDown } from 'lucide-react';
+import { Send, Briefcase, User, Mail, Phone, Smartphone, Package, Truck, Layers, Scale, FileText, MapPin, CalendarIcon, Home, Building, ArrowUpDown, ChevronsUpDown, Loader2 } from 'lucide-react';
 
 interface ResidentialFreightFormProps {
-  onSubmitSuccess?: (newFreight: ResidentialFreight) => void;
+  onSubmitSuccess?: (newFreightData: Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId' | 'postedBy'>) => void;
+  initialData?: Partial<ResidentialFreight>; // For editing
 }
 
-export default function ResidentialFreightForm({ onSubmitSuccess }: ResidentialFreightFormProps) {
+export default function ResidentialFreightForm({ onSubmitSuccess, initialData }: ResidentialFreightFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
 
   // Genel Bilgiler
-  const [companyName, setCompanyName] = useState('');
-  const [contactPerson, setContactPerson] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [workPhone, setWorkPhone] = useState('');
-  const [mobilePhone, setMobilePhone] = useState('');
+  const [companyName, setCompanyName] = useState(initialData?.companyName || '');
+  const [contactPerson, setContactPerson] = useState(initialData?.contactPerson || '');
+  const [contactEmail, setContactEmail] = useState(initialData?.contactEmail || '');
+  const [workPhone, setWorkPhone] = useState(initialData?.workPhone || '');
+  const [mobilePhone, setMobilePhone] = useState(initialData?.mobilePhone || '');
 
   // Taşımaya Ait Bilgiler
-  const [residentialTransportType, setResidentialTransportType] = useState<ResidentialTransportType | ''>('');
-  const [residentialPlaceType, setResidentialPlaceType] = useState<ResidentialPlaceType | ''>('');
-  const [residentialElevatorStatus, setResidentialElevatorStatus] = useState<ResidentialElevatorStatus | ''>('');
-  const [residentialFloorLevel, setResidentialFloorLevel] = useState<ResidentialFloorLevel | ''>('');
-  const [description, setDescription] = useState('');
+  const [residentialTransportType, setResidentialTransportType] = useState<ResidentialTransportType | ''>(initialData?.residentialTransportType || '');
+  const [residentialPlaceType, setResidentialPlaceType] = useState<ResidentialPlaceType | ''>(initialData?.residentialPlaceType || '');
+  const [residentialElevatorStatus, setResidentialElevatorStatus] = useState<ResidentialElevatorStatus | ''>(initialData?.residentialElevatorStatus || '');
+  const [residentialFloorLevel, setResidentialFloorLevel] = useState<ResidentialFloorLevel | ''>(initialData?.residentialFloorLevel || '');
+  const [description, setDescription] = useState(initialData?.description || '');
 
   // Konum Bilgileri
-  const [originCountry, setOriginCountry] = useState<CountryCode | string>('TR');
-  const [originCity, setOriginCity] = useState<TurkishCity | string>('');
-  const [originDistrict, setOriginDistrict] = useState('');
-  const [destinationCountry, setDestinationCountry] = useState<CountryCode | string>('TR');
-  const [destinationCity, setDestinationCity] = useState<TurkishCity | string>('');
-  const [destinationDistrict, setDestinationDistrict] = useState('');
-  const [loadingDate, setLoadingDate] = useState<Date | undefined>(undefined);
+  const [originCountry, setOriginCountry] = useState<CountryCode | string>(initialData?.originCountry || 'TR');
+  const [originCity, setOriginCity] = useState<TurkishCity | string>(initialData?.originCity || '');
+  const [originDistrict, setOriginDistrict] = useState(initialData?.originDistrict || '');
+  const [destinationCountry, setDestinationCountry] = useState<CountryCode | string>(initialData?.destinationCountry ||'TR');
+  const [destinationCity, setDestinationCity] = useState<TurkishCity | string>(initialData?.destinationCity || '');
+  const [destinationDistrict, setDestinationDistrict] = useState(initialData?.destinationDistrict || '');
   
-  const [isLoading, setIsLoading] = useState(false);
+  const initialLoadingDate = initialData?.loadingDate && isValid(parseISO(initialData.loadingDate)) ? parseISO(initialData.loadingDate) : undefined;
+  const [loadingDate, setLoadingDate] = useState<Date | undefined>(initialLoadingDate);
+  
+  const [formSubmitting, setFormSubmitting] = useState(false);
 
   const [availableOriginDistricts, setAvailableOriginDistricts] = useState<readonly string[]>([]);
   const [availableDestinationDistricts, setAvailableDestinationDistricts] = useState<readonly string[]>([]);
+
+  useEffect(() => {
+    if (user && user.role === 'company' && !initialData) { 
+      const companyUser = user as ResidentialFreight; 
+      setCompanyName(user.name || '');
+    }
+  }, [user, initialData]);
 
   useEffect(() => {
     if (originCountry === 'TR' && TURKISH_CITIES.includes(originCity as TurkishCity)) {
@@ -66,8 +76,10 @@ export default function ResidentialFreightForm({ onSubmitSuccess }: ResidentialF
     } else {
       setAvailableOriginDistricts([]);
     }
-    setOriginDistrict('');
-  }, [originCity, originCountry]);
+     if (!initialData || originCity !== initialData.originCity) {
+        setOriginDistrict('');
+    }
+  }, [originCity, originCountry, initialData]);
 
   useEffect(() => {
     if (destinationCountry === 'TR' && TURKISH_CITIES.includes(destinationCity as TurkishCity)) {
@@ -75,8 +87,10 @@ export default function ResidentialFreightForm({ onSubmitSuccess }: ResidentialF
     } else {
       setAvailableDestinationDistricts([]);
     }
-    setDestinationDistrict('');
-  }, [destinationCity, destinationCountry]);
+    if (!initialData || destinationCity !== initialData.destinationCity) {
+        setDestinationDistrict('');
+    }
+  }, [destinationCity, destinationCountry, initialData]);
 
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -90,11 +104,9 @@ export default function ResidentialFreightForm({ onSubmitSuccess }: ResidentialF
        return;
     }
 
-    setIsLoading(true);
+    setFormSubmitting(true);
 
-    const newResidentialFreight: ResidentialFreight = {
-      id: String(Date.now()),
-      userId: user.id,
+    const newResidentialFreightData: Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId' | 'postedBy'> = {
       freightType: 'Evden Eve',
       companyName,
       contactPerson,
@@ -113,29 +125,20 @@ export default function ResidentialFreightForm({ onSubmitSuccess }: ResidentialF
       destinationCity,
       destinationDistrict: destinationCountry === 'TR' ? destinationDistrict : '',
       loadingDate: format(loadingDate, "yyyy-MM-dd"),
-      postedAt: new Date().toISOString(),
-      postedBy: companyName,
+      isActive: true,
     };
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    console.log("Yeni Evden Eve İlan:", newResidentialFreight);
-    toast({
-      title: "Evden Eve İlan Başarıyla Oluşturuldu!",
-      description: `${newResidentialFreight.originCity} - ${newResidentialFreight.destinationCity} arası ilanınız yayında.`,
-    });
-
+    if(onSubmitSuccess){
+      await onSubmitSuccess(newResidentialFreightData);
+    }
+    
     setCompanyName(''); setContactPerson(''); setContactEmail(''); setWorkPhone(''); setMobilePhone('');
     setResidentialTransportType(''); setResidentialPlaceType(''); setResidentialElevatorStatus(''); setResidentialFloorLevel(''); setDescription('');
     setOriginCountry('TR'); setOriginCity(''); setOriginDistrict('');
     setDestinationCountry('TR'); setDestinationCity(''); setDestinationDistrict('');
     setLoadingDate(undefined);
     
-    setIsLoading(false);
-
-    if (onSubmitSuccess) {
-      onSubmitSuccess(newResidentialFreight);
-    }
+    setFormSubmitting(false);
   };
 
   const renderCityInput = (country: CountryCode | string, city: string | TurkishCity, setCity: Function, type: 'origin' | 'destination') => {
@@ -151,15 +154,17 @@ export default function ResidentialFreightForm({ onSubmitSuccess }: ResidentialF
   };
 
   const renderDistrictInput = (country: CountryCode | string, city: string | TurkishCity, district: string, setDistrict: Function, availableDistricts: readonly string[], type: 'origin' | 'destination') => {
-    if (country === 'TR' && availableDistricts.length > 0) {
-      return (
-        <Select value={district} onValueChange={(value) => setDistrict(value)}>
-          <SelectTrigger id={`${type}DistrictTR`}><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
-          <SelectContent>{availableDistricts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-        </Select>
-      );
-    } else if (country === 'TR' && !availableDistricts.length && TURKISH_CITIES.includes(city as TurkishCity) ) {
-         return <Input id={`${type}DistrictOtherTR`} placeholder="İlçe (Elle Giriş)" value={district} onChange={(e) => setDistrict(e.target.value)} />;
+     if (country === 'TR' && city && TURKISH_CITIES.includes(city as TurkishCity)) {
+        const districtsForCity = DISTRICTS_BY_CITY_TR[city as TurkishCity] || [];
+        if (districtsForCity.length > 0) {
+             return (
+                <Select value={district} onValueChange={(value) => setDistrict(value)}>
+                <SelectTrigger id={`${type}DistrictTR`}><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
+                <SelectContent>{districtsForCity.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                </Select>
+            );
+        }
+        return <Input id={`${type}DistrictOtherTR`} placeholder="İlçe (Elle Giriş)" value={district} onChange={(e) => setDistrict(e.target.value)} />;
     }
     return null;
   };
@@ -313,6 +318,7 @@ export default function ResidentialFreightForm({ onSubmitSuccess }: ResidentialF
                   onSelect={setLoadingDate}
                   initialFocus
                   locale={tr}
+                  disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} // Disable past dates
                 />
               </PopoverContent>
             </Popover>
@@ -320,8 +326,9 @@ export default function ResidentialFreightForm({ onSubmitSuccess }: ResidentialF
         </CardContent>
       </Card>
       
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={isLoading}>
-        {isLoading ? 'İlan Yayınlanıyor...' : <><Send size={20} className="mr-2" /> Evden Eve İlanı Yayınla</>}
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3" disabled={formSubmitting}>
+        {formSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send size={20} className="mr-2" />}
+        {formSubmitting ? 'İlan Yayınlanıyor...' :  'Evden Eve İlanı Yayınla'}
       </Button>
     </form>
   );

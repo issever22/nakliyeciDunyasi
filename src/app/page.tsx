@@ -1,126 +1,28 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
 import FreightFilters from '@/components/freight/FreightFilters';
 import type { Freight, VehicleNeeded, ShipmentScope, FreightType } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, AlertTriangle } from 'lucide-react';
+import { PlusCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import Image from 'next/image';
+import { getListings } from '@/services/listingsService'; // Firestore service
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
-const mockFreightData: Freight[] = [
-  { 
-    id: '1', 
-    userId: 'user1',
-    freightType: 'Ticari',
-    companyName: 'Yılmaz Nakliyat',
-    contactPerson: 'Ahmet Yılmaz',
-    contactEmail: 'ahmet@yilmaznakliyat.com',
-    mobilePhone: '05321234567',
-    cargoType: 'Gıda',
-    vehicleNeeded: 'Kamyon',
-    loadingType: 'Komple',
-    cargoForm: 'Paletli',
-    cargoWeight: 10,
-    cargoWeightUnit: 'Ton',
-    description: 'Ev eşyası taşınacak, acil.',
-    originCountry: 'TR',
-    originCity: 'İstanbul',
-    originDistrict: 'Esenyurt',
-    destinationCountry: 'TR',
-    destinationCity: 'Ankara',
-    destinationDistrict: 'Çankaya',
-    loadingDate: new Date(Date.now() - 1000 * 60 * 30).toISOString().split('T')[0],
-    isContinuousLoad: false,
-    postedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    shipmentScope: 'Yurt İçi',
-    postedBy: 'Yılmaz Nakliyat'
-  },
-  { 
-    id: '2', 
-    userId: 'user2',
-    freightType: 'Ticari',
-    companyName: 'Demir Lojistik',
-    contactPerson: 'Ayşe Demir',
-    contactEmail: 'ayse@demirlojistik.com',
-    mobilePhone: '05559876543',
-    cargoType: 'Sanayi Üretimi',
-    vehicleNeeded: '13.60 Kapalı Tır',
-    loadingType: 'Komple',
-    cargoForm: 'Kolili',
-    cargoWeight: 20,
-    cargoWeightUnit: 'Ton',
-    description: 'Paletli yük, 20 ton.',
-    originCountry: 'TR',
-    originCity: 'İzmir',
-    originDistrict: 'Bornova',
-    destinationCountry: 'TR',
-    destinationCity: 'Bursa',
-    destinationDistrict: 'Osmangazi',
-    loadingDate: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString().split('T')[0],
-    isContinuousLoad: false,
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    shipmentScope: 'Yurt İçi',
-    postedBy: 'Demir Lojistik'
-  },
-  { 
-    id: '3', 
-    userId: 'user3',
-    freightType: 'Ticari',
-    companyName: 'Global Taşımacılık',
-    contactPerson: 'Mehmet Global',
-    contactEmail: 'mehmet@globaltasimacilik.com',
-    mobilePhone: '05441112233',
-    cargoType: 'İnşaat Malzemeleri',
-    vehicleNeeded: 'Damper Dorse',
-    loadingType: 'Tonajlı',
-    cargoForm: 'Diğer',
-    cargoWeight: 50,
-    cargoWeightUnit: 'M³ (metreküp)', // Example using new unit
-    description: 'Hacimli inşaat malzemesi, yaklaşık 50 metreküp.',
-    originCountry: 'TR',
-    originCity: 'Kocaeli',
-    originDistrict: 'Gebze',
-    destinationCountry: 'DE', // Example international
-    destinationCity: 'Berlin', // Example international city
-    loadingDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString().split('T')[0], // 3 days from now
-    isContinuousLoad: true,
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    shipmentScope: 'Yurt Dışı', // Example international
-    postedBy: 'Global Taşımacılık'
-  },
-  { 
-    id: 'ev1', 
-    userId: 'userEv1',
-    freightType: 'Evden Eve',
-    companyName: 'Aslan Ev Taşıma',
-    contactPerson: 'Veli Aslan',
-    contactEmail: 'veli@aslannakliyat.com',
-    mobilePhone: '05331112233',
-    residentialTransportType: 'Şehirlerarası Taşımacılık',
-    residentialPlaceType: 'Ev',
-    residentialElevatorStatus: 'Yükleme Adresinde Var',
-    residentialFloorLevel: '3’ncü Kat',
-    description: '3+1 Ev eşyası, beyaz eşyalar ve mobilyalar. Paketleme dahil.',
-    originCountry: 'TR',
-    originCity: 'İstanbul',
-    originDistrict: 'Kadıköy',
-    destinationCountry: 'TR',
-    destinationCity: 'İzmir',
-    destinationDistrict: 'Alsancak',
-    loadingDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 5).toISOString().split('T')[0], // 5 days from now
-    postedAt: new Date().toISOString(),
-    postedBy: 'Aslan Ev Taşıma'
-  },
-];
 
 export default function HomePage() {
   const [allFreights, setAllFreights] = useState<Freight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const pageSize = 6; // Number of items per page
+
   const [filters, setFilters] = useState<{ 
     originCity?: string; 
     destinationCity?: string; 
@@ -130,15 +32,37 @@ export default function HomePage() {
     sortBy?: string 
   }>({});
 
+  const fetchInitialFreights = useCallback(async () => {
+    setIsLoading(true);
+    const { freights: newFreights, newLastVisible } = await getListings(null, pageSize);
+    setAllFreights(newFreights.filter(f => f.isActive !== false)); // Sadece aktif ilanları göster
+    setLastVisible(newLastVisible);
+    setHasMore(newFreights.length === pageSize);
+    setIsLoading(false);
+  }, [pageSize]);
+
   useEffect(() => {
-    setTimeout(() => {
-      setAllFreights(mockFreightData);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    fetchInitialFreights();
+  }, [fetchInitialFreights]);
+
+  const loadMoreFreights = async () => {
+    if (!hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+    const { freights: newFreights, newLastVisible } = await getListings(lastVisible, pageSize);
+    setAllFreights(prevFreights => [...prevFreights, ...newFreights.filter(f => f.isActive !== false)]);
+    setLastVisible(newLastVisible);
+    setHasMore(newFreights.length === pageSize);
+    setIsLoadingMore(false);
+  };
 
   const handleFilter = (newFilters: typeof filters) => {
+    // Firestore'da filtreleme yapmak için bu fonksiyonu genişletmeniz gerekecek.
+    // Şimdilik, bu filtreleri state'e kaydediyoruz ve client-side filtreleme devam ediyor.
+    // Gerçek bir uygulamada, getListings fonksiyonu bu filtreleri alıp Firestore query'sine eklemeli.
     setFilters(newFilters);
+    // İdealde, filtreler değiştiğinde fetchInitialFreights'i filtrelerle çağırırdık.
+    // Örnek: fetchInitialFreights(newFilters); ve getListings(filters, null, pageSize)
+    // Bu, mevcut getListings yapısında büyük değişiklik gerektirir. Şimdilik client-side filtreleme.
   };
 
   const filteredFreights = useMemo(() => {
@@ -152,22 +76,19 @@ export default function HomePage() {
     if (filters.freightType) {
       freights = freights.filter(f => f.freightType === filters.freightType);
     }
-    // Commercial specific filters only apply if freightType is Ticari or no freightType filter is active
+    
     if (!filters.freightType || filters.freightType === 'Ticari') {
-        if (filters.vehicleNeeded) {
-        freights = freights.filter(f => f.freightType === 'Ticari' && f.vehicleNeeded === filters.vehicleNeeded);
+        if (filters.vehicleNeeded && filters.freightType === 'Ticari') {
+          freights = freights.filter(f => (f as CommercialFreight).vehicleNeeded === filters.vehicleNeeded);
         }
-        if (filters.shipmentScope) {
-        freights = freights.filter(f => f.freightType === 'Ticari' && f.shipmentScope === filters.shipmentScope);
+        if (filters.shipmentScope && filters.freightType === 'Ticari') {
+          freights = freights.filter(f => (f as CommercialFreight).shipmentScope === filters.shipmentScope);
         }
     } else if (filters.freightType === 'Evden Eve') {
-        // If filtering for 'Evden Eve', exclude listings that don't match if vehicle/scope filters are also present
-        // This part might need more specific filters for Evden Eve later
         if(filters.vehicleNeeded || filters.shipmentScope) {
             freights = freights.filter(f => f.freightType === 'Evden Eve');
         }
     }
-
 
     if (filters.sortBy === 'oldest') {
       freights.sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
@@ -211,7 +132,7 @@ export default function HomePage() {
 
       <div className="pt-4">
         <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları</h2>
-        {isLoading ? (
+        {isLoading && allFreights.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map(i => (
               <Card key={i} className="w-full shadow-md">
@@ -226,11 +147,21 @@ export default function HomePage() {
             ))}
           </div>
         ) : filteredFreights.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
-            {filteredFreights.map((freight) => (
-              <FreightCard key={freight.id} freight={freight} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
+              {filteredFreights.map((freight) => (
+                <FreightCard key={freight.id} freight={freight} />
+              ))}
+            </div>
+            {hasMore && (
+              <div className="mt-10 text-center">
+                <Button onClick={loadMoreFreights} disabled={isLoadingMore} variant="outline">
+                  {isLoadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Daha Fazla Yükle
+                </Button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-16 bg-card border border-dashed rounded-lg">
             <AlertTriangle className="mx-auto h-20 w-20 text-muted-foreground mb-6" />
