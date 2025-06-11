@@ -47,6 +47,7 @@ interface BaseFreight {
   loadingDate: string; 
   postedAt: string; 
   postedBy: string; 
+  isActive?: boolean; // Added for admin management
 }
 
 export interface CommercialFreight extends BaseFreight {
@@ -111,7 +112,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   preferredCities: (TurkishCity | string)[]; 
   preferredCountries: (CountryCode | string)[]; 
   membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string; 
-  membershipEndDate?: Date; // Added for remaining membership days
+  membershipEndDate?: Date;
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
@@ -132,3 +133,4 @@ export interface Sponsor {
   isActive: boolean;
   createdAt: Date;
 }
+
