@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,37 +13,35 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit, Trash2, Search, StickyNote, BookUser, Code, Cog } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, StickyNote, BookUser, Code, Cog, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { tr } from 'date-fns/locale';
-
-type NoteCategory = 'Yönetici' | 'Kullanıcı Geri Bildirimi' | 'Geliştirme' | 'Genel';
-
-interface AdminNote {
-  id: string;
-  title: string;
-  content: string;
-  category: NoteCategory;
-  createdDate: Date;
-  lastModifiedDate: Date;
-  isImportant: boolean;
-}
-
-const initialNotes: AdminNote[] = [
-  { id: 'note1', title: 'Yeni Üyelik Fiyatlarını Gözden Geçir', content: 'Premium üyelik fiyatı %10 artırılabilir mi? Rakip analizi yapılacak.', category: 'Yönetici', createdDate: new Date(2024, 5, 10), lastModifiedDate: new Date(2024, 5, 12), isImportant: true },
-  { id: 'note2', title: 'Filtreleme Sorunu - Mobil', content: 'Kullanıcılar mobil cihazlarda şehir filtresinin bazen çalışmadığını bildiriyor.', category: 'Kullanıcı Geri Bildirimi', createdDate: new Date(2024, 5, 15), lastModifiedDate: new Date(2024, 5, 15), isImportant: true },
-  { id: 'note3', title: 'Firestore Kuralları Güncellemesi', content: 'Yeni yetki belgeleri koleksiyonu için Firestore güvenlik kuralları yazılacak.', category: 'Geliştirme', createdDate: new Date(2024, 5, 18), lastModifiedDate: new Date(2024, 5, 18), isImportant: false },
-];
+import type { AdminNoteSetting, NoteCategory } from '@/types';
+import { getAllAdminNotes, addAdminNote, updateAdminNote, deleteAdminNote } from '@/services/adminNotesService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminNotesPage() {
   const { toast } = useToast();
-  const [notes, setNotes] = useState<AdminNote[]>(initialNotes);
+  const [notes, setNotes] = useState<AdminNoteSetting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState<AdminNote | null>(null);
+  const [editingNote, setEditingNote] = useState<AdminNoteSetting | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{ title: string; content: string; category: NoteCategory; isImportant: boolean }>({ title: '', content: '', category: 'Genel', isImportant: false });
+
+  const fetchNotes = useCallback(async () => {
+    setIsLoading(true);
+    const data = await getAllAdminNotes();
+    setNotes(data);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
 
   useEffect(() => {
     if (editingNote) {
@@ -63,48 +61,62 @@ export default function AdminNotesPage() {
     setIsAddEditDialogOpen(true);
   };
 
-  const handleEdit = (note: AdminNote) => {
+  const handleEdit = (note: AdminNoteSetting) => {
     setEditingNote(note);
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentFormData.title.trim() || !currentFormData.content.trim()) {
         toast({ title: "Hata", description: "Başlık ve içerik boş bırakılamaz.", variant: "destructive" });
         return;
     }
+    setFormSubmitting(true);
 
-    const noteData = {
-      ...currentFormData,
-      lastModifiedDate: new Date(),
+    const noteData: Omit<AdminNoteSetting, 'id' | 'createdDate' | 'lastModifiedDate'> = {
+      title: currentFormData.title,
+      content: currentFormData.content,
+      category: currentFormData.category,
+      isImportant: currentFormData.isImportant,
     };
-
+    
+    let success = false;
     if (editingNote) {
-      setNotes(notes.map(n => n.id === editingNote.id ? { ...editingNote, ...noteData } : n));
-      toast({ title: "Başarılı", description: "Not güncellendi." });
+      success = await updateAdminNote(editingNote.id, noteData);
+      if (success) toast({ title: "Başarılı", description: "Not güncellendi." });
     } else {
-      const newNote: AdminNote = { 
-        id: `note${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
-        ...noteData,
-        createdDate: new Date(), 
-      };
-      setNotes([newNote, ...notes]);
-      toast({ title: "Başarılı", description: "Yeni not eklendi." });
+      const newId = await addAdminNote(noteData);
+      if (newId) {
+        success = true;
+        toast({ title: "Başarılı", description: "Yeni not eklendi." });
+      }
     }
-    setIsAddEditDialogOpen(false);
+    
+    if(success) {
+        fetchNotes();
+        setIsAddEditDialogOpen(false);
+    } else {
+        toast({ title: "Hata", description: `Not ${editingNote ? 'güncellenirken' : 'eklenirken'} bir sorun oluştu.`, variant: "destructive" });
+    }
+    setFormSubmitting(false);
   };
 
-  const handleDelete = (id: string) => {
-    setNotes(notes.filter(n => n.id !== id));
-    toast({ title: "Başarılı", description: "Not silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await deleteAdminNote(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "Not silindi.", variant: "destructive" });
+      fetchNotes();
+    } else {
+      toast({ title: "Hata", description: "Not silinirken bir sorun oluştu.", variant: "destructive" });
+    }
   };
 
   const filteredNotes = notes.filter(note => 
     note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
     note.category.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a,b) => b.lastModifiedDate.getTime() - a.lastModifiedDate.getTime());
+  ).sort((a,b) => parseISO(b.lastModifiedDate).getTime() - parseISO(a.lastModifiedDate).getTime());
 
   const CategoryIcon = ({ category }: { category: NoteCategory }) => {
     if (category === 'Yönetici') return <Cog className="h-4 w-4 mr-1.5 text-red-600" />;
@@ -136,7 +148,13 @@ export default function AdminNotesPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Not Ekle
             </Button>
           </div>
-
+          {isLoading ? (
+             <div className="space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+             </div>
+            ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -157,7 +175,7 @@ export default function AdminNotesPage() {
                            <CategoryIcon category={note.category} /> {note.category}
                         </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{format(note.lastModifiedDate, "dd.MM.yyyy HH:mm", { locale: tr })}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{format(parseISO(note.lastModifiedDate), "dd.MM.yyyy HH:mm", { locale: tr })}</TableCell>
                     <TableCell className="text-center">
                        <Badge variant={note.isImportant ? "destructive" : "outline"} className={note.isImportant ? "bg-yellow-500/20 text-yellow-700 border-yellow-500" : ""}>
                         {note.isImportant ? 'Evet' : 'Hayır'}
@@ -202,6 +220,7 @@ export default function AdminNotesPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -245,9 +264,12 @@ export default function AdminNotesPage() {
             </div>
             <DialogFooter>
                  <DialogClose asChild>
-                    <Button type="button" variant="outline">İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingNote ? 'Değişiklikleri Kaydet' : 'Not Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingNote ? 'Değişiklikleri Kaydet' : 'Not Ekle'}
+                </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -255,4 +277,3 @@ export default function AdminNotesPage() {
     </div>
   );
 }
-

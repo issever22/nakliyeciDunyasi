@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,42 +13,33 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit, Trash2, Search, Route as RouteIcon, RouteOff } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Route as RouteIcon, RouteOff, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { RESIDENTIAL_TRANSPORT_TYPES } from '@/lib/constants';
-
-type ApplicableTo = 'Ticari' | 'Evden Eve' | 'Her İkisi de';
-
-interface TransportType {
-  id: string;
-  name: string;
-  description?: string;
-  applicableTo: ApplicableTo;
-  isActive: boolean;
-}
-
-const initialTransportTypes: TransportType[] = [
-  ...RESIDENTIAL_TRANSPORT_TYPES.map((name, index) => ({
-    id: `rtt_default_${index+1}`,
-    name: name,
-    description: `Varsayılan ${name.toLowerCase()} türü`,
-    applicableTo: 'Evden Eve' as ApplicableTo, // Type assertion
-    isActive: true,
-  })),
-  { id: 'tt1', name: 'Komple Yük Taşımacılığı', description: 'Tek bir müşteriye ait yükün taşınması', applicableTo: 'Ticari', isActive: true },
-  { id: 'tt2', name: 'Parsiyel Yük Taşımacılığı', description: 'Birden fazla müşteriye ait yüklerin aynı araçta taşınması', applicableTo: 'Ticari', isActive: true },
-  { id: 'tt3', name: 'Proje Taşımacılığı', description: 'Gabari dışı veya özel ekipman gerektiren yükler', applicableTo: 'Ticari', isActive: false },
-  { id: 'tt4', name: 'Kombine Taşımacılık', description: 'Birden fazla taşıma modunun kullanıldığı sistemler', applicableTo: 'Her İkisi de', isActive: true },
-];
+import type { TransportTypeSetting, ApplicableTo } from '@/types';
+import { getAllTransportTypes, addTransportType, updateTransportType, deleteTransportType } from '@/services/transportTypesService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function TransportTypesPage() {
   const { toast } = useToast();
-  const [transportTypes, setTransportTypes] = useState<TransportType[]>(initialTransportTypes);
+  const [transportTypes, setTransportTypes] = useState<TransportTypeSetting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingTransportType, setEditingTransportType] = useState<TransportType | null>(null);
+  const [editingTransportType, setEditingTransportType] = useState<TransportTypeSetting | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{ name: string; description: string; applicableTo: ApplicableTo; isActive: boolean }>({ name: '', description: '', applicableTo: 'Ticari', isActive: true });
+
+  const fetchTransportTypes = useCallback(async () => {
+    setIsLoading(true);
+    const types = await getAllTransportTypes();
+    setTransportTypes(types);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchTransportTypes();
+  }, [fetchTransportTypes]);
 
   useEffect(() => {
     if (editingTransportType) {
@@ -68,35 +59,47 @@ export default function TransportTypesPage() {
     setIsAddEditDialogOpen(true);
   };
 
-  const handleEdit = (transportType: TransportType) => {
+  const handleEdit = (transportType: TransportTypeSetting) => {
     setEditingTransportType(transportType);
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
      if (!currentFormData.name.trim()) {
         toast({ title: "Hata", description: "Taşımacılık türü adı boş bırakılamaz.", variant: "destructive" });
         return;
     }
-
+    setFormSubmitting(true);
+    let success = false;
     if (editingTransportType) {
-      setTransportTypes(transportTypes.map(tt => tt.id === editingTransportType.id ? { ...editingTransportType, ...currentFormData } : tt));
-      toast({ title: "Başarılı", description: "Taşımacılık türü güncellendi." });
+      success = await updateTransportType(editingTransportType.id, currentFormData);
+      if (success) toast({ title: "Başarılı", description: "Taşımacılık türü güncellendi." });
     } else {
-      const newTransportType: TransportType = { 
-        id: `tt${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
-        ...currentFormData 
-      };
-      setTransportTypes([newTransportType, ...transportTypes]);
-      toast({ title: "Başarılı", description: "Yeni taşımacılık türü eklendi." });
+      const newId = await addTransportType(currentFormData);
+      if (newId) {
+        success = true;
+        toast({ title: "Başarılı", description: "Yeni taşımacılık türü eklendi." });
+      }
     }
-    setIsAddEditDialogOpen(false);
+    
+    if (success) {
+      fetchTransportTypes();
+      setIsAddEditDialogOpen(false);
+    } else {
+      toast({ title: "Hata", description: `Taşımacılık türü ${editingTransportType ? 'güncellenirken' : 'eklenirken'} bir sorun oluştu.`, variant: "destructive" });
+    }
+    setFormSubmitting(false);
   };
 
-  const handleDelete = (id: string) => {
-    setTransportTypes(transportTypes.filter(tt => tt.id !== id));
-    toast({ title: "Başarılı", description: "Taşımacılık türü silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await deleteTransportType(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "Taşımacılık türü silindi.", variant: "destructive" });
+      fetchTransportTypes();
+    } else {
+      toast({ title: "Hata", description: "Taşımacılık türü silinirken bir sorun oluştu.", variant: "destructive" });
+    }
   };
 
   const filteredTransportTypes = transportTypes.filter(tt => 
@@ -127,7 +130,13 @@ export default function TransportTypesPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Tür Ekle
             </Button>
           </div>
-
+          {isLoading ? (
+             <div className="space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+             </div>
+            ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -190,6 +199,7 @@ export default function TransportTypesPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -234,9 +244,12 @@ export default function TransportTypesPage() {
             </div>
             <DialogFooter>
                 <DialogClose asChild>
-                    <Button type="button" variant="outline">İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingTransportType ? 'Değişiklikleri Kaydet' : 'Tür Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingTransportType ? 'Değişiklikleri Kaydet' : 'Tür Ekle'}
+                </Button>
             </DialogFooter>
           </form>
         </DialogContent>

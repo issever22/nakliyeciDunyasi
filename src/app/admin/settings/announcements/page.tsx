@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,38 +15,36 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { PlusCircle, Edit, Trash2, Search, Megaphone, CalendarIcon, Users, Globe, Building } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Megaphone, CalendarIcon, Users, Globe, Building, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
+import type { AnnouncementSetting, TargetAudience } from '@/types';
+import { getAllAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/services/announcementsService';
+import { Skeleton } from '@/components/ui/skeleton';
 
-type TargetAudience = 'Tümü' | 'Bireysel Kullanıcılar' | 'Firma Kullanıcıları';
-
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  targetAudience: TargetAudience;
-  startDate?: Date;
-  endDate?: Date;
-  isActive: boolean;
-  createdAt: Date;
-}
-
-const initialAnnouncements: Announcement[] = [
-  { id: 'an1', title: 'Yeni Yıl Kampanyası!', content: 'Tüm premium üyeliklerde %20 indirim başladı.', targetAudience: 'Tümü', startDate: new Date(2024, 11, 20), endDate: new Date(2025, 0, 5), isActive: true, createdAt: new Date(2024, 11, 15) },
-  { id: 'an2', title: 'Mobil Uygulama Güncellemesi', content: 'Mobil uygulamamız yeni özelliklerle güncellendi. Hemen indirin!', targetAudience: 'Tümü', isActive: true, createdAt: new Date(2024, 10, 1) },
-  { id: 'an3', title: 'Firma Doğrulama Sistemi', content: 'Firma hesapları için yeni doğrulama adımları eklendi.', targetAudience: 'Firma Kullanıcıları', startDate: new Date(2025,0,10), isActive: false, createdAt: new Date(2024, 11, 28) },
-];
 
 export default function AnnouncementsPage() {
   const { toast } = useToast();
-  const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
+  const [announcements, setAnnouncements] = useState<AnnouncementSetting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<AnnouncementSetting | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{ title: string; content: string; targetAudience: TargetAudience; startDate?: Date; endDate?: Date; isActive: boolean }>({ title: '', content: '', targetAudience: 'Tümü', isActive: true });
+
+  const fetchAnnouncements = useCallback(async () => {
+    setIsLoading(true);
+    const data = await getAllAnnouncements();
+    setAnnouncements(data);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, [fetchAnnouncements]);
 
   useEffect(() => {
     if (editingAnnouncement) {
@@ -54,8 +52,8 @@ export default function AnnouncementsPage() {
         title: editingAnnouncement.title,
         content: editingAnnouncement.content,
         targetAudience: editingAnnouncement.targetAudience,
-        startDate: editingAnnouncement.startDate, // Directly use Date object or undefined
-        endDate: editingAnnouncement.endDate,     // Directly use Date object or undefined
+        startDate: editingAnnouncement.startDate && isValid(parseISO(editingAnnouncement.startDate)) ? parseISO(editingAnnouncement.startDate) : undefined,
+        endDate: editingAnnouncement.endDate && isValid(parseISO(editingAnnouncement.endDate)) ? parseISO(editingAnnouncement.endDate) : undefined,
         isActive: editingAnnouncement.isActive,
       });
     } else {
@@ -68,12 +66,12 @@ export default function AnnouncementsPage() {
     setIsAddEditDialogOpen(true);
   };
 
-  const handleEdit = (announcement: Announcement) => {
+  const handleEdit = (announcement: AnnouncementSetting) => {
     setEditingAnnouncement(announcement);
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentFormData.title.trim() || !currentFormData.content.trim()) {
         toast({ title: "Hata", description: "Başlık ve içerik boş bırakılamaz.", variant: "destructive" });
@@ -83,35 +81,52 @@ export default function AnnouncementsPage() {
         toast({ title: "Hata", description: "Bitiş tarihi başlangıç tarihinden önce olamaz.", variant: "destructive" });
         return;
     }
+    setFormSubmitting(true);
 
-    const announcementData = {
-      ...currentFormData,
-      createdAt: editingAnnouncement ? editingAnnouncement.createdAt : new Date(),
+    const announcementData: Partial<Omit<AnnouncementSetting, 'id' | 'createdAt'>> = {
+      title: currentFormData.title,
+      content: currentFormData.content,
+      targetAudience: currentFormData.targetAudience,
+      startDate: currentFormData.startDate ? format(currentFormData.startDate, "yyyy-MM-dd") : undefined,
+      endDate: currentFormData.endDate ? format(currentFormData.endDate, "yyyy-MM-dd") : undefined,
+      isActive: currentFormData.isActive,
     };
-
+    
+    let success = false;
     if (editingAnnouncement) {
-      setAnnouncements(announcements.map(ann => ann.id === editingAnnouncement.id ? { ...editingAnnouncement, ...announcementData } : ann));
-      toast({ title: "Başarılı", description: "Duyuru güncellendi." });
+      success = await updateAnnouncement(editingAnnouncement.id, announcementData);
+      if(success) toast({ title: "Başarılı", description: "Duyuru güncellendi." });
     } else {
-      const newAnnouncement: Announcement = { 
-        id: `an${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
-        ...announcementData 
-      };
-      setAnnouncements([newAnnouncement, ...announcements]);
-      toast({ title: "Başarılı", description: "Yeni duyuru eklendi." });
+      const newId = await addAnnouncement(announcementData as Omit<AnnouncementSetting, 'id' | 'createdAt'>);
+      if (newId) {
+        success = true;
+        toast({ title: "Başarılı", description: "Yeni duyuru eklendi." });
+      }
     }
-    setIsAddEditDialogOpen(false);
+
+    if (success) {
+      fetchAnnouncements();
+      setIsAddEditDialogOpen(false);
+    } else {
+      toast({ title: "Hata", description: `Duyuru ${editingAnnouncement ? 'güncellenirken' : 'eklenirken'} bir sorun oluştu.`, variant: "destructive" });
+    }
+    setFormSubmitting(false);
   };
 
-  const handleDelete = (id: string) => {
-    setAnnouncements(announcements.filter(ann => ann.id !== id));
-    toast({ title: "Başarılı", description: "Duyuru silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await deleteAnnouncement(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "Duyuru silindi.", variant: "destructive" });
+      fetchAnnouncements();
+    } else {
+      toast({ title: "Hata", description: "Duyuru silinirken bir sorun oluştu.", variant: "destructive" });
+    }
   };
 
   const filteredAnnouncements = announcements.filter(ann => 
     ann.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     ann.content.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  ).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
   const AudienceIcon = ({ audience }: { audience: TargetAudience }) => {
     if (audience === 'Bireysel Kullanıcılar') return <Users className="h-4 w-4 mr-1.5 text-blue-600" />;
@@ -141,7 +156,13 @@ export default function AnnouncementsPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Duyuru Ekle
             </Button>
           </div>
-
+          {isLoading ? (
+             <div className="space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+             </div>
+            ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -163,8 +184,8 @@ export default function AnnouncementsPage() {
                             <AudienceIcon audience={ann.targetAudience} /> {ann.targetAudience}
                         </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{ann.startDate ? format(ann.startDate, "dd.MM.yyyy", { locale: tr }) : '-'}</TableCell>
-                    <TableCell className="text-sm">{ann.endDate ? format(ann.endDate, "dd.MM.yyyy", { locale: tr }) : '-'}</TableCell>
+                    <TableCell className="text-sm">{ann.startDate ? format(parseISO(ann.startDate), "dd.MM.yyyy", { locale: tr }) : '-'}</TableCell>
+                    <TableCell className="text-sm">{ann.endDate ? format(parseISO(ann.endDate), "dd.MM.yyyy", { locale: tr }) : '-'}</TableCell>
                     <TableCell className="text-center">
                        <Badge variant={ann.isActive ? "default" : "outline"} className={ann.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-red-500/10 text-red-700 border-red-400"}>
                         {ann.isActive ? 'Evet' : 'Hayır'}
@@ -209,6 +230,7 @@ export default function AnnouncementsPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -255,7 +277,7 @@ export default function AnnouncementsPage() {
                         </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={currentFormData.startDate} onSelect={(date) => setCurrentFormData({...currentFormData, startDate: date})} initialFocus locale={tr} />
+                        <Calendar mode="single" selected={currentFormData.startDate} onSelect={(date) => setCurrentFormData({...currentFormData, startDate: date || undefined})} initialFocus locale={tr} />
                         </PopoverContent>
                     </Popover>
                 </div>
@@ -269,7 +291,7 @@ export default function AnnouncementsPage() {
                         </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={currentFormData.endDate} onSelect={(date) => setCurrentFormData({...currentFormData, endDate: date})} initialFocus locale={tr} />
+                        <Calendar mode="single" selected={currentFormData.endDate} onSelect={(date) => setCurrentFormData({...currentFormData, endDate: date || undefined})} initialFocus locale={tr} />
                         </PopoverContent>
                     </Popover>
                 </div>
@@ -281,9 +303,12 @@ export default function AnnouncementsPage() {
             </div>
             <DialogFooter>
                  <DialogClose asChild>
-                    <Button type="button" variant="outline">İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingAnnouncement ? 'Değişiklikleri Kaydet' : 'Duyuru Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingAnnouncement ? 'Değişiklikleri Kaydet' : 'Duyuru Ekle'}
+                </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -291,4 +316,3 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
-

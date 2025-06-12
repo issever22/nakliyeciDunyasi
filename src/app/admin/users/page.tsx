@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent, useMemo } from 'react';
+import { useState, useEffect, type FormEvent, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,20 +14,15 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Edit, Trash2, Search, Users as UsersIcon, User as UserIcon, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { PlusCircle, Edit, Trash2, Search, Users as UsersIcon, User as UserIcon, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile, IndividualUserProfile, CompanyUserProfile, UserRole } from '@/types';
-import { format } from 'date-fns';
+import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
-
-const today = new Date();
-const initialUsers: UserProfile[] = [
-  { id: 'user1', name: 'Ali Veli', email: 'ali.veli@example.com', role: 'individual', isActive: true, createdAt: new Date(2023, 10, 15) },
-  { id: 'user2', name: 'Ayşe Yılmaz (Firma)', email: 'info@aysefirmasi.com', role: 'company', username: 'ayseFirma', contactFullName: 'Ayşe Yılmaz', mobilePhone: '05551234567', companyType: 'local', addressCity: 'İstanbul', fullAddress: 'Bir yer', workingMethods:[], workingRoutes:[], preferredCities:[], preferredCountries:[], isActive: true, createdAt: new Date(2023, 9, 20), membershipStatus: 'Premium', membershipEndDate: new Date(new Date(today).setDate(today.getDate() + 30)) },
-  { id: 'user3', name: 'Mehmet Kaya', email: 'mehmet.kaya@example.com', role: 'individual', isActive: false, createdAt: new Date(2024, 0, 5) },
-  { id: 'user4', name: 'Nakliyat A.Ş.', email: 'destek@nakliyat.as', role: 'company', username: 'nakliyatAS', contactFullName: 'Caner Nakliyat', mobilePhone: '05329876543', companyType: 'local', addressCity: 'Ankara', fullAddress: 'Bir yer daha', workingMethods:[], workingRoutes:[], preferredCities:[], preferredCountries:[], isActive: true, createdAt: new Date(2023, 11, 1), membershipStatus: 'Standart', membershipEndDate: new Date(new Date(today).setDate(today.getDate() + 15)) },
-  { id: 'user5', name: 'Global Transport Ltd.', email: 'contact@globaltransport.com', role: 'company', username: 'globaltrans', contactFullName: 'John Doe', mobilePhone: '05421112233', companyType: 'foreign', addressCity: 'Berlin', fullAddress: 'Some Str. 123', workingMethods:[], workingRoutes:[], preferredCities:[], preferredCountries:[], isActive: false, createdAt: new Date(2024, 1, 10), membershipStatus: 'Yok', membershipEndDate: new Date(new Date(today).setDate(today.getDate() - 5)) }, // Expired membership
-];
+import { authService } from '@/services/authService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const USER_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'individual', label: 'Bireysel Kullanıcı' },
@@ -36,26 +31,48 @@ const USER_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 
 const MEMBERSHIP_STATUS_OPTIONS = ['Yok', 'Standart', 'Premium'];
 
-
 export default function UsersPage() {
   const { toast } = useToast();
-  const [users, setUsers] = useState<UserProfile[]>(initialUsers);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<UserRole>('individual');
   const [showOnlyMembers, setShowOnlyMembers] = useState(false);
   
-  const [currentFormData, setCurrentFormData] = useState<Partial<UserProfile> & { role: UserRole, name: string, email: string }>({
+  const [currentFormData, setCurrentFormData] = useState<Partial<UserProfile> & { role: UserRole, name: string, email: string, password?: string }>({
     role: 'individual', name: '', email: '', isActive: true
   });
 
+  const fetchUsers = useCallback(async () => {
+    setIsLoading(true);
+    const usersFromDb = await authService.getAllUsers();
+    setAllUsers(usersFromDb);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
   useEffect(() => {
     if (editingUser) {
+      let membershipEndDateToSet: Date | undefined = undefined;
+      if (editingUser.role === 'company' && (editingUser as CompanyUserProfile).membershipEndDate) {
+          const parsedDate = parseISO((editingUser as CompanyUserProfile).membershipEndDate as string);
+          if(isValid(parsedDate)) {
+            membershipEndDateToSet = parsedDate;
+          }
+      }
       setCurrentFormData({
         ...editingUser,
         name: editingUser.name || '', 
-        email: editingUser.email || '', 
+        email: editingUser.email || '',
+        ...(editingUser.role === 'company' && {
+            membershipEndDate: membershipEndDateToSet
+        })
       });
     } else {
       const defaultRole = activeTab;
@@ -63,8 +80,10 @@ export default function UsersPage() {
         role: defaultRole,
         name: '',
         email: '',
+        password: '',
         isActive: true,
         username: defaultRole === 'company' ? '' : undefined,
+        companyTitle: defaultRole === 'company' ? '' : undefined,
         contactFullName: defaultRole === 'company' ? '' : undefined,
         mobilePhone: defaultRole === 'company' ? '' : undefined,
         membershipStatus: defaultRole === 'company' ? 'Yok' : undefined,
@@ -83,7 +102,7 @@ export default function UsersPage() {
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentFormData.name?.trim() || !currentFormData.email?.trim()) {
         toast({ title: "Hata", description: "Ad/Firma Adı ve E-posta boş bırakılamaz.", variant: "destructive" });
@@ -93,72 +112,90 @@ export default function UsersPage() {
         toast({ title: "Hata", description: "Firma kullanıcıları için Kullanıcı Adı zorunludur.", variant: "destructive" });
         return;
     }
-    if (currentFormData.role === 'company' && !(currentFormData as CompanyUserProfile).contactFullName?.trim()) {
+     if (currentFormData.role === 'company' && !(currentFormData as CompanyUserProfile).contactFullName?.trim()) {
         toast({ title: "Hata", description: "Firma kullanıcıları için Yetkili Adı Soyadı zorunludur.", variant: "destructive" });
         return;
     }
+    if (!editingUser && !currentFormData.password?.trim()) {
+        toast({ title: "Hata", description: "Yeni kullanıcı için şifre zorunludur.", variant: "destructive" });
+        return;
+    }
+    setFormSubmitting(true);
+
+    const dataToSubmit: any = {
+      ...currentFormData,
+      name: currentFormData.name!,
+      email: currentFormData.email!,
+    };
+
+    if (dataToSubmit.role === 'company' && dataToSubmit.membershipEndDate instanceof Date) {
+        dataToSubmit.membershipEndDate = format(dataToSubmit.membershipEndDate, "yyyy-MM-dd");
+    } else if (dataToSubmit.role === 'company' && dataToSubmit.membershipEndDate === undefined) {
+        dataToSubmit.membershipEndDate = null; // explicitly set to null for Firestore if cleared
+    }
+
 
     if (editingUser) {
-      const updatedUsers = users.map(u => u.id === editingUser.id ? { ...editingUser, ...currentFormData, name: currentFormData.name!, email: currentFormData.email! } as UserProfile : u);
-      setUsers(updatedUsers);
-      toast({ title: "Başarılı", description: "Kullanıcı güncellendi." });
+      const { id, createdAt, password, ...updateData } = dataToSubmit; // Don't send id, createdAt or password for update unless specifically handling password change
+      const success = await authService.updateUser(editingUser.id, updateData as Partial<UserProfile>);
+      if (success) {
+        toast({ title: "Başarılı", description: "Kullanıcı güncellendi." });
+        fetchUsers();
+      } else {
+        toast({ title: "Hata", description: "Kullanıcı güncellenemedi.", variant: "destructive" });
+      }
     } else {
-      const newUser: UserProfile = {
-        id: `user-${Date.now()}`,
-        createdAt: new Date(),
-        ...currentFormData,
-        name: currentFormData.name!,
-        email: currentFormData.email!,
-        ...(currentFormData.role === 'company' ? {
-            username: (currentFormData as CompanyUserProfile).username || `firma${Date.now()}`,
-            contactFullName: (currentFormData as CompanyUserProfile).contactFullName || currentFormData.name!,
-            mobilePhone: (currentFormData as CompanyUserProfile).mobilePhone || '',
-            companyType: (currentFormData as CompanyUserProfile).companyType || 'local',
-            addressCity: (currentFormData as CompanyUserProfile).addressCity || '',
-            fullAddress: (currentFormData as CompanyUserProfile).fullAddress || '',
-            workingMethods: (currentFormData as CompanyUserProfile).workingMethods || [],
-            workingRoutes: (currentFormData as CompanyUserProfile).workingRoutes || [],
-            preferredCities: (currentFormData as CompanyUserProfile).preferredCities || [],
-            preferredCountries: (currentFormData as CompanyUserProfile).preferredCountries || [],
-            membershipStatus: (currentFormData as CompanyUserProfile).membershipStatus || 'Yok',
-            membershipEndDate: (currentFormData as CompanyUserProfile).membershipEndDate || undefined,
-        } : {})
-      } as UserProfile;
-      setUsers([newUser, ...users]);
-      toast({ title: "Başarılı", description: "Yeni kullanıcı eklendi." });
+       const { id, createdAt, ...createData } = dataToSubmit;
+      const newUser = await authService.register(createData as RegisterData); // RegisterData expects password
+      if (newUser) {
+        toast({ title: "Başarılı", description: "Yeni kullanıcı eklendi." });
+        fetchUsers();
+      } else {
+        toast({ title: "Hata", description: "Yeni kullanıcı eklenemedi. E-posta zaten kullanımda olabilir.", variant: "destructive" });
+      }
     }
+    setFormSubmitting(false);
     setIsAddEditDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setUsers(users.filter(user => user.id !== id));
-    toast({ title: "Başarılı", description: "Kullanıcı silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await authService.deleteUser(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "Kullanıcı silindi.", variant: "destructive" });
+      fetchUsers();
+    } else {
+      toast({ title: "Hata", description: "Kullanıcı silinemedi.", variant: "destructive" });
+    }
   };
 
-  const calculateRemainingDays = (endDate?: Date): string => {
-    if (!endDate) return '-';
-    const todayNorm = new Date();
-    todayNorm.setHours(0, 0, 0, 0);
-    const endNorm = new Date(endDate);
-    endNorm.setHours(0, 0, 0, 0);
+  const calculateRemainingDays = (endDateIso?: string): string => {
+    if (!endDateIso) return '-';
+    const endDate = parseISO(endDateIso);
+    if (!isValid(endDate)) return '-';
 
-    if (endNorm < todayNorm) return 'Süresi Doldu';
-    const diffTime = Math.abs(endNorm.getTime() - todayNorm.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays === 0 && endNorm.getTime() === todayNorm.getTime()) return 'Bugün Sona Eriyor'; // Added this case
-    return `${diffDays} gün kaldı`;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDate);
+    end.setHours(0,0,0,0);
+
+    const diff = differenceInDays(end, today);
+
+    if (diff < 0) return 'Süresi Doldu';
+    if (diff === 0) return 'Bugün Sona Eriyor';
+    return `${diff} gün kaldı`;
   };
 
   const filteredIndividualUsers = useMemo(() => {
-    return users.filter(user =>
+    return allUsers.filter(user =>
       user.role === 'individual' &&
       (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-    ).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-  }, [users, searchTerm]);
+    ).sort((a, b) => (parseISO(b.createdAt).getTime() || 0) - (parseISO(a.createdAt).getTime() || 0));
+  }, [allUsers, searchTerm]);
 
   const filteredCompanyUsers = useMemo(() => {
-    return users.filter(user => {
+    return allUsers.filter(user => {
       if (user.role !== 'company') return false;
       const companyUser = user as CompanyUserProfile;
       const matchesSearch = companyUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,17 +204,9 @@ export default function UsersPage() {
       if (!matchesSearch) return false;
       if (showOnlyMembers && (!companyUser.membershipStatus || companyUser.membershipStatus === 'Yok')) return false;
       return true;
-    }).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-  }, [users, searchTerm, showOnlyMembers]);
+    }).sort((a, b) => (parseISO(b.createdAt).getTime() || 0) - (parseISO(a.createdAt).getTime() || 0));
+  }, [allUsers, searchTerm, showOnlyMembers]);
 
-
-  const getRoleBadge = (role: UserRole) => {
-    if (role === 'company') {
-      return <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300 flex items-center gap-1"><Building size={14}/> Firma</Badge>;
-    }
-    return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 flex items-center gap-1"><UserIcon size={14}/> Bireysel</Badge>;
-  };
-  
   const getMembershipBadge = (status?: string) => {
     if (!status || status === 'Yok') return <Badge variant="outline" className="text-xs">Yok</Badge>;
     if (status === 'Standart') return <Badge variant="default" className="bg-orange-500 hover:bg-orange-600 text-xs flex items-center gap-1"><Star size={12}/> Standart</Badge>;
@@ -217,7 +246,7 @@ export default function UsersPage() {
               {type === 'company' && <TableCell>{getMembershipBadge((user as CompanyUserProfile).membershipStatus)}</TableCell>}
               {type === 'company' && <TableCell className="text-sm"><Clock size={14} className="inline mr-1 text-muted-foreground"/> {calculateRemainingDays((user as CompanyUserProfile).membershipEndDate)}</TableCell>}
               <TableCell className="text-sm text-muted-foreground">
-                  {user.createdAt ? format(user.createdAt, "dd.MM.yyyy", { locale: tr }) : '-'}
+                  {user.createdAt ? format(parseISO(user.createdAt), "dd.MM.yyyy", { locale: tr }) : '-'}
               </TableCell>
               <TableCell className="text-center">
                   <Badge variant={user.isActive === undefined || user.isActive ? "default" : "outline"} className={user.isActive === undefined || user.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-red-500/10 text-red-700 border-red-400"}>
@@ -269,6 +298,31 @@ export default function UsersPage() {
     </div>
   );
 
+  if (isLoading && allUsers.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Card className="shadow-md">
+          <CardHeader>
+            <Skeleton className="h-8 w-1/3 mb-2" />
+            <Skeleton className="h-6 w-1/2" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
+                <Skeleton className="h-10 w-full sm:max-w-xs" />
+                <Skeleton className="h-10 w-full sm:w-auto" />
+            </div>
+            <Skeleton className="h-10 w-full mb-4" /> {/* For TabsList */}
+            <div className="space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card className="shadow-md">
@@ -298,7 +352,7 @@ export default function UsersPage() {
               <TabsTrigger value="company" className="flex items-center gap-2"><Building size={16}/> Firma Kullanıcıları</TabsTrigger>
             </TabsList>
             <TabsContent value="individual">
-              {renderUserTable(filteredIndividualUsers, 'individual')}
+              {isLoading ? <div><Skeleton className="h-64 w-full"/></div> : renderUserTable(filteredIndividualUsers, 'individual')}
             </TabsContent>
             <TabsContent value="company">
               <div className="flex items-center space-x-2 mb-4 p-3 bg-muted/30 rounded-md border">
@@ -309,7 +363,7 @@ export default function UsersPage() {
                 />
                 <Label htmlFor="showOnlyMembers" className="font-medium">Sadece Üyeliği Olanları Göster</Label>
               </div>
-              {renderUserTable(filteredCompanyUsers, 'company')}
+              {isLoading ? <div><Skeleton className="h-64 w-full"/></div> : renderUserTable(filteredCompanyUsers, 'company')}
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -324,7 +378,7 @@ export default function UsersPage() {
             <DialogHeader>
               <DialogTitle>{editingUser ? 'Kullanıcıyı Düzenle' : 'Yeni Kullanıcı Ekle'}</DialogTitle>
               <DialogDescription>
-                 {editingUser ? `"${editingUser.name}" kullanıcısının bilgilerini güncelleyin.` : `Yeni bir ${activeTab === 'individual' ? 'bireysel' : 'firma'} kullanıcısı için gerekli bilgileri girin.`}
+                 {editingUser ? `"${editingUser.name}" kullanıcısının bilgilerini güncelleyin.` : `Yeni bir ${currentFormData.role === 'individual' ? 'bireysel' : 'firma'} kullanıcısı için gerekli bilgileri girin.`}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-6">
@@ -333,7 +387,7 @@ export default function UsersPage() {
                 <Select 
                     value={currentFormData.role} 
                     onValueChange={(value: UserRole) => setCurrentFormData(prev => ({...prev, role: value, name: prev.name || '', email: prev.email || ''}))}
-                    disabled={!!editingUser || !!isAddEditDialogOpen} // Disable if editing OR if adding (role comes from tab)
+                    disabled={!!editingUser || (isAddEditDialogOpen && !editingUser) } 
                 >
                   <SelectTrigger id="userRole"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -353,7 +407,7 @@ export default function UsersPage() {
                 <>
                   <div className="space-y-1.5">
                     <Label htmlFor="companyTitle" className="font-medium">Firma Adı (*)</Label>
-                    <Input id="companyTitle" value={currentFormData.name || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, name: e.target.value}))} placeholder="Firma resmi ünvanı" />
+                    <Input id="companyTitle" value={currentFormData.name || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, name: e.target.value, companyTitle: e.target.value}))} placeholder="Firma resmi ünvanı" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="companyUsername" className="font-medium">Kullanıcı Adı (Login) (*)</Label>
@@ -379,7 +433,28 @@ export default function UsersPage() {
                     </SelectContent>
                     </Select>
                   </div>
-                   {/* Optionally add membershipEndDate field here for editing */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="membershipEndDate" className="font-medium">Üyelik Bitiş Tarihi</Label>
+                     <Popover>
+                        <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!(currentFormData as CompanyUserProfile).membershipEndDate && "text-muted-foreground"}`}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {(currentFormData as CompanyUserProfile).membershipEndDate && isValid((currentFormData as CompanyUserProfile).membershipEndDate as Date)
+                                ? format((currentFormData as CompanyUserProfile).membershipEndDate as Date, "PPP", { locale: tr }) 
+                                : <span>Tarih seçin</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar 
+                                mode="single" 
+                                selected={(currentFormData as CompanyUserProfile).membershipEndDate as Date | undefined} 
+                                onSelect={(date) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), membershipEndDate: date || undefined}))} 
+                                initialFocus 
+                                locale={tr} 
+                            />
+                        </PopoverContent>
+                    </Popover>
+                  </div>
                 </>
               )}
               
@@ -390,8 +465,9 @@ export default function UsersPage() {
               
               {!editingUser && ( 
                  <div className="space-y-1.5">
-                    <Label htmlFor="userPassword">Şifre (Yeni Kullanıcı)</Label>
+                    <Label htmlFor="userPassword">Şifre (Yeni Kullanıcı) (*)</Label>
                     <Input id="userPassword" type="password" placeholder="Yeni şifre belirleyin" 
+                        value={currentFormData.password || ''}
                         onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} 
                     />
                     <p className="text-xs text-muted-foreground">Kullanıcı ilk girişte şifresini değiştirebilir.</p>
@@ -405,9 +481,12 @@ export default function UsersPage() {
             </div>
             <DialogFooter>
                  <DialogClose asChild>
-                    <Button type="button" variant="outline">İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingUser ? 'Değişiklikleri Kaydet' : 'Kullanıcı Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingUser ? 'Değişiklikleri Kaydet' : 'Kullanıcı Ekle'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,32 +12,33 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Edit, Trash2, Search, Truck } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Truck, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-
-interface VehicleType {
-  id: string;
-  name: string;
-  description?: string;
-  isActive: boolean;
-}
-
-const initialVehicleTypes: VehicleType[] = [
-  { id: 'vt1', name: 'Kamyon', description: 'Standart 10 teker yük kamyonu', isActive: true },
-  { id: 'vt2', name: 'TIR - Kapalı Kasa', description: '13.60 metre kapalı dorse', isActive: true },
-  { id: 'vt3', name: 'Kamyonet - Panelvan', description: 'Şehir içi küçük yükler için', isActive: false },
-  { id: 'vt4', name: 'Damperli Kamyon', description: 'İnşaat malzemeleri için', isActive: true },
-  { id: 'vt5', name: 'Frigo Kamyon', description: 'Soğuk zincir taşımacılığı', isActive: true },
-];
+import type { VehicleTypeSetting } from '@/types';
+import { getAllVehicleTypes, addVehicleType, updateVehicleType, deleteVehicleType } from '@/services/vehicleTypesService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function VehicleTypesPage() {
   const { toast } = useToast();
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(initialVehicleTypes);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeSetting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingVehicleType, setEditingVehicleType] = useState<VehicleType | null>(null);
+  const [editingVehicleType, setEditingVehicleType] = useState<VehicleTypeSetting | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{ name: string; description: string; isActive: boolean }>({ name: '', description: '', isActive: true });
+
+  const fetchVehicleTypes = useCallback(async () => {
+    setIsLoading(true);
+    const types = await getAllVehicleTypes();
+    setVehicleTypes(types);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchVehicleTypes();
+  }, [fetchVehicleTypes]);
 
   useEffect(() => {
     if (editingVehicleType) {
@@ -49,44 +50,54 @@ export default function VehicleTypesPage() {
     } else {
       setCurrentFormData({ name: '', description: '', isActive: true });
     }
-  }, [editingVehicleType, isAddEditDialogOpen]); // Reset form when dialog opens/closes or editing target changes
+  }, [editingVehicleType, isAddEditDialogOpen]);
 
   const handleAddNew = () => {
     setEditingVehicleType(null);
-    // setCurrentFormData is handled by useEffect
     setIsAddEditDialogOpen(true);
   };
 
-  const handleEdit = (vehicleType: VehicleType) => {
+  const handleEdit = (vehicleType: VehicleTypeSetting) => {
     setEditingVehicleType(vehicleType);
-    // setCurrentFormData is handled by useEffect
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentFormData.name.trim()) {
         toast({ title: "Hata", description: "Araç tipi adı boş bırakılamaz.", variant: "destructive" });
         return;
     }
-
+    setFormSubmitting(true);
+    let success = false;
     if (editingVehicleType) {
-      setVehicleTypes(vehicleTypes.map(vt => vt.id === editingVehicleType.id ? { ...editingVehicleType, ...currentFormData } : vt));
-      toast({ title: "Başarılı", description: "Araç tipi güncellendi." });
+      success = await updateVehicleType(editingVehicleType.id, currentFormData);
+      if (success) toast({ title: "Başarılı", description: "Araç tipi güncellendi." });
     } else {
-      const newVehicleType: VehicleType = { 
-        id: `vt${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
-        ...currentFormData 
-      };
-      setVehicleTypes([newVehicleType, ...vehicleTypes]);
-      toast({ title: "Başarılı", description: "Yeni araç tipi eklendi." });
+      const newId = await addVehicleType(currentFormData);
+      if (newId) {
+        success = true;
+        toast({ title: "Başarılı", description: "Yeni araç tipi eklendi." });
+      }
     }
-    setIsAddEditDialogOpen(false);
+
+    if (success) {
+      fetchVehicleTypes();
+      setIsAddEditDialogOpen(false);
+    } else {
+      toast({ title: "Hata", description: `Araç tipi ${editingVehicleType ? 'güncellenirken' : 'eklenirken'} bir sorun oluştu.`, variant: "destructive" });
+    }
+    setFormSubmitting(false);
   };
 
-  const handleDelete = (id: string) => {
-    setVehicleTypes(vehicleTypes.filter(vt => vt.id !== id));
-    toast({ title: "Başarılı", description: "Araç tipi silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await deleteVehicleType(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "Araç tipi silindi.", variant: "destructive" });
+      fetchVehicleTypes();
+    } else {
+      toast({ title: "Hata", description: "Araç tipi silinirken bir sorun oluştu.", variant: "destructive" });
+    }
   };
 
   const filteredVehicleTypes = vehicleTypes.filter(vt => 
@@ -116,7 +127,13 @@ export default function VehicleTypesPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Araç Tipi Ekle
             </Button>
           </div>
-
+            {isLoading ? (
+                 <div className="space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                 </div>
+            ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -176,12 +193,13 @@ export default function VehicleTypesPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
       <Dialog open={isAddEditDialogOpen} onOpenChange={(isOpen) => {
           setIsAddEditDialogOpen(isOpen);
-          if (!isOpen) setEditingVehicleType(null); // Reset editing state when dialog closes
+          if (!isOpen) setEditingVehicleType(null);
       }}>
         <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleSubmit}>
@@ -207,9 +225,12 @@ export default function VehicleTypesPage() {
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button type="button" variant="outline">İptal</Button>
+                <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
               </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingVehicleType ? 'Değişiklikleri Kaydet' : 'Araç Tipi Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingVehicleType ? 'Değişiklikleri Kaydet' : 'Araç Tipi Ekle'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

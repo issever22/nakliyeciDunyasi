@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,34 +13,33 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit, Trash2, Search, FileText } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, FileText, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-
-type RequiredFor = 'Bireysel' | 'Firma' | 'Her İkisi de';
-
-interface AuthDoc {
-  id: string;
-  name: string;
-  requiredFor: RequiredFor;
-  details?: string;
-  isActive: boolean;
-}
-
-const initialAuthDocs: AuthDoc[] = [
-  { id: 'ad1', name: 'K1 Yetki Belgesi', requiredFor: 'Firma', details: 'Yurtiçi ticari eşya taşımacılığı yapacaklara verilir.', isActive: true },
-  { id: 'ad2', name: 'SRC Belgesi', requiredFor: 'Bireysel', details: 'Ticari araç kullanacak sürücüler için mesleki yeterlilik belgesi.', isActive: true },
-  { id: 'ad3', name: 'Psikoteknik Raporu', requiredFor: 'Bireysel', details: 'Ticari araç sürücülerinin alması gereken sağlık raporu.', isActive: true },
-  { id: 'ad4', name: 'TIR Karnesi', requiredFor: 'Firma', details: 'Uluslararası karayolu taşımacılığında kullanılır.', isActive: false },
-];
+import type { AuthDocSetting, RequiredFor } from '@/types';
+import { getAllAuthDocs, addAuthDoc, updateAuthDoc, deleteAuthDoc } from '@/services/authDocsService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AuthDocsPage() {
   const { toast } = useToast();
-  const [authDocs, setAuthDocs] = useState<AuthDoc[]>(initialAuthDocs);
+  const [authDocs, setAuthDocs] = useState<AuthDocSetting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingAuthDoc, setEditingAuthDoc] = useState<AuthDoc | null>(null);
+  const [editingAuthDoc, setEditingAuthDoc] = useState<AuthDocSetting | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{ name: string; requiredFor: RequiredFor; details: string; isActive: boolean }>({ name: '', requiredFor: 'Firma', details: '', isActive: true });
+
+  const fetchAuthDocs = useCallback(async () => {
+    setIsLoading(true);
+    const docs = await getAllAuthDocs();
+    setAuthDocs(docs);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchAuthDocs();
+  }, [fetchAuthDocs]);
 
   useEffect(() => {
     if (editingAuthDoc) {
@@ -60,35 +59,47 @@ export default function AuthDocsPage() {
     setIsAddEditDialogOpen(true);
   };
 
-  const handleEdit = (doc: AuthDoc) => {
+  const handleEdit = (doc: AuthDocSetting) => {
     setEditingAuthDoc(doc);
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
      if (!currentFormData.name.trim()) {
         toast({ title: "Hata", description: "Belge adı boş bırakılamaz.", variant: "destructive" });
         return;
     }
-
+    setFormSubmitting(true);
+    let success = false;
     if (editingAuthDoc) {
-      setAuthDocs(authDocs.map(doc => doc.id === editingAuthDoc.id ? { ...editingAuthDoc, ...currentFormData } : doc));
-      toast({ title: "Başarılı", description: "Yetki belgesi güncellendi." });
+      success = await updateAuthDoc(editingAuthDoc.id, currentFormData);
+      if (success) toast({ title: "Başarılı", description: "Yetki belgesi güncellendi." });
     } else {
-      const newDoc: AuthDoc = { 
-        id: `ad${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
-        ...currentFormData 
-      };
-      setAuthDocs([newDoc, ...authDocs]);
-      toast({ title: "Başarılı", description: "Yeni yetki belgesi eklendi." });
+      const newId = await addAuthDoc(currentFormData);
+      if (newId) {
+        success = true;
+        toast({ title: "Başarılı", description: "Yeni yetki belgesi eklendi." });
+      }
     }
-    setIsAddEditDialogOpen(false);
+
+    if (success) {
+      fetchAuthDocs();
+      setIsAddEditDialogOpen(false);
+    } else {
+      toast({ title: "Hata", description: `Yetki belgesi ${editingAuthDoc ? 'güncellenirken' : 'eklenirken'} bir sorun oluştu.`, variant: "destructive" });
+    }
+    setFormSubmitting(false);
   };
 
-  const handleDelete = (id: string) => {
-    setAuthDocs(authDocs.filter(doc => doc.id !== id));
-    toast({ title: "Başarılı", description: "Yetki belgesi silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await deleteAuthDoc(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "Yetki belgesi silindi.", variant: "destructive" });
+      fetchAuthDocs();
+    } else {
+      toast({ title: "Hata", description: "Yetki belgesi silinirken bir sorun oluştu.", variant: "destructive" });
+    }
   };
 
   const filteredAuthDocs = authDocs.filter(doc => 
@@ -119,7 +130,13 @@ export default function AuthDocsPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Yetki Belgesi Ekle
             </Button>
           </div>
-
+            {isLoading ? (
+                 <div className="space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                 </div>
+            ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -181,6 +198,7 @@ export default function AuthDocsPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -225,9 +243,12 @@ export default function AuthDocsPage() {
             </div>
             <DialogFooter>
                <DialogClose asChild>
-                <Button type="button" variant="outline">İptal</Button>
+                <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
               </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingAuthDoc ? 'Değişiklikleri Kaydet' : 'Belge Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingAuthDoc ? 'Değişiklikleri Kaydet' : 'Belge Ekle'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

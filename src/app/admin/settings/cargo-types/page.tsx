@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,40 +11,33 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Edit, Trash2, Search, PackageSearch, Boxes } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Boxes, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { CARGO_TYPES as DEFAULT_CARGO_TYPES } from '@/lib/constants'; // Import default cargo types
-
-interface CargoTypeSetting {
-  id: string;
-  name: string;
-  category?: string; // Example: Gıda, Sanayi, etc.
-  isActive: boolean;
-}
-
-// Initialize with default cargo types from constants.ts
-const initialCargoTypes: CargoTypeSetting[] = DEFAULT_CARGO_TYPES.map((name, index) => ({
-    id: `ct_default_${index + 1}`,
-    name: name,
-    category: 'Genel', // Assign a default category or derive it if possible
-    isActive: true,
-}));
-
-// Add a few custom ones for demonstration
-initialCargoTypes.push(
-    { id: 'ct_custom_1', name: 'Tehlikeli Madde', category: 'Özel', isActive: true },
-    { id: 'ct_custom_2', name: 'Soğuk Zincir Ürünü', category: 'Gıda', isActive: true }
-);
-
+import type { CargoTypeSetting } from '@/types';
+import { getAllCargoTypes, addCargoType, updateCargoType, deleteCargoType } from '@/services/cargoTypesService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CargoTypesPage() {
   const { toast } = useToast();
-  const [cargoTypes, setCargoTypes] = useState<CargoTypeSetting[]>(initialCargoTypes);
+  const [cargoTypes, setCargoTypes] = useState<CargoTypeSetting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingCargoType, setEditingCargoType] = useState<CargoTypeSetting | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{ name: string; category: string; isActive: boolean }>({ name: '', category: '', isActive: true });
+
+  const fetchCargoTypes = useCallback(async () => {
+    setIsLoading(true);
+    const types = await getAllCargoTypes();
+    setCargoTypes(types);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchCargoTypes();
+  }, [fetchCargoTypes]);
 
   useEffect(() => {
     if (editingCargoType) {
@@ -68,29 +61,42 @@ export default function CargoTypesPage() {
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentFormData.name.trim()) {
         toast({ title: "Hata", description: "Yük cinsi adı boş bırakılamaz.", variant: "destructive" });
         return;
     }
+    setFormSubmitting(true);
+    let success = false;
     if (editingCargoType) {
-      setCargoTypes(cargoTypes.map(ct => ct.id === editingCargoType.id ? { ...editingCargoType, ...currentFormData } : ct));
-      toast({ title: "Başarılı", description: "Yük cinsi güncellendi." });
+      success = await updateCargoType(editingCargoType.id, currentFormData);
+      if (success) toast({ title: "Başarılı", description: "Yük cinsi güncellendi." });
     } else {
-      const newCargoType: CargoTypeSetting = { 
-        id: `ct${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
-        ...currentFormData 
-      };
-      setCargoTypes([newCargoType, ...cargoTypes]);
-      toast({ title: "Başarılı", description: "Yeni yük cinsi eklendi." });
+      const newId = await addCargoType(currentFormData);
+      if (newId) {
+        success = true;
+        toast({ title: "Başarılı", description: "Yeni yük cinsi eklendi." });
+      }
     }
-    setIsAddEditDialogOpen(false);
+
+    if (success) {
+      fetchCargoTypes();
+      setIsAddEditDialogOpen(false);
+    } else {
+      toast({ title: "Hata", description: `Yük cinsi ${editingCargoType ? 'güncellenirken' : 'eklenirken'} bir sorun oluştu.`, variant: "destructive" });
+    }
+    setFormSubmitting(false);
   };
 
-  const handleDelete = (id: string) => {
-    setCargoTypes(cargoTypes.filter(ct => ct.id !== id));
-    toast({ title: "Başarılı", description: "Yük cinsi silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await deleteCargoType(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "Yük cinsi silindi.", variant: "destructive" });
+      fetchCargoTypes();
+    } else {
+      toast({ title: "Hata", description: "Yük cinsi silinirken bir sorun oluştu.", variant: "destructive" });
+    }
   };
 
   const filteredCargoTypes = cargoTypes.filter(ct => 
@@ -120,7 +126,13 @@ export default function CargoTypesPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Yük Cinsi Ekle
             </Button>
           </div>
-
+           {isLoading ? (
+             <div className="space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+             </div>
+            ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -180,6 +192,7 @@ export default function CargoTypesPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -211,9 +224,12 @@ export default function CargoTypesPage() {
             </div>
             <DialogFooter>
                 <DialogClose asChild>
-                    <Button type="button" variant="outline">İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingCargoType ? 'Değişiklikleri Kaydet' : 'Yük Cinsi Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingCargoType ? 'Değişiklikleri Kaydet' : 'Yük Cinsi Ekle'}
+                </Button>
             </DialogFooter>
           </form>
         </DialogContent>

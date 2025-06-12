@@ -35,7 +35,7 @@ interface BaseFreight {
   userId: string;
   companyName: string; 
   contactPerson: string; 
-  contactEmail: string; 
+  contactEmail?: string; // Optional made
   workPhone?: string; 
   mobilePhone: string; 
   originCountry: CountryCode | string; 
@@ -44,10 +44,11 @@ interface BaseFreight {
   destinationCountry: CountryCode | string; 
   destinationCity: TurkishCity | string;     
   destinationDistrict?: string;    
-  loadingDate: string; 
-  postedAt: string; 
+  loadingDate: string; // Should be string after conversion from Timestamp
+  postedAt: string; // Should be string (ISO) after conversion from Timestamp
   postedBy: string; 
-  isActive?: boolean; // Added for admin management
+  isActive?: boolean;
+  description: string; // Common field
 }
 
 export interface CommercialFreight extends BaseFreight {
@@ -58,8 +59,7 @@ export interface CommercialFreight extends BaseFreight {
   cargoForm: CargoForm;
   cargoWeight: number;
   cargoWeightUnit: WeightUnit;
-  description: string; 
-  isContinuousLoad: boolean; 
+  isContinuousLoad?: boolean; 
   shipmentScope: ShipmentScope; 
 }
 
@@ -69,7 +69,6 @@ export interface ResidentialFreight extends BaseFreight {
   residentialPlaceType: ResidentialPlaceType; 
   residentialElevatorStatus: ResidentialElevatorStatus; 
   residentialFloorLevel: ResidentialFloorLevel; 
-  description: string; 
 }
 
 export type Freight = CommercialFreight | ResidentialFreight;
@@ -84,19 +83,21 @@ interface BaseUserProfile {
   id: string;
   email: string;
   role: UserRole;
-  name: string; // For individual: full name. For company: company title.
-  isActive?: boolean; 
-  createdAt?: Date; 
+  name: string; 
+  isActive: boolean; // Non-optional, default to true on creation
+  createdAt: string; // ISO string from Timestamp
 }
 
 export interface IndividualUserProfile extends BaseUserProfile {
   role: 'individual';
+  // Individual specific fields can be added here if any
 }
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
   username: string; 
   logoUrl?: string; 
+  companyTitle: string; // Redundant if 'name' is companyTitle, but can keep for clarity
   contactFullName: string; 
   workPhone?: string;
   mobilePhone: string; 
@@ -112,15 +113,81 @@ export interface CompanyUserProfile extends BaseUserProfile {
   preferredCities: (TurkishCity | string)[]; 
   preferredCountries: (CountryCode | string)[]; 
   membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string; 
-  membershipEndDate?: Date;
+  membershipEndDate?: string; // ISO string from Timestamp
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
 
-export type VehicleType = typeof VEHICLES_NEEDED[number];
+
+// Types for Settings Pages
+export interface VehicleTypeSetting {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export type RequiredFor = 'Bireysel' | 'Firma' | 'Her İkisi de';
+export interface AuthDocSetting {
+  id: string;
+  name: string;
+  requiredFor: RequiredFor;
+  details?: string;
+  isActive: boolean;
+}
+
+export type DurationUnit = 'Gün' | 'Ay' | 'Yıl';
+export interface MembershipSetting {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  durationUnit: DurationUnit;
+  features: string[];
+  isActive: boolean;
+  description?: string;
+}
+
+export interface CargoTypeSetting {
+  id: string;
+  name: string;
+  category?: string;
+  isActive: boolean;
+}
+
+export type ApplicableTo = 'Ticari' | 'Evden Eve' | 'Her İkisi de';
+export interface TransportTypeSetting {
+  id: string;
+  name: string;
+  description?: string;
+  applicableTo: ApplicableTo;
+  isActive: boolean;
+}
+
+export type TargetAudience = 'Tümü' | 'Bireysel Kullanıcılar' | 'Firma Kullanıcıları';
+export interface AnnouncementSetting {
+  id: string;
+  title: string;
+  content: string;
+  targetAudience: TargetAudience;
+  startDate?: string; // ISO string
+  endDate?: string; // ISO string
+  isActive: boolean;
+  createdAt: string; // ISO string
+}
+
+export type NoteCategory = 'Yönetici' | 'Kullanıcı Geri Bildirimi' | 'Geliştirme' | 'Genel';
+export interface AdminNoteSetting {
+  id: string;
+  title: string;
+  content: string;
+  category: NoteCategory;
+  createdDate: string; // ISO string
+  lastModifiedDate: string; // ISO string
+  isImportant: boolean;
+}
 
 export type SponsorEntityType = 'country' | 'city';
-
 export interface Sponsor {
   id: string;
   name: string; 
@@ -128,9 +195,8 @@ export interface Sponsor {
   linkUrl?: string; 
   entityType: SponsorEntityType; 
   entityName: string; 
-  startDate: Date;
-  endDate?: Date;
+  startDate: string; // ISO string
+  endDate?: string; // ISO string
   isActive: boolean;
-  createdAt: Date;
+  createdAt: string; // ISO string
 }
-

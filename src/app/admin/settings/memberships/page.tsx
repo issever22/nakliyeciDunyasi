@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,36 +13,33 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit, Trash2, Search, Star, BadgeDollarSign } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Star, BadgeDollarSign, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-
-type DurationUnit = 'Gün' | 'Ay' | 'Yıl';
-
-interface Membership {
-  id: string;
-  name: string;
-  price: number;
-  duration: number;
-  durationUnit: DurationUnit;
-  features: string[];
-  isActive: boolean;
-  description?: string;
-}
-
-const initialMemberships: Membership[] = [
-  { id: 'mem1', name: 'Standart Üyelik', price: 49, duration: 1, durationUnit: 'Ay', features: ['Sınırlı İlan Listeleme', 'Temel Profil'], isActive: true, description: 'Yeni başlayanlar için uygun fiyatlı paket.' },
-  { id: 'mem2', name: 'Premium Üyelik', price: 99, duration: 1, durationUnit: 'Ay', features: ['Sınırsız İlan Listeleme', 'Öne Çıkan Profil', 'Detaylı Raporlama'], isActive: true, description: 'Profesyoneller için kapsamlı özellikler.' },
-  { id: 'mem3', name: 'Yıllık Gold', price: 999, duration: 1, durationUnit: 'Yıl', features: ['Tüm Premium Özellikler', 'Özel Destek Hattı', 'Reklamsız Deneyim'], isActive: false, description: 'Uzun vadeli ve en avantajlı üyelik.' },
-];
+import type { MembershipSetting, DurationUnit } from '@/types';
+import { getAllMemberships, addMembership, updateMembership, deleteMembership } from '@/services/membershipsService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function MembershipsPage() {
   const { toast } = useToast();
-  const [memberships, setMemberships] = useState<Membership[]>(initialMemberships);
+  const [memberships, setMemberships] = useState<MembershipSetting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingMembership, setEditingMembership] = useState<Membership | null>(null);
+  const [editingMembership, setEditingMembership] = useState<MembershipSetting | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{ name: string; price: string; duration: string; durationUnit: DurationUnit; features: string; isActive: boolean; description: string }>({ name: '', price: '', duration: '', durationUnit: 'Ay', features: '', isActive: true, description: '' });
+
+  const fetchMemberships = useCallback(async () => {
+    setIsLoading(true);
+    const data = await getAllMemberships();
+    setMemberships(data);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMemberships();
+  }, [fetchMemberships]);
 
   useEffect(() => {
     if (editingMembership) {
@@ -65,12 +62,12 @@ export default function MembershipsPage() {
     setIsAddEditDialogOpen(true);
   };
 
-  const handleEdit = (membership: Membership) => {
+  const handleEdit = (membership: MembershipSetting) => {
     setEditingMembership(membership);
     setIsAddEditDialogOpen(true);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const priceNum = parseFloat(currentFormData.price);
     const durationNum = parseInt(currentFormData.duration, 10);
@@ -87,10 +84,11 @@ export default function MembershipsPage() {
       toast({ title: "Hata", description: "Geçerli bir süre girin.", variant: "destructive" });
       return;
     }
+    setFormSubmitting(true);
 
     const featuresArray = currentFormData.features.split('\n').map(f => f.trim()).filter(f => f);
 
-    const membershipData = {
+    const membershipData: Omit<MembershipSetting, 'id'> = {
       name: currentFormData.name,
       price: priceNum,
       duration: durationNum,
@@ -99,24 +97,36 @@ export default function MembershipsPage() {
       isActive: currentFormData.isActive,
       description: currentFormData.description,
     };
-
+    
+    let success = false;
     if (editingMembership) {
-      setMemberships(memberships.map(mem => mem.id === editingMembership.id ? { ...editingMembership, ...membershipData } : mem));
-      toast({ title: "Başarılı", description: "Üyelik paketi güncellendi." });
+      success = await updateMembership(editingMembership.id, membershipData);
+      if (success) toast({ title: "Başarılı", description: "Üyelik paketi güncellendi." });
     } else {
-      const newMembership: Membership = { 
-        id: `mem${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
-        ...membershipData 
-      };
-      setMemberships([newMembership, ...memberships]);
-      toast({ title: "Başarılı", description: "Yeni üyelik paketi eklendi." });
+      const newId = await addMembership(membershipData);
+      if (newId) {
+        success = true;
+        toast({ title: "Başarılı", description: "Yeni üyelik paketi eklendi." });
+      }
     }
-    setIsAddEditDialogOpen(false);
+
+    if (success) {
+      fetchMemberships();
+      setIsAddEditDialogOpen(false);
+    } else {
+      toast({ title: "Hata", description: `Üyelik paketi ${editingMembership ? 'güncellenirken' : 'eklenirken'} bir sorun oluştu.`, variant: "destructive" });
+    }
+    setFormSubmitting(false);
   };
 
-  const handleDelete = (id: string) => {
-    setMemberships(memberships.filter(mem => mem.id !== id));
-    toast({ title: "Başarılı", description: "Üyelik paketi silindi.", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    const success = await deleteMembership(id);
+    if (success) {
+      toast({ title: "Başarılı", description: "Üyelik paketi silindi.", variant: "destructive" });
+      fetchMemberships();
+    } else {
+      toast({ title: "Hata", description: "Üyelik paketi silinirken bir sorun oluştu.", variant: "destructive" });
+    }
   };
 
   const filteredMemberships = memberships.filter(mem => 
@@ -146,7 +156,13 @@ export default function MembershipsPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Paket Ekle
             </Button>
           </div>
-
+           {isLoading ? (
+             <div className="space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+             </div>
+            ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -215,6 +231,7 @@ export default function MembershipsPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -271,9 +288,12 @@ export default function MembershipsPage() {
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button type="button" variant="outline">İptal</Button>
+                <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
               </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">{editingMembership ? 'Değişiklikleri Kaydet' : 'Paket Ekle'}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingMembership ? 'Değişiklikleri Kaydet' : 'Paket Ekle'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -281,4 +301,3 @@ export default function MembershipsPage() {
     </div>
   );
 }
-
