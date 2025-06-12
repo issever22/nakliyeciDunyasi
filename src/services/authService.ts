@@ -1,23 +1,31 @@
 
 'use server';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase'; // Import auth from firebase
 import type { UserProfile, IndividualUserProfile, CompanyUserProfile, RegisterData } from '@/types';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where,
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  type User as FirebaseUser
+} from 'firebase/auth';
+import {
+  collection,
+  doc,
+  setDoc, // Use setDoc to specify document ID (uid)
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
   Timestamp,
-  DocumentData
+  DocumentData,
+  getDocs,
+  where
 } from 'firebase/firestore';
 import { parseISO } from 'date-fns';
 
 const USERS_COLLECTION = 'users';
-const USER_STORAGE_KEY = 'nakliyeci-dunyasi-user';
 
 // Helper to convert Firestore data to UserProfile
 const convertToUserProfile = (docData: DocumentData, id: string): UserProfile => {
@@ -44,124 +52,98 @@ const convertToUserProfile = (docData: DocumentData, id: string): UserProfile =>
   return { id, ...data } as IndividualUserProfile;
 };
 
+// Function to get user profile from Firestore by UID
+export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
+  try {
+    const userDocRef = doc(db, USERS_COLLECTION, uid);
+    const userDocSnap = await getDoc(userDocRef);
+    if (userDocSnap.exists()) {
+      return convertToUserProfile(userDocSnap.data(), userDocSnap.id);
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    return null;
+  }
+};
+
+
 export const authService = {
   login: async (email: string, pass: string): Promise<UserProfile | null> => {
     try {
-      const q = query(collection(db, USERS_COLLECTION), where("email", "==", email));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        console.log("No user found with this email.");
-        return null;
-      }
-      
-      // For this mock, we'll assume the first user found is the one,
-      // and we're not actually checking the password.
-      // In a real app, you'd use Firebase Authentication or secure password hashing.
-      const userDoc = querySnapshot.docs[0];
-      const user = convertToUserProfile(userDoc.data(), userDoc.id);
-
-      // Basic password check for mock purposes - REPLACE WITH SECURE AUTH
-      // This is highly insecure and only for local demo.
-      // const storedPassword = userDoc.data().password; // NEVER store plain text passwords
-      // if (storedPassword === pass) {
-      if (pass) { // Placeholder for actual password check
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-        }
-        return user;
+      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      const firebaseUser = userCredential.user;
+      if (firebaseUser) {
+        // Fetch profile from Firestore
+        return await getUserProfile(firebaseUser.uid);
       }
       return null;
-    } catch (error) {
-      console.error("Error logging in: ", error);
+    } catch (error: any) {
+      console.error("Error logging in with Firebase Auth: ", error.code, error.message);
+      // You can handle specific error codes here (e.g., auth/wrong-password, auth/user-not-found)
       return null;
     }
   },
 
   register: async (userData: RegisterData): Promise<UserProfile | null> => {
     try {
-      const q = query(collection(db, USERS_COLLECTION), where("email", "==", userData.email));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        console.error("Email already registered");
+      const { email, password, ...profileData } = userData;
+      if (!password) {
+        console.error("Password is required for registration.");
         return null;
       }
 
-      const { password, ...dataToSaveWithoutPassword } = userData; // Exclude password from Firestore save
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
 
-      const dataToSave: any = {
-        ...dataToSaveWithoutPassword,
-        isActive: true, // Default new users to active
-        createdAt: Timestamp.fromDate(new Date()),
-        // Password should be handled by Firebase Auth or a secure backend.
-        // For this mock, we're not storing it directly in Firestore for security.
-        // If you were storing a hash: hashedPassword: await hashPassword(password)
-      };
-      
-      // For company users, ensure specific fields exist or default them
-      if (dataToSave.role === 'company') {
-        dataToSave.companyTitle = dataToSave.companyTitle || dataToSave.name;
-        dataToSave.logoUrl = dataToSave.logoUrl || '';
-        dataToSave.contactFullName = dataToSave.contactFullName || dataToSave.name;
-        dataToSave.workPhone = dataToSave.workPhone || '';
-        dataToSave.mobilePhone = dataToSave.mobilePhone || '';
-        dataToSave.fax = dataToSave.fax || '';
-        dataToSave.website = dataToSave.website || '';
-        dataToSave.companyDescription = dataToSave.companyDescription || '';
-        dataToSave.companyType = dataToSave.companyType || 'local';
-        dataToSave.addressCity = dataToSave.addressCity || '';
-        dataToSave.addressDistrict = dataToSave.addressDistrict || '';
-        dataToSave.fullAddress = dataToSave.fullAddress || '';
-        dataToSave.workingMethods = dataToSave.workingMethods || [];
-        dataToSave.workingRoutes = dataToSave.workingRoutes || [];
-        dataToSave.preferredCities = dataToSave.preferredCities || [];
-        dataToSave.preferredCountries = dataToSave.preferredCountries || [];
-        dataToSave.membershipStatus = dataToSave.membershipStatus || 'Yok';
-        if (dataToSave.membershipEndDate && typeof dataToSave.membershipEndDate === 'string') {
-             dataToSave.membershipEndDate = Timestamp.fromDate(parseISO(dataToSave.membershipEndDate));
-        } else {
-            dataToSave.membershipEndDate = undefined;
+      if (firebaseUser) {
+        const uid = firebaseUser.uid;
+        const dataToSave: Omit<UserProfile, 'id' | 'password'> & { createdAt: Timestamp } = {
+          ...(profileData as Omit<UserProfile, 'id' | 'password' | 'email'>), // email is already handled
+          email: firebaseUser.email!, // Use email from Firebase Auth user
+          isActive: true,
+          createdAt: Timestamp.fromDate(new Date()),
+        };
+        
+        if (dataToSave.role === 'company') {
+          const companyData = dataToSave as Omit<CompanyUserProfile, 'id' | 'password'> & { createdAt: Timestamp };
+          companyData.companyTitle = companyData.companyTitle || companyData.name;
+          companyData.logoUrl = companyData.logoUrl || '';
+          companyData.contactFullName = companyData.contactFullName || companyData.name;
+          // ... other company defaults if necessary
+           if (companyData.membershipEndDate && typeof companyData.membershipEndDate === 'string') {
+             companyData.membershipEndDate = Timestamp.fromDate(parseISO(companyData.membershipEndDate)) as any;
+           } else {
+            companyData.membershipEndDate = undefined;
+          }
         }
+
+        const userDocRef = doc(db, USERS_COLLECTION, uid);
+        await setDoc(userDocRef, dataToSave); // Use setDoc with UID as document ID
+        
+        return { id: uid, ...dataToSave } as UserProfile;
       }
-
-
-      const docRef = await addDoc(collection(db, USERS_COLLECTION), dataToSave);
-      const newUser = convertToUserProfile({ ...dataToSave, id: docRef.id }, docRef.id);
-      
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
-      }
-      return newUser;
-
-    } catch (error) {
-      console.error("Error registering user: ", error);
+      return null;
+    } catch (error: any) {
+      console.error("Error registering user with Firebase Auth: ", error.code, error.message);
+      // Handle specific errors like auth/email-already-in-use
       return null;
     }
   },
 
   logout: async (): Promise<void> => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(USER_STORAGE_KEY);
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out with Firebase Auth: ", error);
     }
   },
 
-  getCurrentUser: (): UserProfile | null => {
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem(USER_STORAGE_KEY);
-      if (userStr) {
-        try {
-          return JSON.parse(userStr) as UserProfile;
-        } catch (e) {
-          console.error("Error parsing user from localStorage", e);
-          localStorage.removeItem(USER_STORAGE_KEY);
-          return null;
-        }
-      }
-    }
-    return null;
+  onAuthStateChangedListener: (callback: (user: FirebaseUser | null) => void) => {
+    return onAuthStateChanged(auth, callback);
   },
-
-  // Admin functions
+  
+  // Admin functions remain largely the same, operating on Firestore data
   getAllUsers: async (): Promise<UserProfile[]> => {
     try {
       const querySnapshot = await getDocs(query(collection(db, USERS_COLLECTION), orderBy('createdAt', 'desc')));
@@ -177,21 +159,16 @@ export const authService = {
       const docRef = doc(db, USERS_COLLECTION, id);
       const dataToUpdate: any = { ...userData };
       
-      // Convert dates back to Timestamp if they are strings
       if (dataToUpdate.createdAt && typeof dataToUpdate.createdAt === 'string') {
         dataToUpdate.createdAt = Timestamp.fromDate(parseISO(dataToUpdate.createdAt));
       }
       if (dataToUpdate.membershipEndDate && typeof dataToUpdate.membershipEndDate === 'string') {
         dataToUpdate.membershipEndDate = Timestamp.fromDate(parseISO(dataToUpdate.membershipEndDate));
       } else if (dataToUpdate.membershipEndDate === null || dataToUpdate.membershipEndDate === undefined) {
-        // Allow clearing the date
         dataToUpdate.membershipEndDate = null; 
       }
 
-
-      // Remove id if present, as it's not part of the document data itself
       delete dataToUpdate.id;
-      // Password should be updated via a separate, secure mechanism (e.g., Firebase Auth)
       delete dataToUpdate.password; 
 
       await updateDoc(docRef, dataToUpdate);
@@ -204,11 +181,14 @@ export const authService = {
 
   deleteUser: async (id: string): Promise<boolean> => {
     try {
+      // Note: This only deletes the Firestore profile. 
+      // Deleting the Firebase Auth user requires Admin SDK or specific client-side re-authentication.
+      // For simplicity, we'll just delete the profile here.
       const docRef = doc(db, USERS_COLLECTION, id);
       await deleteDoc(docRef);
       return true;
     } catch (error) {
-      console.error("Error deleting user: ", error);
+      console.error("Error deleting user profile: ", error);
       return false;
     }
   }

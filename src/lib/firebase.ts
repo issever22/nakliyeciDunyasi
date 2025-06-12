@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
-// import { getAuth } from "firebase/auth"; // Gelecekte Firebase Auth için eklenebilir
+import { getAuth, type Auth } from "firebase/auth"; // Import Firebase Auth
 // import { getDatabase } from "firebase/database"; // Realtime Database için eklenebilir
 // import { getAnalytics } from "firebase/analytics"; // Analytics için eklenebilir
 
@@ -27,7 +27,7 @@ if (!getApps().length) {
 }
 
 const db: Firestore = getFirestore(app);
-// const auth = getAuth(app); // Gelecekte Firebase Auth için
+const auth: Auth = getAuth(app); // Initialize Firebase Auth
 // const database = getDatabase(app); // Realtime Database için
 
-export { db, app };
+export { db, auth, app }; // Export auth instance

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from 'react';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, Loader2 } from 'lucide-react'; // Added Loader2
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginForm() {
@@ -19,12 +20,13 @@ export default function LoginForm() {
     event.preventDefault();
     setIsLoading(true);
     try {
-      const user = await login(email, password);
-      if (user) {
+      const userProfile = await login(email, password); // authService.login now used by useAuth
+      if (userProfile) {
         toast({
           title: "Başarılı Giriş",
-          description: `Hoş geldiniz, ${user.name}!`,
+          description: `Hoş geldiniz, ${userProfile.name}!`,
         });
+        // Navigation is handled by AuthProvider
       } else {
         toast({
           title: "Giriş Başarısız",
@@ -32,11 +34,15 @@ export default function LoginForm() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
+      let description = "Giriş sırasında bir hata oluştu.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = "E-posta veya şifre hatalı.";
+      }
       toast({
         title: "Hata",
-        description: "Giriş sırasında bir hata oluştu.",
+        description: description,
         variant: "destructive",
       });
     } finally {
@@ -58,6 +64,7 @@ export default function LoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             className="pl-10"
+            autoComplete="email"
           />
         </div>
       </div>
@@ -73,10 +80,12 @@ export default function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             className="pl-10"
+            autoComplete="current-password"
           />
         </div>
       </div>
       <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
       </Button>
     </form>

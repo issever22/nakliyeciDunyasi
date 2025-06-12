@@ -15,8 +15,9 @@ import { useToast } from '@/hooks/use-toast';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type TurkishCity, type CountryCode } from '@/lib/locationData';
 import { COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import type { CompanyUserProfile, CompanyUserType, WorkingMethodType, WorkingRouteType } from '@/types';
-import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Info, MapPin, CheckSquare, Briefcase, Link as LinkIcon } from 'lucide-react'; // Added LinkIcon
+import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Info, MapPin, CheckSquare, Briefcase, Link as LinkIcon, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import type { RegisterData } from '@/hooks/useAuth'; // Import RegisterData
 
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
 
@@ -115,24 +116,26 @@ export default function CompanyRegisterForm() {
       toast({ title: "Hata", description: "Lütfen Firma Türü seçin.", variant: "destructive" });
       return;
     }
-    if (!username || !companyTitle || !contactFullName || !mobilePhone || !email || !addressCity || !fullAddress) {
+    if (!username || !companyTitle || !contactFullName || !mobilePhone || !email || !addressCity || !fullAddress || !password) {
        toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları (*) doldurun.", variant: "destructive" });
        return;
     }
 
     setIsLoading(true);
     try {
-      const registrationData: Omit<CompanyUserProfile, 'id' | 'role' | 'name'> & { role: 'company', password?: string } = {
-        role: 'company',
+      // Prepare data for registration, password will be handled by Firebase Auth
+      const registrationData: RegisterData = {
+        role: 'company' as const,
+        email,
+        password, // Will be used by Firebase Auth
+        name: companyTitle, // Use companyTitle as the 'name' for CompanyUserProfile base
         username,
-        password, 
         logoUrl: logoUrl || undefined,
         companyTitle, 
         contactFullName,
         workPhone: workPhone || undefined,
         mobilePhone,
         fax: fax || undefined,
-        email,
         website: website || undefined,
         companyDescription: companyDescription || undefined,
         companyType: companyType as CompanyUserType,
@@ -143,26 +146,35 @@ export default function CompanyRegisterForm() {
         workingRoutes: workingRoutes as WorkingRouteType[],
         preferredCities: preferredCities.filter(c => c !== ''),
         preferredCountries: preferredCountries.filter(c => c !== ''),
+        membershipStatus: 'Yok', // Default for new companies
+        membershipEndDate: undefined, // Default for new companies
       };
 
-      const user = await register(registrationData);
-      if (user) {
+      const userProfile = await register(registrationData); // authService.register now used by useAuth
+      if (userProfile) {
         toast({
           title: "Firma Kaydı Başarılı",
-          description: `Firma hesabınız oluşturuldu: ${user.name}!`,
+          description: `Firma hesabınız oluşturuldu: ${userProfile.name}!`,
         });
+        // Navigation is handled by AuthProvider
       } else {
         toast({
           title: "Kayıt Başarısız",
-          description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin. E-posta adresi daha önce alınmış olabilir.",
+          description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin. E-posta adresi zaten kullanımda olabilir veya şifreniz yeterince güçlü olmayabilir.",
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Company registration error:", error);
+      let description = "Kayıt sırasında bir hata oluştu.";
+      if (error.code === 'auth/email-already-in-use') {
+        description = "Bu e-posta adresi zaten kayıtlı.";
+      } else if (error.code === 'auth/weak-password') {
+        description = "Şifre yeterince güçlü değil. En az 6 karakter olmalıdır.";
+      }
       toast({
         title: "Hata",
-        description: "Kayıt sırasında bir hata oluştu.",
+        description: description,
         variant: "destructive",
       });
     } finally {
@@ -191,7 +203,7 @@ export default function CompanyRegisterForm() {
               <Label htmlFor="company-username">Kullanıcı Adı (*)</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-username" value={username} onChange={(e) => setUsername(e.target.value)} required className="pl-10"/>
+                <Input id="company-username" value={username} onChange={(e) => setUsername(e.target.value)} required className="pl-10" autoComplete="username"/>
               </div>
             </div>
             <div className="space-y-2">
@@ -207,14 +219,14 @@ export default function CompanyRegisterForm() {
               <Label htmlFor="company-password">Şifre (*)</Label>
                <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="pl-10"/>
+                <Input id="company-password" type="password" placeholder="•••••••• (En az 6 karakter)" value={password} onChange={(e) => setPassword(e.target.value)} required className="pl-10" autoComplete="new-password"/>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-confirmPassword">Şifre Tekrar (*)</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="pl-10"/>
+                <Input id="company-confirmPassword" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="pl-10" autoComplete="new-password"/>
               </div>
             </div>
           </div>
@@ -222,7 +234,7 @@ export default function CompanyRegisterForm() {
             <Label htmlFor="company-contactFullName">Yetkili Adı Soyadı (*)</Label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="company-contactFullName" value={contactFullName} onChange={(e) => setContactFullName(e.target.value)} required className="pl-10"/>
+              <Input id="company-contactFullName" value={contactFullName} onChange={(e) => setContactFullName(e.target.value)} required className="pl-10" autoComplete="name"/>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -230,14 +242,14 @@ export default function CompanyRegisterForm() {
               <Label htmlFor="company-workPhone">İş Telefonu</Label>
                <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-workPhone" placeholder="0212XXXXXXX" value={workPhone} onChange={(e) => setWorkPhone(e.target.value)} className="pl-10"/>
+                <Input id="company-workPhone" placeholder="0212XXXXXXX" value={workPhone} onChange={(e) => setWorkPhone(e.target.value)} className="pl-10" autoComplete="tel-national"/>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-mobilePhone">Cep Telefonu (*)</Label>
                <div className="relative">
                 <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-mobilePhone" placeholder="05XXXXXXXXX" value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} required className="pl-10"/>
+                <Input id="company-mobilePhone" placeholder="05XXXXXXXXX" value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} required className="pl-10" autoComplete="tel"/>
               </div>
             </div>
             <div className="space-y-2">
@@ -250,14 +262,14 @@ export default function CompanyRegisterForm() {
               <Label htmlFor="company-email">E-Posta (*)</Label>
                <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-email" type="email" placeholder="info@firma.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="pl-10"/>
+                <Input id="company-email" type="email" placeholder="info@firma.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="pl-10" autoComplete="email"/>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-website">Web Sitesi</Label>
                <div className="relative">
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-website" placeholder="www.firma.com" value={website} onChange={(e) => setWebsite(e.target.value)} className="pl-10"/>
+                <Input id="company-website" placeholder="www.firma.com" value={website} onChange={(e) => setWebsite(e.target.value)} className="pl-10" autoComplete="url"/>
               </div>
             </div>
           </div>
@@ -401,6 +413,7 @@ export default function CompanyRegisterForm() {
       </div>
 
       <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center gap-2" disabled={isLoading}>
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {isLoading ? 'Firma Kaydı Yapılıyor...' : <><CheckSquare size={20}/> Firma Olarak Kayıt Ol</>}
       </Button>
     </form>
