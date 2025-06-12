@@ -35,7 +35,7 @@ interface BaseFreight {
   userId: string;
   companyName: string; 
   contactPerson: string; 
-  contactEmail?: string; // Optional made
+  contactEmail?: string;
   workPhone?: string; 
   mobilePhone: string; 
   originCountry: CountryCode | string; 
@@ -44,11 +44,11 @@ interface BaseFreight {
   destinationCountry: CountryCode | string; 
   destinationCity: TurkishCity | string;     
   destinationDistrict?: string;    
-  loadingDate: string; // Should be string after conversion from Timestamp
-  postedAt: string; // Should be string (ISO) after conversion from Timestamp
+  loadingDate: string; 
+  postedAt: string; 
   postedBy: string; 
   isActive?: boolean;
-  description: string; // Common field
+  description: string;
 }
 
 export interface CommercialFreight extends BaseFreight {
@@ -73,34 +73,34 @@ export interface ResidentialFreight extends BaseFreight {
 
 export type Freight = CommercialFreight | ResidentialFreight;
 
-// User Profile Types
+// User Profile and Auth Types
 export type UserRole = 'individual' | 'company';
 export type CompanyUserType = typeof COMPANY_TYPES[number]['value'];
 export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
 export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
 
 interface BaseUserProfile {
-  id: string;
+  id: string; // Firebase UID
   email: string;
   role: UserRole;
-  name: string; 
-  isActive: boolean; // Non-optional, default to true on creation
-  createdAt: string; // ISO string from Timestamp
+  name: string; // Full name for individual, Company Title for company
+  isActive: boolean;
+  createdAt: string; // ISO string
 }
 
 export interface IndividualUserProfile extends BaseUserProfile {
   role: 'individual';
-  // Individual specific fields can be added here if any
+  // Any individual-specific fields here
 }
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
-  username: string; 
-  logoUrl?: string; 
-  companyTitle: string; // Redundant if 'name' is companyTitle, but can keep for clarity
-  contactFullName: string; 
+  username: string;
+  logoUrl?: string;
+  companyTitle: string; // This will be same as 'name' for company users
+  contactFullName: string;
   workPhone?: string;
-  mobilePhone: string; 
+  mobilePhone: string;
   fax?: string;
   website?: string;
   companyDescription?: string;
@@ -110,13 +110,49 @@ export interface CompanyUserProfile extends BaseUserProfile {
   fullAddress: string;
   workingMethods: WorkingMethodType[];
   workingRoutes: WorkingRouteType[];
-  preferredCities: (TurkishCity | string)[]; 
-  preferredCountries: (CountryCode | string)[]; 
-  membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string; 
-  membershipEndDate?: string; // ISO string from Timestamp
+  preferredCities: (TurkishCity | string)[];
+  preferredCountries: (CountryCode | string)[];
+  membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string;
+  membershipEndDate?: string; // ISO string
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
+
+// Data structure for registration
+interface BaseRegisterData {
+  email: string;
+  password?: string; // Password is for Firebase Auth, not stored in Firestore profile
+  name: string; // Full name for individual, Company Title for company
+  role: UserRole;
+}
+
+export interface IndividualRegisterData extends BaseRegisterData {
+  role: 'individual';
+}
+
+export interface CompanyRegisterData extends BaseRegisterData {
+  role: 'company';
+  username: string;
+  logoUrl?: string;
+  // companyTitle is derived from 'name'
+  contactFullName: string;
+  workPhone?: string;
+  mobilePhone: string;
+  fax?: string;
+  website?: string;
+  companyDescription?: string;
+  companyType: CompanyUserType;
+  addressCity: TurkishCity | string;
+  addressDistrict?: string;
+  fullAddress: string;
+  workingMethods: WorkingMethodType[];
+  workingRoutes: WorkingRouteType[];
+  preferredCities: (TurkishCity | string)[];
+  preferredCountries: (CountryCode | string)[];
+  // Membership details are typically set after registration or by admin
+}
+
+export type RegisterData = IndividualRegisterData | CompanyRegisterData;
 
 
 // Types for Settings Pages

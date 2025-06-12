@@ -14,24 +14,24 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type TurkishCity, type CountryCode } from '@/lib/locationData';
 import { COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
-import type { CompanyUserProfile, CompanyUserType, WorkingMethodType, WorkingRouteType } from '@/types';
+import type { CompanyUserType, WorkingMethodType, WorkingRouteType, CompanyRegisterData } from '@/types';
 import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Info, MapPin, CheckSquare, Briefcase, Link as LinkIcon, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import type { RegisterData } from '@/hooks/useAuth'; // Import RegisterData
+import { useRouter } from 'next/navigation';
 
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
 
 export default function CompanyRegisterForm() {
   const { register } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Form State
   const [logoUrl, setLogoUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [companyTitle, setCompanyTitle] = useState('');
+  const [companyTitle, setCompanyTitle] = useState(''); // This will be 'name' in RegisterData
   const [contactFullName, setContactFullName] = useState('');
   const [workPhone, setWorkPhone] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
@@ -101,7 +101,6 @@ export default function CompanyRegisterForm() {
     }
   };
 
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (password !== confirmPassword) {
@@ -123,15 +122,13 @@ export default function CompanyRegisterForm() {
 
     setIsLoading(true);
     try {
-      // Prepare data for registration, password will be handled by Firebase Auth
-      const registrationData: RegisterData = {
-        role: 'company' as const,
+      const registrationData: CompanyRegisterData = {
+        role: 'company',
         email,
-        password, // Will be used by Firebase Auth
-        name: companyTitle, // Use companyTitle as the 'name' for CompanyUserProfile base
+        password, 
+        name: companyTitle, // Company Title goes into 'name' field for BaseRegisterData
         username,
         logoUrl: logoUrl || undefined,
-        companyTitle, 
         contactFullName,
         workPhone: workPhone || undefined,
         mobilePhone,
@@ -146,34 +143,45 @@ export default function CompanyRegisterForm() {
         workingRoutes: workingRoutes as WorkingRouteType[],
         preferredCities: preferredCities.filter(c => c !== ''),
         preferredCountries: preferredCountries.filter(c => c !== ''),
-        membershipStatus: 'Yok', // Default for new companies
-        membershipEndDate: undefined, // Default for new companies
       };
 
-      const userProfile = await register(registrationData); // authService.register now used by useAuth
+      const userProfile = await register(registrationData);
       if (userProfile) {
         toast({
           title: "Firma Kaydı Başarılı",
-          description: `Firma hesabınız oluşturuldu: ${userProfile.name}!`,
+          description: `Firma hesabınız oluşturuldu: ${userProfile.name}! Ana sayfaya yönlendiriliyorsunuz...`,
         });
-        // Navigation is handled by AuthProvider
+        router.push('/');
       } else {
+        // This case should ideally be handled by errors thrown from the register function
         toast({
           title: "Kayıt Başarısız",
-          description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin. E-posta adresi zaten kullanımda olabilir veya şifreniz yeterince güçlü olmayabilir.",
+          description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
-      console.error("Company registration error:", error);
+      console.error("Company registration form error:", error);
       let description = "Kayıt sırasında bir hata oluştu.";
-      if (error.code === 'auth/email-already-in-use') {
-        description = "Bu e-posta adresi zaten kayıtlı.";
-      } else if (error.code === 'auth/weak-password') {
-        description = "Şifre yeterince güçlü değil. En az 6 karakter olmalıdır.";
+      if (error.code) { // Firebase error codes
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            description = "Bu e-posta adresi zaten kayıtlı.";
+            break;
+          case 'auth/weak-password':
+            description = "Şifre yeterince güçlü değil. En az 6 karakter olmalıdır.";
+            break;
+          case 'auth/invalid-email':
+            description = "Geçersiz e-posta formatı.";
+            break;
+          default:
+             description = error.message || "Beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin.";
+        }
+      } else if (error.message) {
+        description = error.message;
       }
       toast({
-        title: "Hata",
+        title: "Kayıt Hatası",
         description: description,
         variant: "destructive",
       });

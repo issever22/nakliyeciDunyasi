@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { User, Mail, Lock, Loader2, CheckSquare } from 'lucide-react'; // Added Loader2, CheckSquare
+import { User, Mail, Lock, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { IndividualUserProfile } from '@/types'; 
-import type { RegisterData } from '@/hooks/useAuth'; // Import RegisterData
+import type { IndividualRegisterData } from '@/types'; 
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterForm() {
   const [name, setName] = useState(''); 
@@ -22,15 +22,12 @@ export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (password !== confirmPassword) {
-      toast({
-        title: "Hata",
-        description: "Şifreler eşleşmiyor.",
-        variant: "destructive",
-      });
+      toast({ title: "Hata", description: "Şifreler eşleşmiyor.", variant: "destructive" });
       return;
     }
     if (!agreement) {
@@ -38,42 +35,55 @@ export default function RegisterForm() {
       return;
     }
     if (!name || !email || !password) {
-       toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları doldurun.", variant: "destructive" });
+       toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları (*) doldurun.", variant: "destructive" });
        return;
     }
 
     setIsLoading(true);
     try {
-      const registrationData: RegisterData = {
-        role: 'individual' as const,
+      const registrationData: IndividualRegisterData = {
+        role: 'individual',
         name,
         email,
         password,
       };
-      const userProfile = await register(registrationData); // authService.register now used by useAuth
+      const userProfile = await register(registrationData); 
       if (userProfile) {
         toast({
           title: "Bireysel Kayıt Başarılı",
-          description: `Hesabınız oluşturuldu, ${userProfile.name}!`,
+          description: `Hesabınız oluşturuldu, ${userProfile.name}! Ana sayfaya yönlendiriliyorsunuz...`,
         });
-        // Navigation is handled by AuthProvider
+        router.push('/'); 
       } else {
+         // This case should ideally be handled by errors thrown from the register function
          toast({
           title: "Kayıt Başarısız",
-          description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin. E-posta adresi zaten kullanımda olabilir veya şifreniz yeterince güçlü olmayabilir.",
+          description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
-      console.error("Individual registration error:", error);
+      console.error("Individual registration form error:", error);
       let description = "Kayıt sırasında bir hata oluştu.";
-      if (error.code === 'auth/email-already-in-use') {
-        description = "Bu e-posta adresi zaten kayıtlı.";
-      } else if (error.code === 'auth/weak-password') {
-        description = "Şifre yeterince güçlü değil. En az 6 karakter olmalıdır.";
+      if (error.code) { // Firebase error codes
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            description = "Bu e-posta adresi zaten kayıtlı.";
+            break;
+          case 'auth/weak-password':
+            description = "Şifre yeterince güçlü değil. En az 6 karakter olmalıdır.";
+            break;
+          case 'auth/invalid-email':
+            description = "Geçersiz e-posta formatı.";
+            break;
+          default:
+            description = error.message || "Beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin.";
+        }
+      } else if (error.message) {
+        description = error.message;
       }
       toast({
-        title: "Hata",
+        title: "Kayıt Hatası",
         description: description,
         variant: "destructive",
       });

@@ -1,14 +1,8 @@
 
-'use server'; // This directive MUST be at the very top.
+'use server'; 
 
-import { db, auth } from '@/lib/firebase';
-import type { UserProfile, IndividualUserProfile, CompanyUserProfile, RegisterData } from '@/types';
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  type User as FirebaseUser
-} from 'firebase/auth';
+import { db } from '@/lib/firebase'; // auth is not needed here for server actions
+import type { UserProfile, IndividualUserProfile, CompanyUserProfile, RegisterData, IndividualRegisterData, CompanyRegisterData, UserRole } from '@/types';
 import {
   collection,
   doc,
@@ -29,6 +23,7 @@ const USERS_COLLECTION = 'users';
 // Helper to convert Firestore data to UserProfile - internal to this module
 const convertToUserProfile = (docData: DocumentData, id: string): UserProfile => {
   const data = { ...docData };
+  
   if (data.createdAt && data.createdAt.toDate) {
     data.createdAt = data.createdAt.toDate().toISOString();
   } else if (typeof data.createdAt === 'string') {
@@ -45,10 +40,47 @@ const convertToUserProfile = (docData: DocumentData, id: string): UserProfile =>
 
   data.isActive = data.isActive === undefined ? true : data.isActive;
 
+  // Ensure 'name' (which is companyTitle for company users) is correctly assigned from the root
   if (data.role === 'company') {
-    return { id, ...data } as CompanyUserProfile;
+    const companyProfile: CompanyUserProfile = { 
+      id, 
+      email: data.email,
+      role: 'company',
+      name: data.name, // This is companyTitle
+      isActive: data.isActive,
+      createdAt: data.createdAt,
+      username: data.username || '',
+      logoUrl: data.logoUrl,
+      companyTitle: data.name, // Explicitly setting companyTitle from name
+      contactFullName: data.contactFullName || '',
+      workPhone: data.workPhone,
+      mobilePhone: data.mobilePhone || '',
+      fax: data.fax,
+      website: data.website,
+      companyDescription: data.companyDescription,
+      companyType: data.companyType || 'local',
+      addressCity: data.addressCity || '',
+      addressDistrict: data.addressDistrict,
+      fullAddress: data.fullAddress || '',
+      workingMethods: data.workingMethods || [],
+      workingRoutes: data.workingRoutes || [],
+      preferredCities: data.preferredCities || [],
+      preferredCountries: data.preferredCountries || [],
+      membershipStatus: data.membershipStatus,
+      membershipEndDate: data.membershipEndDate,
+    };
+    return companyProfile;
   }
-  return { id, ...data } as IndividualUserProfile;
+  
+  const individualProfile: IndividualUserProfile = {
+    id,
+    email: data.email,
+    role: 'individual',
+    name: data.name,
+    isActive: data.isActive,
+    createdAt: data.createdAt,
+  };
+  return individualProfile;
 };
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -58,128 +90,128 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     if (userDocSnap.exists()) {
       return convertToUserProfile(userDocSnap.data(), userDocSnap.id);
     }
+    console.log(`No profile found for UID: ${uid}`);
     return null;
   } catch (error) {
-    console.error("Error fetching user profile:", error);
-    return null;
-  }
-};
-
-export async function login(email: string, pass: string): Promise<UserProfile | null> {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-    const firebaseUser = userCredential.user;
-    if (firebaseUser) {
-      return await getUserProfile(firebaseUser.uid);
-    }
-    return null;
-  } catch (error: any) {
-    console.error("Error logging in with Firebase Auth: ", error.code, error.message);
+    console.error("Error fetching user profile from Firestore:", error);
     return null;
   }
 }
 
-export async function register(userData: RegisterData): Promise<UserProfile | null> {
+export async function createUserProfile(uid: string, registrationData: RegisterData): Promise<UserProfile | null> {
   try {
-    const { email, password, ...profileData } = userData;
-    if (!password) {
-      console.error("Password is required for registration.");
+    const { password, ...profileData } = registrationData; // Exclude password
+
+    const commonProfileData = {
+      email: profileData.email,
+      name: profileData.name, // This is fullName for individual, companyTitle for company
+      role: profileData.role,
+      isActive: true,
+      createdAt: Timestamp.fromDate(new Date()),
+    };
+
+    let finalProfileData: Omit<UserProfile, 'id'>;
+
+    if (profileData.role === 'individual') {
+      finalProfileData = {
+        ...commonProfileData,
+        role: 'individual',
+      } as Omit<IndividualUserProfile, 'id'>;
+    } else if (profileData.role === 'company') {
+      const companyData = profileData as CompanyRegisterData;
+      finalProfileData = {
+        ...commonProfileData,
+        role: 'company',
+        name: companyData.name, // This is the companyTitle
+        username: companyData.username,
+        logoUrl: companyData.logoUrl || undefined,
+        companyTitle: companyData.name, // Explicitly from registration name
+        contactFullName: companyData.contactFullName,
+        workPhone: companyData.workPhone || undefined,
+        mobilePhone: companyData.mobilePhone,
+        fax: companyData.fax || undefined,
+        website: companyData.website || undefined,
+        companyDescription: companyData.companyDescription || undefined,
+        companyType: companyData.companyType,
+        addressCity: companyData.addressCity,
+        addressDistrict: companyData.addressDistrict || undefined,
+        fullAddress: companyData.fullAddress,
+        workingMethods: companyData.workingMethods || [],
+        workingRoutes: companyData.workingRoutes || [],
+        preferredCities: companyData.preferredCities || [],
+        preferredCountries: companyData.preferredCountries || [],
+        membershipStatus: 'Yok', // Default for new company
+        membershipEndDate: undefined,
+      } as Omit<CompanyUserProfile, 'id'>;
+    } else {
+      console.error("Invalid role specified for profile creation:", profileData.role);
       return null;
     }
-
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const firebaseUser = userCredential.user;
-
-    if (firebaseUser) {
-      const uid = firebaseUser.uid;
-      const dataToSave: Omit<UserProfile, 'id' | 'password'> & { createdAt: Timestamp } = {
-        ...(profileData as Omit<UserProfile, 'id' | 'password' | 'email'>),
-        email: firebaseUser.email!,
-        isActive: true,
-        createdAt: Timestamp.fromDate(new Date()),
-      };
-      
-      if (dataToSave.role === 'company') {
-        const companyData = dataToSave as Omit<CompanyUserProfile, 'id' | 'password'> & { createdAt: Timestamp };
-        companyData.companyTitle = companyData.companyTitle || companyData.name;
-        companyData.logoUrl = companyData.logoUrl || '';
-        companyData.contactFullName = companyData.contactFullName || companyData.name;
-         if (companyData.membershipEndDate && typeof companyData.membershipEndDate === 'string') {
-           companyData.membershipEndDate = Timestamp.fromDate(parseISO(companyData.membershipEndDate)) as any;
-         } else {
-          companyData.membershipEndDate = undefined;
-        }
-      }
-
-      const userDocRef = doc(db, USERS_COLLECTION, uid);
-      await setDoc(userDocRef, dataToSave);
-      
-      // Firestore'dan kaydedilen profili geri döndür
-      const savedProfileData = (await getDoc(userDocRef)).data();
-      if (savedProfileData) {
-        return convertToUserProfile(savedProfileData, uid);
-      }
-      return null; // Profil kaydedilemedi veya okunamadıysa
+    
+    const userDocRef = doc(db, USERS_COLLECTION, uid);
+    await setDoc(userDocRef, finalProfileData);
+    
+    const savedDoc = await getDoc(userDocRef);
+    if(savedDoc.exists()){
+      return convertToUserProfile(savedDoc.data(), uid);
     }
     return null;
-  } catch (error: any) {
-    console.error("Error registering user with Firebase Auth: ", error.code, error.message);
-    return null;
-  }
-}
 
-export async function logout(): Promise<void> {
-  try {
-    await signOut(auth);
   } catch (error) {
-    console.error("Error signing out with Firebase Auth: ", error);
+    console.error("Error creating user profile in Firestore: ", error);
+    return null;
   }
 }
   
-export async function getAllUsers(): Promise<UserProfile[]> {
+export async function getAllUserProfiles(): Promise<UserProfile[]> {
   try {
-    const querySnapshot = await getDocs(query(collection(db, USERS_COLLECTION), orderBy('createdAt', 'desc')));
+    const q = query(collection(db, USERS_COLLECTION), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => convertToUserProfile(doc.data(), doc.id));
   } catch (error) {
-    console.error("Error fetching all users: ", error);
+    console.error("Error fetching all user profiles from Firestore: ", error);
     return [];
   }
 }
 
-export async function updateUser(id: string, userData: Partial<UserProfile>): Promise<boolean> {
+export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<boolean> {
   try {
-    const docRef = doc(db, USERS_COLLECTION, id);
-    const dataToUpdate: any = { ...userData };
-    
-    if (dataToUpdate.createdAt && typeof dataToUpdate.createdAt === 'string') {
-      dataToUpdate.createdAt = Timestamp.fromDate(parseISO(dataToUpdate.createdAt));
-    }
-    if (dataToUpdate.membershipEndDate && typeof dataToUpdate.membershipEndDate === 'string') {
-      dataToUpdate.membershipEndDate = Timestamp.fromDate(parseISO(dataToUpdate.membershipEndDate));
-    } else if (dataToUpdate.membershipEndDate === null || dataToUpdate.membershipEndDate === undefined) {
-      dataToUpdate.membershipEndDate = null; 
+    const docRef = doc(db, USERS_COLLECTION, uid);
+    const updateData = { ...data };
+
+    // Remove fields that should not be directly updated or are managed by Firebase Auth
+    delete updateData.id;
+    delete (updateData as any).password; 
+    delete updateData.email; // Email typically updated via Firebase Auth methods
+    delete updateData.role; // Role shouldn't change after creation usually
+    delete updateData.createdAt; // Should not be updated
+
+    if (updateData.membershipEndDate && typeof updateData.membershipEndDate === 'string') {
+      updateData.membershipEndDate = Timestamp.fromDate(parseISO(updateData.membershipEndDate)) as any;
+    } else if (updateData.hasOwnProperty('membershipEndDate') && (updateData.membershipEndDate === null || updateData.membershipEndDate === undefined)) {
+       (updateData as CompanyUserProfile).membershipEndDate = undefined; // Explicitly set to undefined if cleared
     }
 
-    delete dataToUpdate.id;
-    delete dataToUpdate.password; 
 
-    await updateDoc(docRef, dataToUpdate);
+    await updateDoc(docRef, updateData);
     return true;
   } catch (error) {
-    console.error("Error updating user: ", error);
+    console.error("Error updating user profile in Firestore: ", error);
     return false;
   }
 }
 
-export async function deleteUser(id: string): Promise<boolean> {
+export async function deleteUserProfile(uid: string): Promise<boolean> {
   try {
-    const docRef = doc(db, USERS_COLLECTION, id);
+    const docRef = doc(db, USERS_COLLECTION, uid);
     await deleteDoc(docRef);
-    // Firebase Auth kullanıcısını silme işlemi burada yapılmaz, Admin SDK gerektirir.
-    // Bu sadece Firestore'daki kullanıcı profilini siler.
+    // Note: This does NOT delete the Firebase Auth user.
+    // Deleting a Firebase Auth user requires Admin SDK or client-side re-authentication and delete.
+    // For simplicity, we're only deleting the Firestore profile record here.
+    console.log(`Firestore profile for UID ${uid} deleted. Firebase Auth user may still exist.`);
     return true;
   } catch (error) {
-    console.error("Error deleting user profile: ", error);
+    console.error("Error deleting user profile from Firestore: ", error);
     return false;
   }
 }

@@ -22,11 +22,11 @@ import type { UserProfile, IndividualUserProfile, CompanyUserProfile, UserRole, 
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { 
-  getAllUsers, 
-  updateUser as updateUserService,
-  deleteUser as deleteUserService,
-  register as registerAdminUser
-} from '@/services/authService';
+  getAllUserProfiles, 
+  updateUserProfile,
+  deleteUserProfile,
+  createUserProfile // Assuming a way to create users from admin, this might need more specific handling for passwords
+} from '@/services/authService'; // Now importing Server Actions
 import { Skeleton } from '@/components/ui/skeleton';
 
 const USER_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
@@ -35,6 +35,17 @@ const USER_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 ];
 
 const MEMBERSHIP_STATUS_OPTIONS = ['Yok', 'Standart', 'Premium'];
+
+// For admin user creation, password needs to be handled carefully.
+// Firebase Auth user creation typically happens on client or via Admin SDK.
+// This form will create the Firestore profile; Firebase Auth user needs separate creation.
+// For simplicity, this example will focus on profile management.
+// A real admin "create user" would likely involve sending an invite or temporary password.
+// Or, if creating a Firebase Auth user directly via a backend, it needs a password.
+// Since this is admin panel, we might assume admin creates a profile and sets a temp password,
+// or just profile details for an existing Firebase Auth user.
+// The `createUserProfile` server action is designed to create the Firestore profile *after* Firebase Auth user is created.
+// So, "Add New User" here will be more like "Add New User Profile".
 
 export default function UsersPage() {
   const { toast } = useToast();
@@ -47,13 +58,14 @@ export default function UsersPage() {
   const [activeTab, setActiveTab] = useState<UserRole>('individual');
   const [showOnlyMembers, setShowOnlyMembers] = useState(false);
   
-  const [currentFormData, setCurrentFormData] = useState<Partial<UserProfile> & { role: UserRole, name: string, email: string, password?: string }>({
+  // Current form data now aligns more with UserProfile, less with RegisterData for "new user"
+  const [currentFormData, setCurrentFormData] = useState<Partial<UserProfile> & { role: UserRole, name: string, email: string /* password removed */ }>({
     role: 'individual', name: '', email: '', isActive: true
   });
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
-    const usersFromDb = await getAllUsers();
+    const usersFromDb = await getAllUserProfiles(); // Use new Server Action
     setAllUsers(usersFromDb);
     setIsLoading(false);
   }, []);
@@ -80,20 +92,35 @@ export default function UsersPage() {
         })
       });
     } else {
+      // For new user, default to activeTab role
       const defaultRole = activeTab;
-      setCurrentFormData({
+      const baseNewUser: Partial<UserProfile> & { role: UserRole, name: string, email: string } = {
         role: defaultRole,
         name: '',
         email: '',
-        password: '',
         isActive: true,
-        username: defaultRole === 'company' ? '' : undefined,
-        companyTitle: defaultRole === 'company' ? '' : undefined,
-        contactFullName: defaultRole === 'company' ? '' : undefined,
-        mobilePhone: defaultRole === 'company' ? '' : undefined,
-        membershipStatus: defaultRole === 'company' ? 'Yok' : undefined,
-        membershipEndDate: defaultRole === 'company' ? undefined : undefined,
-      });
+      };
+      if (defaultRole === 'company') {
+        setCurrentFormData({
+          ...baseNewUser,
+          username: '',
+          companyTitle: '',
+          contactFullName: '',
+          mobilePhone: '',
+          membershipStatus: 'Yok',
+          membershipEndDate: undefined,
+          companyType: 'local', // Default value
+          addressCity: '',
+          fullAddress: '',
+          workingMethods: [],
+          workingRoutes: [],
+          preferredCities: [],
+          preferredCountries: [],
+
+        });
+      } else {
+        setCurrentFormData(baseNewUser);
+      }
     }
   }, [editingUser, isAddEditDialogOpen, activeTab]);
 
@@ -121,28 +148,32 @@ export default function UsersPage() {
         toast({ title: "Hata", description: "Firma kullanıcıları için Yetkili Adı Soyadı zorunludur.", variant: "destructive" });
         return;
     }
-    if (!editingUser && !currentFormData.password?.trim()) {
+    // Password handling for new user creation is complex from admin panel without Admin SDK
+    // For now, "Add New User" will focus on creating/updating the Firestore profile.
+    // The Firebase Auth user would need to be created separately or via an invite system.
+    /*
+    if (!editingUser && !currentFormData.password?.trim()) { // Password only for new user via SDK
         toast({ title: "Hata", description: "Yeni kullanıcı için şifre zorunludur.", variant: "destructive" });
         return;
     }
+    */
     setFormSubmitting(true);
 
-    const dataToSubmit: any = {
-      ...currentFormData,
-      name: currentFormData.name!,
-      email: currentFormData.email!,
-    };
+    const dataToSubmit: any = { ...currentFormData };
 
     if (dataToSubmit.role === 'company' && dataToSubmit.membershipEndDate instanceof Date) {
         dataToSubmit.membershipEndDate = format(dataToSubmit.membershipEndDate, "yyyy-MM-dd");
     } else if (dataToSubmit.role === 'company' && dataToSubmit.membershipEndDate === undefined) {
-        dataToSubmit.membershipEndDate = null; 
+        dataToSubmit.membershipEndDate = undefined; // Firestore handles undefined as 'not set'
     }
-
 
     if (editingUser) {
       const { id, createdAt, password, ...updateData } = dataToSubmit; 
-      const success = await updateUserService(editingUser.id, updateData as Partial<UserProfile>);
+      // Ensure role and email are not in updateData if they are not meant to be changed here
+      delete updateData.role;
+      delete updateData.email; 
+
+      const success = await updateUserProfile(editingUser.id, updateData as Partial<UserProfile>);
       if (success) {
         toast({ title: "Başarılı", description: "Kullanıcı güncellendi." });
         fetchUsers();
@@ -150,26 +181,32 @@ export default function UsersPage() {
         toast({ title: "Hata", description: "Kullanıcı güncellenemedi.", variant: "destructive" });
       }
     } else {
-       const { id, createdAt, ...createData } = dataToSubmit;
-      const newUser = await registerAdminUser(createData as RegisterData); 
-      if (newUser) {
-        toast({ title: "Başarılı", description: "Yeni kullanıcı eklendi." });
-        fetchUsers();
-      } else {
-        toast({ title: "Hata", description: "Yeni kullanıcı eklenemedi. E-posta zaten kullanımda olabilir.", variant: "destructive" });
-      }
+      // Admin creating a new user profile.
+      // This flow assumes Firebase Auth user already exists or will be created by other means.
+      // We are creating the Firestore PROFILE document.
+      // A proper "admin create user" would involve more, e.g. using Firebase Admin SDK on a backend.
+      // For now, let's assume this is to add a profile for an existing auth user, or one to be created manually in Firebase console.
+      // We'd need a UID. Since we don't have one, this part is problematic for *new* user creation from admin.
+      // We'll disable "add new user" functionality that requires Firebase Auth creation from here for now
+      // unless we implement a mechanism to get/set a UID.
+      // For the purpose of this example, let's assume the admin is only editing existing users for now.
+      // Or, if we were to create a NEW Firebase user, we'd need a password and call a different method.
+      // The `createUserProfile` server action expects a UID.
+      // For simplicity, let's say Admin CANNOT create new Firebase Auth users from here, only edit profiles.
+      // TODO: Revisit admin user creation if needed.
+      toast({ title: "Not Implemented", description: "Admin user creation from this panel is not fully implemented for Firebase Auth users. Please use Firebase Console or implement Admin SDK.", variant: "destructive" });
     }
     setFormSubmitting(false);
     setIsAddEditDialogOpen(false);
   };
 
   const handleDelete = async (id: string) => {
-    const success = await deleteUserService(id);
+    const success = await deleteUserProfile(id); // Use new Server Action
     if (success) {
-      toast({ title: "Başarılı", description: "Kullanıcı silindi.", variant: "destructive" });
+      toast({ title: "Başarılı", description: "Kullanıcı profili silindi. (Firebase Auth kullanıcısı hala mevcut olabilir)", variant: "destructive" });
       fetchUsers();
     } else {
-      toast({ title: "Hata", description: "Kullanıcı silinemedi.", variant: "destructive" });
+      toast({ title: "Hata", description: "Kullanıcı profili silinemedi.", variant: "destructive" });
     }
   };
 
@@ -274,7 +311,7 @@ export default function UsersPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          "{user.name}" adlı kullanıcıyı silmek üzeresiniz. Bu işlem geri alınamaz.
+                          "{user.name}" adlı kullanıcının profilini silmek üzeresiniz. Bu işlem Firebase Auth kullanıcısını silmez. Bu işlem geri alınamaz.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -346,8 +383,8 @@ export default function UsersPage() {
                 className="pl-8 w-full"
               />
             </div>
-            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
-              <PlusCircle className="mr-2 h-4 w-4" /> Yeni Kullanıcı Ekle
+            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90" disabled>
+              <PlusCircle className="mr-2 h-4 w-4" /> Yeni Kullanıcı Ekle (Devre Dışı)
             </Button>
           </div>
 
@@ -378,12 +415,12 @@ export default function UsersPage() {
           setIsAddEditDialogOpen(isOpen);
           if (!isOpen) setEditingUser(null);
       }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>{editingUser ? 'Kullanıcıyı Düzenle' : 'Yeni Kullanıcı Ekle'}</DialogTitle>
+              <DialogTitle>{editingUser ? 'Kullanıcı Profilini Düzenle' : 'Yeni Kullanıcı Profili Ekle (UID Gerekli)'}</DialogTitle>
               <DialogDescription>
-                 {editingUser ? `"${editingUser.name}" kullanıcısının bilgilerini güncelleyin.` : `Yeni bir ${currentFormData.role === 'individual' ? 'bireysel' : 'firma'} kullanıcısı için gerekli bilgileri girin.`}
+                 {editingUser ? `"${editingUser.name}" kullanıcısının profilini güncelleyin.` : `Yeni bir ${currentFormData.role === 'individual' ? 'bireysel' : 'firma'} kullanıcı profili için bilgileri girin.`}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-6">
@@ -392,7 +429,7 @@ export default function UsersPage() {
                 <Select 
                     value={currentFormData.role} 
                     onValueChange={(value: UserRole) => setCurrentFormData(prev => ({...prev, role: value, name: prev.name || '', email: prev.email || ''}))}
-                    disabled={!!editingUser || (isAddEditDialogOpen && !editingUser) } 
+                    disabled={!!editingUser} // Rolü sadece yeni kullanıcı eklerken (veya hiç eklenemiyorsa) veya düzenlerken değiştirilemez yap
                 >
                   <SelectTrigger id="userRole"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -430,7 +467,7 @@ export default function UsersPage() {
                     <Label htmlFor="membershipStatus" className="font-medium">Üyelik Durumu</Label>
                     <Select 
                         value={(currentFormData as CompanyUserProfile).membershipStatus || 'Yok'} 
-                        onValueChange={(value) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), membershipStatus: value}))}
+                        onValueChange={(value) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), membershipStatus: value as CompanyUserProfile['membershipStatus']}))}
                     >
                     <SelectTrigger id="membershipStatus"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -444,16 +481,16 @@ export default function UsersPage() {
                         <PopoverTrigger asChild>
                         <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!(currentFormData as CompanyUserProfile).membershipEndDate && "text-muted-foreground"}`}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {(currentFormData as CompanyUserProfile).membershipEndDate && isValid((currentFormData as CompanyUserProfile).membershipEndDate as Date)
-                                ? format((currentFormData as CompanyUserProfile).membershipEndDate as Date, "PPP", { locale: tr }) 
+                            {(currentFormData as CompanyUserProfile).membershipEndDate && isValid(new Date((currentFormData as CompanyUserProfile).membershipEndDate!))
+                                ? format(new Date((currentFormData as CompanyUserProfile).membershipEndDate!), "PPP", { locale: tr }) 
                                 : <span>Tarih seçin</span>}
                         </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                             <Calendar 
                                 mode="single" 
-                                selected={(currentFormData as CompanyUserProfile).membershipEndDate as Date | undefined} 
-                                onSelect={(date) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), membershipEndDate: date || undefined}))} 
+                                selected={(currentFormData as CompanyUserProfile).membershipEndDate ? new Date((currentFormData as CompanyUserProfile).membershipEndDate!) : undefined} 
+                                onSelect={(date) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), membershipEndDate: date ? date.toISOString().split('T')[0] : undefined}))} 
                                 initialFocus 
                                 locale={tr} 
                             />
@@ -465,19 +502,11 @@ export default function UsersPage() {
               
               <div className="space-y-1.5">
                 <Label htmlFor="userEmail" className="font-medium">E-posta Adresi (*)</Label>
-                <Input id="userEmail" type="email" value={currentFormData.email || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, email: e.target.value}))} placeholder="kullanici@example.com" />
+                <Input id="userEmail" type="email" value={currentFormData.email || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, email: e.target.value}))} placeholder="kullanici@example.com" disabled={!!editingUser} />
+                {editingUser && <p className="text-xs text-muted-foreground">E-posta adresi Firebase Auth ile yönetildiği için buradan değiştirilemez.</p>}
               </div>
               
-              {!editingUser && ( 
-                 <div className="space-y-1.5">
-                    <Label htmlFor="userPassword">Şifre (Yeni Kullanıcı) (*)</Label>
-                    <Input id="userPassword" type="password" placeholder="Yeni şifre belirleyin" 
-                        value={currentFormData.password || ''}
-                        onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} 
-                    />
-                    <p className="text-xs text-muted-foreground">Kullanıcı ilk girişte şifresini değiştirebilir.</p>
-                </div>
-              )}
+              {/* Password field removed for admin edit/add profile form - passwords managed by Firebase Auth */}
 
               <div className="flex items-center space-x-2 pt-2">
                  <Switch id="userIsActive" checked={currentFormData.isActive === undefined ? true : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
@@ -488,9 +517,9 @@ export default function UsersPage() {
                  <DialogClose asChild>
                     <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting || !editingUser /* Disable if not editing, since new user creation is complex here */}>
                 {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingUser ? 'Değişiklikleri Kaydet' : 'Kullanıcı Ekle'}
+                {editingUser ? 'Değişiklikleri Kaydet' : 'Kullanıcı Ekle (Devre Dışı)'}
               </Button>
             </DialogFooter>
           </form>

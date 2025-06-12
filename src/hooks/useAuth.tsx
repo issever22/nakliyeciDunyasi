@@ -2,21 +2,26 @@
 "use client";
 
 import type { UserProfile, RegisterData } from '@/types';
-// Import individual server actions
 import { 
-  login as loginUserServerAction, 
-  register as registerUserServerAction, 
-  logout as logoutUserServerAction, 
-  getUserProfile as getUserProfileServerAction 
+  getUserProfile as getUserProfileServerAction,
+  createUserProfile as createUserProfileServerAction
+  // updateUserProfile, deleteUserProfile, getAllUserProfiles are for admin, not directly used in this hook
 } from '@/services/authService'; 
 import { useRouter } from 'next/navigation';
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
-import { type User as FirebaseUser, onAuthStateChanged } from 'firebase/auth'; 
+import { 
+  type User as FirebaseUser, 
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut
+} from 'firebase/auth'; 
 import { auth } from '@/lib/firebase'; 
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
-  user: UserProfile | null;
-  firebaseUser: FirebaseUser | null; 
+  user: UserProfile | null; // Firestore profile
+  firebaseUser: FirebaseUser | null; // Firebase Auth user object
   login: (email: string, pass: string) => Promise<UserProfile | null>;
   register: (data: RegisterData) => Promise<UserProfile | null>;
   logout: () => Promise<void>;
@@ -31,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null); 
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     setLoading(true);
@@ -38,13 +44,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setFirebaseUser(fbUser); 
       if (fbUser) {
         try {
+          console.log("onAuthStateChanged: Firebase user found, fetching profile for UID:", fbUser.uid);
           const profile = await getUserProfileServerAction(fbUser.uid); 
-          setUser(profile);
+          if (profile) {
+            console.log("onAuthStateChanged: Profile fetched:", profile);
+            setUser(profile);
+          } else {
+            console.warn("onAuthStateChanged: No profile found in Firestore for UID:", fbUser.uid);
+            // This could happen if Firestore profile creation failed after auth user creation
+            // Or if a user exists in Firebase Auth but not in Firestore (e.g. manual deletion of Firestore doc)
+            setUser(null); 
+          }
         } catch (error) {
-          console.error("Error fetching profile after auth state change:", error);
-          setUser(null); // Clear user profile on error
+          console.error("onAuthStateChanged: Error fetching profile:", error);
+          setUser(null); 
         }
       } else {
+        console.log("onAuthStateChanged: No Firebase user.");
         setUser(null);
       }
       setLoading(false);
@@ -52,48 +68,77 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe(); 
   }, []); 
 
-  const login = useCallback(async (email: string, pass: string) => {
+  const login = useCallback(async (email: string, pass: string): Promise<UserProfile | null> => {
     setLoading(true);
     try {
-      const loggedInUserProfile = await loginUserServerAction(email, pass); 
-      if (loggedInUserProfile) {
-        setUser(loggedInUserProfile); // Immediately update user state
-        // onAuthStateChanged will also fire and re-confirm, which is fine.
-        router.push('/'); 
+      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      // onAuthStateChanged will handle setting firebaseUser and fetching/setting user profile
+      // For immediate UI update, we can try to fetch profile here too if needed, but onAuthStateChanged should suffice
+      // However, to ensure the promise resolves with the profile:
+      if (userCredential.user) {
+        const profile = await getUserProfileServerAction(userCredential.user.uid);
+        setUser(profile); // Optimistic update
+        return profile;
       }
-      return loggedInUserProfile;
+      return null;
+    } catch(error: any) {
+      console.error("Login error with Firebase SDK:", error);
+      throw error; // Re-throw to be caught by form
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
-  const register = useCallback(async (data: RegisterData) => {
+  const register = useCallback(async (data: RegisterData): Promise<UserProfile | null> => {
     setLoading(true);
+    if (!data.password) {
+      console.error("Registration error: Password is required.");
+      setLoading(false);
+      throw new Error("Password is required for registration.");
+    }
     try {
-      const registeredUserProfile = await registerUserServerAction(data); 
-      if (registeredUserProfile) {
-        setUser(registeredUserProfile); // Immediately update user state
-        // onAuthStateChanged will also fire and re-confirm.
-        router.push('/'); 
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const fbUser = userCredential.user;
+      if (fbUser) {
+        // Now create the profile in Firestore via Server Action
+        const profileData = { ...data }; // We already have all necessary fields in RegisterData
+        delete profileData.password; // Ensure password is not sent to profile creation
+        
+        const newProfile = await createUserProfileServerAction(fbUser.uid, profileData);
+        if (newProfile) {
+          setUser(newProfile); // Optimistic update for immediate UI reflection
+          return newProfile;
+        } else {
+          // This case is tricky: Firebase user created, but Firestore profile failed.
+          // Might need cleanup logic or specific error handling.
+          console.error("Firebase Auth user created, but Firestore profile creation failed for UID:", fbUser.uid);
+          // Attempt to sign out the partially created user
+          await signOut(auth); 
+          throw new Error("Profile creation failed after user authentication.");
+        }
       }
-      return registeredUserProfile;
+      return null;
+    } catch (error: any) {
+      console.error("Registration error with Firebase SDK or profile creation:", error);
+      throw error; // Re-throw to be caught by form
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   const logout = useCallback(async () => {
     setLoading(true);
     try {
-      await logoutUserServerAction(); 
+      await signOut(auth);
       // onAuthStateChanged will set user and firebaseUser to null
-      setUser(null); // Explicitly clear local state as well
-      setFirebaseUser(null);
       router.push('/auth/giris');
+    } catch (error: any) {
+      console.error("Logout error with Firebase SDK:", error);
+      toast({ title: "Çıkış Hatası", description: error.message, variant: "destructive"});
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, toast]);
   
   const isAuthenticated = !!firebaseUser && !!user; 
 
@@ -112,6 +157,7 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
+// This hook remains crucial for protecting routes
 export const useRequireAuth = (redirectUrl = '/auth/giris') => {
   const { user, firebaseUser, loading, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -122,5 +168,6 @@ export const useRequireAuth = (redirectUrl = '/auth/giris') => {
     }
   }, [user, firebaseUser, loading, isAuthenticated, router, redirectUrl]);
 
-  return { user, loading };
+  // Return loading state as well, so components can show a loading indicator
+  return { user, loading, isAuthenticated }; 
 };
