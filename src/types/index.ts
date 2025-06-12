@@ -1,9 +1,9 @@
 
-import type { 
-  CARGO_TYPES, 
-  VEHICLES_NEEDED, 
-  LOADING_TYPES, 
-  CARGO_FORMS, 
+import type {
+  CARGO_TYPES,
+  VEHICLES_NEEDED,
+  LOADING_TYPES,
+  CARGO_FORMS,
   WEIGHT_UNITS,
   SHIPMENT_SCOPES,
   FREIGHT_TYPES,
@@ -18,11 +18,11 @@ import type {
 import type { CountryCode, TurkishCity } from '@/lib/locationData';
 
 export type CargoType = typeof CARGO_TYPES[number];
-export type VehicleNeeded = typeof VEHICLES_NEEDED[number]; 
-export type LoadingType = typeof LOADING_TYPES[number]; 
-export type CargoForm = typeof CARGO_FORMS[number]; 
-export type WeightUnit = typeof WEIGHT_UNITS[number]; 
-export type ShipmentScope = typeof SHIPMENT_SCOPES[number]; 
+export type VehicleNeeded = typeof VEHICLES_NEEDED[number];
+export type LoadingType = typeof LOADING_TYPES[number];
+export type CargoForm = typeof CARGO_FORMS[number];
+export type WeightUnit = typeof WEIGHT_UNITS[number];
+export type ShipmentScope = typeof SHIPMENT_SCOPES[number];
 
 export type FreightType = typeof FREIGHT_TYPES[number];
 export type ResidentialTransportType = typeof RESIDENTIAL_TRANSPORT_TYPES[number];
@@ -35,19 +35,19 @@ interface BaseFreight {
   userId: string; // Firebase UID of the user who posted
   postedBy: string; // Name of the person/company posting (can be user.name or form input)
   companyName: string; // Typically the company name or individual's name if not a company
-  contactPerson: string; 
+  contactPerson: string;
   contactEmail?: string;
-  workPhone?: string; 
-  mobilePhone: string; 
-  
-  originCountry: CountryCode | string; 
-  originCity: TurkishCity | string;    
-  originDistrict?: string;   
-  
-  destinationCountry: CountryCode | string; 
-  destinationCity: TurkishCity | string;     
-  destinationDistrict?: string;    
-  
+  workPhone?: string;
+  mobilePhone: string;
+
+  originCountry: CountryCode | string;
+  originCity: TurkishCity | string;
+  originDistrict?: string;
+
+  destinationCountry: CountryCode | string;
+  destinationCity: TurkishCity | string;
+  destinationDistrict?: string;
+
   loadingDate: string; // ISO string (YYYY-MM-DD)
   postedAt: string; // ISO string (Timestamp from Firestore)
   isActive: boolean;
@@ -62,16 +62,16 @@ export interface CommercialFreight extends BaseFreight {
   cargoForm: CargoForm;
   cargoWeight: number;
   cargoWeightUnit: WeightUnit;
-  isContinuousLoad: boolean; 
-  shipmentScope: ShipmentScope; 
+  isContinuousLoad: boolean;
+  shipmentScope: ShipmentScope;
 }
 
 export interface ResidentialFreight extends BaseFreight {
   freightType: 'Evden Eve';
-  residentialTransportType: ResidentialTransportType; 
-  residentialPlaceType: ResidentialPlaceType; 
-  residentialElevatorStatus: ResidentialElevatorStatus; 
-  residentialFloorLevel: ResidentialFloorLevel; 
+  residentialTransportType: ResidentialTransportType;
+  residentialPlaceType: ResidentialPlaceType;
+  residentialElevatorStatus: ResidentialElevatorStatus;
+  residentialFloorLevel: ResidentialFloorLevel;
 }
 
 export type Freight = CommercialFreight | ResidentialFreight;
@@ -104,7 +104,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
   username: string;
   logoUrl?: string;
-  companyTitle: string; 
+  companyTitle: string;
   contactFullName: string;
   workPhone?: string;
   mobilePhone: string;
@@ -121,14 +121,16 @@ export interface CompanyUserProfile extends BaseUserProfile {
   preferredCountries: (CountryCode | string)[];
   membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string;
   membershipEndDate?: string; // ISO string YYYY-MM-DD
+  ownedVehicles: string[]; // Array of vehicle type names
+  authDocuments: string[]; // Array of auth document names
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
 
 interface BaseRegisterData {
   email: string;
-  password?: string; 
-  name: string; 
+  password?: string;
+  name: string;
   role: UserRole;
 }
 
@@ -154,6 +156,7 @@ export interface CompanyRegisterData extends BaseRegisterData {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
+  // ownedVehicles and authDocuments will be initialized as empty by the backend
 }
 
 export type RegisterData = IndividualRegisterData | CompanyRegisterData;
@@ -230,11 +233,11 @@ export interface AdminNoteSetting {
 export type SponsorEntityType = 'country' | 'city';
 export interface Sponsor {
   id: string;
-  name: string; 
+  name: string;
   logoUrl?: string;
-  linkUrl?: string; 
-  entityType: SponsorEntityType; 
-  entityName: string; 
+  linkUrl?: string;
+  entityType: SponsorEntityType;
+  entityName: string;
   startDate: string; // ISO string YYYY-MM-DD
   endDate?: string; // ISO string YYYY-MM-DD
   isActive: boolean;

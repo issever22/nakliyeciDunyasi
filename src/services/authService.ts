@@ -1,5 +1,5 @@
 
-'use server'; 
+'use server';
 
 import { db } from '@/lib/firebase'; // auth is not needed here for server actions
 import type { UserProfile, IndividualUserProfile, CompanyUserProfile, RegisterData, IndividualRegisterData, CompanyRegisterData, UserRole } from '@/types';
@@ -23,7 +23,7 @@ const USERS_COLLECTION = 'users';
 // Helper to convert Firestore data to UserProfile - internal to this module
 const convertToUserProfile = (docData: DocumentData, id: string): UserProfile => {
   const data = { ...docData };
-  
+
   if (data.createdAt && data.createdAt.toDate) {
     data.createdAt = data.createdAt.toDate().toISOString();
   } else if (typeof data.createdAt === 'string') {
@@ -40,18 +40,17 @@ const convertToUserProfile = (docData: DocumentData, id: string): UserProfile =>
 
   data.isActive = data.isActive === undefined ? true : data.isActive;
 
-  // Ensure 'name' (which is companyTitle for company users) is correctly assigned from the root
   if (data.role === 'company') {
-    const companyProfile: CompanyUserProfile = { 
-      id, 
+    const companyProfile: CompanyUserProfile = {
+      id,
       email: data.email,
       role: 'company',
       name: data.name, // This is companyTitle
       isActive: data.isActive,
       createdAt: data.createdAt,
       username: data.username || '',
-      logoUrl: data.logoUrl || undefined, // Ensure undefined if falsy
-      companyTitle: data.name, // Explicitly setting companyTitle from name
+      logoUrl: data.logoUrl || undefined,
+      companyTitle: data.name,
       contactFullName: data.contactFullName || '',
       workPhone: data.workPhone || undefined,
       mobilePhone: data.mobilePhone || '',
@@ -62,16 +61,18 @@ const convertToUserProfile = (docData: DocumentData, id: string): UserProfile =>
       addressCity: data.addressCity || '',
       addressDistrict: data.addressDistrict || undefined,
       fullAddress: data.fullAddress || '',
-      workingMethods: data.workingMethods || [],
-      workingRoutes: data.workingRoutes || [],
-      preferredCities: data.preferredCities || [],
-      preferredCountries: data.preferredCountries || [],
+      workingMethods: Array.isArray(data.workingMethods) ? data.workingMethods : [],
+      workingRoutes: Array.isArray(data.workingRoutes) ? data.workingRoutes : [],
+      preferredCities: Array.isArray(data.preferredCities) ? data.preferredCities : [],
+      preferredCountries: Array.isArray(data.preferredCountries) ? data.preferredCountries : [],
       membershipStatus: data.membershipStatus || 'Yok',
-      membershipEndDate: data.membershipEndDate, // This can be undefined if not set
+      membershipEndDate: data.membershipEndDate,
+      ownedVehicles: Array.isArray(data.ownedVehicles) ? data.ownedVehicles : [],
+      authDocuments: Array.isArray(data.authDocuments) ? data.authDocuments : [],
     };
     return companyProfile;
   }
-  
+
   const individualProfile: IndividualUserProfile = {
     id,
     email: data.email,
@@ -114,7 +115,6 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
 
     if (profileDataFromForm.role === 'individual') {
       if (!commonProfileData.name || typeof commonProfileData.name !== 'string' || commonProfileData.name.trim() === '') {
-        console.error("[authService.ts] Critical: Individual name is missing or invalid. UID:", uid);
         return { profile: null, error: "Individual name is missing or invalid." };
       }
       finalProfileDataForFirestore = {
@@ -124,7 +124,6 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
     } else if (profileDataFromForm.role === 'company') {
       const companyData = profileDataFromForm as CompanyRegisterData;
 
-      // Pre-flight checks for critical company data
       if (!companyData.username || typeof companyData.username !== 'string' || companyData.username.trim() === '') {
         return { profile: null, error: "Company username is missing or invalid." };
       }
@@ -146,13 +145,13 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
        if (!companyData.fullAddress || typeof companyData.fullAddress !== 'string' || companyData.fullAddress.trim() === '') {
         return { profile: null, error: "Company full address is missing or invalid." };
       }
-      
-      const companyProfileBase: Omit<CompanyUserProfile, 'id' | 'membershipEndDate'> = {
-        ...commonProfileData, 
+
+      const companyProfileBase: Omit<CompanyUserProfile, 'id'> = {
+        ...commonProfileData,
         role: 'company',
         username: companyData.username,
         logoUrl: companyData.logoUrl || undefined,
-        companyTitle: commonProfileData.name, 
+        companyTitle: commonProfileData.name,
         contactFullName: companyData.contactFullName,
         workPhone: companyData.workPhone || undefined,
         mobilePhone: companyData.mobilePhone,
@@ -167,34 +166,26 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
         workingRoutes: Array.isArray(companyData.workingRoutes) ? companyData.workingRoutes : [],
         preferredCities: Array.isArray(companyData.preferredCities) ? companyData.preferredCities.filter(c => c) : [],
         preferredCountries: Array.isArray(companyData.preferredCountries) ? companyData.preferredCountries.filter(c => c) : [],
-        membershipStatus: 'Yok', 
+        membershipStatus: 'Yok',
+        ownedVehicles: [], // Initialize as empty array
+        authDocuments: [], // Initialize as empty array
       };
 
-      // Conditionally add membershipEndDate ONLY if it has a value.
-      // Firestore does not support 'undefined' for field values in setDoc.
       if (companyData.membershipEndDate) {
         (companyProfileBase as CompanyUserProfile).membershipEndDate = companyData.membershipEndDate;
       }
-      finalProfileDataForFirestore = companyProfileBase as Omit<CompanyUserProfile, 'id'>;
+      finalProfileDataForFirestore = companyProfileBase;
 
     } else {
-      console.error("[authService.ts] Invalid role specified for profile creation:", profileDataFromForm.role);
       return { profile: null, error: "Invalid user role specified for profile creation." };
     }
-    
-    const userDocRef = doc(db, USERS_COLLECTION, uid);
-    
-    console.log(`[authService.ts] Attempting to create Firestore profile for UID: ${uid}`);
-    console.log("[authService.ts] Data for Firestore:", JSON.stringify(finalProfileDataForFirestore, null, 2));
 
-    await setDoc(userDocRef, finalProfileDataForFirestore); // Send the potentially modified object
-    console.log(`[authService.ts] Successfully created Firestore profile for UID: ${uid}`);
-    
+    const userDocRef = doc(db, USERS_COLLECTION, uid);
+    await setDoc(userDocRef, finalProfileDataForFirestore);
     const savedDoc = await getDoc(userDocRef);
-    if(savedDoc.exists()){
+    if (savedDoc.exists()) {
       return { profile: convertToUserProfile(savedDoc.data(), uid) };
     }
-    console.warn(`[authService.ts] Firestore profile document not found immediately after creation for UID: ${uid}. This is unexpected.`);
     return { profile: null, error: "Profile verification failed after creation." };
 
   } catch (error: any) {
@@ -202,7 +193,7 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
     console.error("[authService.ts] CRITICAL: Error during Firestore profile creation (setDoc or getDoc). CHECK SERVER LOGS FOR THIS ERROR.");
     console.error("[authService.ts] Error details:", error);
     console.error(`[authService.ts] Failed UID: ${uid}`);
-    const safeRegistrationData = {...registrationData};
+    const safeRegistrationData = { ...registrationData };
     delete safeRegistrationData.password;
     console.error("[authService.ts] Data that was attempted to be written (excluding password):", JSON.stringify(safeRegistrationData, null, 2));
     console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -215,7 +206,7 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
     return { profile: null, error: `Firestore operation failed: ${errorMessage}` };
   }
 }
-  
+
 export async function getAllUserProfiles(): Promise<UserProfile[]> {
   try {
     const q = query(collection(db, USERS_COLLECTION), orderBy('createdAt', 'desc'));
@@ -230,27 +221,28 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<boolean> {
   try {
     const docRef = doc(db, USERS_COLLECTION, uid);
-    const updateData: any = { ...data }; // Use 'any' temporarily for easier field manipulation
+    const updateData: any = { ...data };
 
     delete updateData.id;
-    delete updateData.password; 
-    delete updateData.email; 
-    delete updateData.role; 
-    delete updateData.createdAt; 
+    delete updateData.password;
+    delete updateData.email;
+    delete updateData.role;
+    delete updateData.createdAt;
 
     if (updateData.membershipEndDate && typeof updateData.membershipEndDate === 'string') {
       updateData.membershipEndDate = Timestamp.fromDate(parseISO(updateData.membershipEndDate));
     } else if (updateData.hasOwnProperty('membershipEndDate') && (updateData.membershipEndDate === null || updateData.membershipEndDate === undefined)) {
-      // If explicitly set to null or undefined, allow Firestore to remove it or set to null
-      // To remove a field, you'd use deleteField(), but for now, null is acceptable.
-      // For complete omission when undefined:
       if (updateData.membershipEndDate === undefined) {
-        delete updateData.membershipEndDate;
+        // To truly remove a field, you would use deleteField() from 'firebase/firestore',
+        // but for simplicity, we'll set to null or let Firestore handle undefined if it's not explicitly set.
+        // Let's ensure it's not sent if undefined, or sent as null if explicitly null.
+        // The below logic will pass 'null' if it was 'null', or omit if 'undefined'.
+        if (data.membershipEndDate === undefined) delete updateData.membershipEndDate;
+        else updateData.membershipEndDate = null;
       } else {
-         updateData.membershipEndDate = null; // Set to null if it's explicitly null
+         updateData.membershipEndDate = null;
       }
     }
-
 
     await updateDoc(docRef, updateData);
     return true;
@@ -271,4 +263,3 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
     return false;
   }
 }
-
