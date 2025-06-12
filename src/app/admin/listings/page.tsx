@@ -20,11 +20,9 @@ import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon,
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import type { Freight, CommercialFreight, ResidentialFreight, FreightType, CargoType, VehicleNeeded, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, FreightCreationData, FreightUpdateData } from '@/types';
+import type { Freight, CommercialFreight, ResidentialFreight, FreightType, CargoType as CargoTypeName, VehicleNeeded as VehicleNeededName, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, FreightCreationData, FreightUpdateData, VehicleTypeSetting, CargoTypeSetting } from '@/types';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
 import { 
-  CARGO_TYPES, 
-  VEHICLES_NEEDED, 
   LOADING_TYPES, 
   CARGO_FORMS, 
   WEIGHT_UNITS,
@@ -33,16 +31,17 @@ import {
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS
-} from '@/lib/constants';
+} from '@/lib/constants'; // VEHICLES_NEEDED and CARGO_TYPES will come from DB
 import { getAllListingsForAdmin, addListing, updateListing, deleteListing } from '@/services/listingsService';
+import { getAllVehicleTypes } from '@/services/vehicleTypesService';
+import { getAllCargoTypes } from '@/services/cargoTypesService';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/hooks/useAuth'; // For userId
+import { useAuth } from '@/hooks/useAuth'; 
 
 const createEmptyFormData = (type: FreightType = 'Ticari', currentUserId?: string, currentUserName?: string): Partial<Freight> => {
   const base = {
-    // id is handled by backend
-    userId: currentUserId || 'admin-placeholder-uid', // This should be the actual admin's UID or a system UID
-    postedBy: currentUserName || 'Admin', // Name of admin or system
+    userId: currentUserId || 'admin-placeholder-uid', 
+    postedBy: currentUserName || 'Admin', 
     companyName: '',
     contactPerson: '',
     contactEmail: '',
@@ -63,10 +62,10 @@ const createEmptyFormData = (type: FreightType = 'Ticari', currentUserId?: strin
     return {
       ...base,
       freightType: 'Ticari',
-      cargoType: CARGO_TYPES[0] as CargoType, // Default to first option
-      vehicleNeeded: VEHICLES_NEEDED[0] as VehicleNeeded,
-      loadingType: LOADING_TYPES[0] as LoadingType,
-      cargoForm: CARGO_FORMS[0] as CargoForm,
+      cargoType: '' as CargoTypeName, 
+      vehicleNeeded: '' as VehicleNeededName,
+      loadingType: LOADING_TYPES[0] as LoadingType, 
+      cargoForm: CARGO_FORMS[0] as CargoForm, 
       cargoWeight: 0,
       cargoWeightUnit: 'Ton' as WeightUnit,
       isContinuousLoad: false,
@@ -86,7 +85,7 @@ const createEmptyFormData = (type: FreightType = 'Ticari', currentUserId?: strin
 
 export default function AdminListingsPage() {
   const { toast } = useToast();
-  const { user } = useAuth(); // Get admin user for userId and postedBy defaults
+  const { user } = useAuth(); 
   const [allListings, setAllListings] = useState<Freight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -98,6 +97,27 @@ export default function AdminListingsPage() {
   
   const [availableOriginDistricts, setAvailableOriginDistricts] = useState<readonly string[]>([]);
   const [availableDestinationDistricts, setAvailableDestinationDistricts] = useState<readonly string[]>([]);
+
+  const [vehicleTypeOptions, setVehicleTypeOptions] = useState<VehicleTypeSetting[]>([]);
+  const [cargoTypeOptions, setCargoTypeOptions] = useState<CargoTypeSetting[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+
+  const fetchFormOptions = useCallback(async () => {
+    setOptionsLoading(true);
+    try {
+      const [vehicles, cargos] = await Promise.all([
+        getAllVehicleTypes(),
+        getAllCargoTypes()
+      ]);
+      setVehicleTypeOptions(vehicles.filter(v => v.isActive));
+      setCargoTypeOptions(cargos.filter(c => c.isActive));
+    } catch (error) {
+      console.error("Error fetching form options for admin:", error);
+      toast({ title: "Hata", description: "Form seçenekleri yüklenemedi.", variant: "destructive" });
+    }
+    setOptionsLoading(false);
+  }, [toast]);
+
 
   const fetchListings = useCallback(async () => {
     setIsLoading(true);
@@ -113,13 +133,12 @@ export default function AdminListingsPage() {
 
   useEffect(() => {
     fetchListings();
-  }, [fetchListings]);
+    fetchFormOptions();
+  }, [fetchListings, fetchFormOptions]);
 
   useEffect(() => {
-    // Populate form when editingListing changes or dialog opens for new
     if (isAddEditDialogOpen) {
       if (editingListing) {
-        // Ensure loadingDate is in 'yyyy-MM-dd' for the input field, from ISO string
         const formDataToSet: Partial<Freight> = {
           ...editingListing,
           loadingDate: editingListing.loadingDate && isValid(parseISO(editingListing.loadingDate)) 
@@ -128,13 +147,12 @@ export default function AdminListingsPage() {
         };
         setCurrentFormData(formDataToSet);
       } else {
-        setCurrentFormData(createEmptyFormData('Ticari', user?.id, user?.name)); 
+        setCurrentFormData(createEmptyFormData(currentFormData.freightType || 'Ticari', user?.id, user?.name)); 
       }
     }
-  }, [editingListing, isAddEditDialogOpen, user]);
+  }, [editingListing, isAddEditDialogOpen, user, currentFormData.freightType]);
 
  useEffect(() => {
-    // Update available districts when origin city/country changes
     let newDistricts: readonly string[] = [];
     if (currentFormData.originCountry === 'TR' && currentFormData.originCity && TURKISH_CITIES.includes(currentFormData.originCity as TurkishCity)) {
       newDistricts = DISTRICTS_BY_CITY_TR[currentFormData.originCity as TurkishCity] || [];
@@ -146,7 +164,6 @@ export default function AdminListingsPage() {
   }, [currentFormData.originCity, currentFormData.originCountry, currentFormData.originDistrict]);
 
   useEffect(() => {
-    // Update available districts when destination city/country changes
     let newDistricts: readonly string[] = [];
     if (currentFormData.destinationCountry === 'TR' && currentFormData.destinationCity && TURKISH_CITIES.includes(currentFormData.destinationCity as TurkishCity)) {
       newDistricts = DISTRICTS_BY_CITY_TR[currentFormData.destinationCity as TurkishCity] || [];
@@ -160,13 +177,14 @@ export default function AdminListingsPage() {
 
   const handleAddNew = () => {
     setEditingListing(null);
-    setCurrentFormData(createEmptyFormData('Ticari', user?.id, user?.name)); 
+    // Retain current dialog type or default to 'Ticari'
+    const currentType = currentFormData.freightType || 'Ticari';
+    setCurrentFormData(createEmptyFormData(currentType, user?.id, user?.name)); 
     setIsAddEditDialogOpen(true);
   };
 
   const handleEdit = (listing: Freight) => {
     setEditingListing(listing);
-    // useEffect for [editingListing, isAddEditDialogOpen] will handle setting currentFormData
     setIsAddEditDialogOpen(true);
   };
 
@@ -179,21 +197,28 @@ export default function AdminListingsPage() {
       setFormSubmitting(false);
       return;
     }
+    
+    const requiredFields: (keyof Freight)[] = ['freightType', 'companyName', 'contactPerson', 'mobilePhone', 'originCity', 'destinationCity', 'loadingDate', 'description'];
+    if (currentFormData.freightType === 'Ticari') {
+        requiredFields.push('cargoType', 'vehicleNeeded', 'loadingType', 'cargoForm', 'cargoWeight');
+    } else if (currentFormData.freightType === 'Evden Eve') {
+        requiredFields.push('residentialTransportType', 'residentialPlaceType', 'residentialElevatorStatus', 'residentialFloorLevel');
+    }
 
-    // Basic validation (more can be added)
-    if (!currentFormData.freightType || !currentFormData.companyName || !currentFormData.contactPerson || !currentFormData.mobilePhone || !currentFormData.originCity || !currentFormData.destinationCity || !currentFormData.loadingDate || !currentFormData.description) {
-      toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu (*) alanları doldurun.", variant: "destructive" });
-      setFormSubmitting(false);
-      return;
+    for (const field of requiredFields) {
+        if (!currentFormData[field] && !(field === 'cargoWeight' && (currentFormData as CommercialFreight).cargoWeight === 0) ) {
+            toast({ title: "Eksik Bilgi", description: `Lütfen "${field}" alanını doldurun.`, variant: "destructive" });
+            setFormSubmitting(false);
+            return;
+        }
     }
     
     const dataPayload = {
       ...currentFormData,
-      postedBy: currentFormData.companyName, // Ensure postedBy is companyName
-      loadingDate: currentFormData.loadingDate ? format(parseISO(currentFormData.loadingDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"), // Ensure it's yyyy-MM-dd
-    } as FreightCreationData; // Assert type for addListing
+      postedBy: currentFormData.companyName, 
+      loadingDate: currentFormData.loadingDate ? format(parseISO(currentFormData.loadingDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"), 
+    } as FreightCreationData; 
 
-    // Remove id and other non-updatable fields for update operation
     const { id, postedAt, userId, ...updatePayloadForService } = dataPayload;
 
 
@@ -206,7 +231,6 @@ export default function AdminListingsPage() {
           throw new Error("İlan güncellenemedi.");
         }
       } else {
-        // For add, ensure userId is present
         const newListingId = await addListing(user.id, dataPayload);
         if (newListingId) {
           toast({ title: "Başarılı", description: "Yeni ilan eklendi." });
@@ -214,8 +238,8 @@ export default function AdminListingsPage() {
           throw new Error("Yeni ilan eklenemedi.");
         }
       }
-      fetchListings(); // Refresh list
-      setIsAddEditDialogOpen(false); // Close dialog
+      fetchListings(); 
+      setIsAddEditDialogOpen(false); 
     } catch (error: any) {
       console.error("Error submitting listing:", error);
       toast({ title: "Hata", description: error.message || "Bir sorun oluştu.", variant: "destructive" });
@@ -229,7 +253,7 @@ export default function AdminListingsPage() {
       const success = await deleteListing(listingId);
       if (success) {
         toast({ title: "Başarılı", description: "İlan silindi.", variant: "destructive" });
-        fetchListings(); // Refresh list
+        fetchListings(); 
       } else {
         throw new Error("İlan silinemedi.");
       }
@@ -281,8 +305,7 @@ export default function AdminListingsPage() {
   
   const handleFreightTypeChangeInDialog = (newType: FreightType) => {
     setCurrentFormData(prev => ({
-      // Preserve common fields
-      ...createEmptyFormData(newType, user?.id, user?.name), // Re-init with new type defaults
+      ...createEmptyFormData(newType, user?.id, user?.name), 
       companyName: prev.companyName,
       contactPerson: prev.contactPerson,
       contactEmail: prev.contactEmail,
@@ -297,10 +320,11 @@ export default function AdminListingsPage() {
       destinationCity: prev.destinationCity,
       destinationDistrict: prev.destinationDistrict,
       loadingDate: prev.loadingDate,
-      // Explicitly set new freightType
       freightType: newType, 
     }));
   };
+
+  const isLoadingCombined = isLoading || optionsLoading;
 
   return (
     <div className="space-y-6">
@@ -320,11 +344,12 @@ export default function AdminListingsPage() {
                 className="pl-8 w-full"
               />
             </div>
-            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90" disabled={optionsLoading}>
+              {optionsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni İlan Ekle
             </Button>
           </div>
-          {isLoading ? (
+          {isLoadingCombined ? (
              <div className="space-y-4">
                 <Skeleton className="h-12 w-full rounded-md" />
                 <Skeleton className="h-20 w-full rounded-md" />
@@ -429,7 +454,7 @@ export default function AdminListingsPage() {
                 <Select 
                     value={currentFormData.freightType || 'Ticari'} 
                     onValueChange={(value) => handleFreightTypeChangeInDialog(value as FreightType)}
-                    disabled={!!editingListing} // Prevent changing type when editing for simplicity
+                    disabled={!!editingListing} 
                 >
                   <SelectTrigger id="dlg-listingFreightType"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -475,16 +500,20 @@ export default function AdminListingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                             <Label htmlFor="dlg-listingCargoType">Yük Cinsi (*)</Label>
-                            <Select value={(currentFormData as CommercialFreight).cargoType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, cargoType: v as CargoType})} required>
+                            <Select value={(currentFormData as CommercialFreight).cargoType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, cargoType: v as CargoTypeName})} required disabled={optionsLoading}>
                                 <SelectTrigger id="dlg-listingCargoType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
-                                <SelectContent>{CARGO_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                  {cargoTypeOptions.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
+                                </SelectContent>
                             </Select>
                             </div>
                             <div className="space-y-1.5">
                             <Label htmlFor="dlg-listingVehicleNeeded">Aranılan Araç (*)</Label>
-                             <Select value={(currentFormData as CommercialFreight).vehicleNeeded || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, vehicleNeeded: v as VehicleNeeded})} required>
+                             <Select value={(currentFormData as CommercialFreight).vehicleNeeded || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, vehicleNeeded: v as VehicleNeededName})} required disabled={optionsLoading}>
                                 <SelectTrigger id="dlg-listingVehicleNeeded"><SelectValue placeholder="Seçin..." /></SelectTrigger>
-                                <SelectContent>{VEHICLES_NEEDED.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                  {vehicleTypeOptions.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
+                                </SelectContent>
                             </Select>
                             </div>
                         </div>
@@ -644,10 +673,10 @@ export default function AdminListingsPage() {
             </div>
             <DialogFooter className="p-6 pt-0 border-t sticky bottom-0 bg-background">
                  <DialogClose asChild>
-                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting || optionsLoading}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
-                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting || optionsLoading}>
+                {(formSubmitting || optionsLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingListing ? 'Değişiklikleri Kaydet' : 'İlanı Ekle'}
               </Button>
             </DialogFooter>
@@ -657,3 +686,4 @@ export default function AdminListingsPage() {
     </div>
   );
 }
+

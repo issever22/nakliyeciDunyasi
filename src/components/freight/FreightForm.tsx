@@ -12,23 +12,21 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
-  CARGO_TYPES, 
-  VEHICLES_NEEDED, 
   LOADING_TYPES, 
   CARGO_FORMS, 
   WEIGHT_UNITS,
-  // SHIPMENT_SCOPES is derived, not selected by user directly
 } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
-import type { CommercialFreight, CargoType, VehicleNeeded, LoadingType, CargoForm, WeightUnit, ShipmentScope, FreightCreationData } from '@/types';
+import type { CommercialFreight, CargoType as CargoTypeName, VehicleNeeded as VehicleNeededName, LoadingType, CargoForm, WeightUnit, ShipmentScope, VehicleTypeSetting, CargoTypeSetting } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO, isValid, set } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
 import { Send, Briefcase, User, Mail, Phone, Smartphone, Package, Truck, Layers, Scale, FileText, MapPin, CalendarIcon, Repeat, Loader2 } from 'lucide-react';
+import { getAllVehicleTypes } from '@/services/vehicleTypesService';
+import { getAllCargoTypes } from '@/services/cargoTypesService';
 
 interface FreightFormProps {
-  // onSubmitSuccess expects the full data structure without id, postedAt, userId
   onSubmitSuccess: (newFreightData: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'>) => Promise<void>;
   initialData?: Partial<CommercialFreight>; 
 }
@@ -43,8 +41,8 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
   const [workPhone, setWorkPhone] = useState(initialData?.workPhone || '');
   const [mobilePhone, setMobilePhone] = useState(initialData?.mobilePhone || '');
 
-  const [cargoType, setCargoType] = useState<CargoType | ''>(initialData?.cargoType || '');
-  const [vehicleNeeded, setVehicleNeeded] = useState<VehicleNeeded | ''>(initialData?.vehicleNeeded || '');
+  const [cargoType, setCargoType] = useState<CargoTypeName | ''>(initialData?.cargoType || '');
+  const [vehicleNeeded, setVehicleNeeded] = useState<VehicleNeededName | ''>(initialData?.vehicleNeeded || '');
   const [loadingType, setLoadingType] = useState<LoadingType | ''>(initialData?.loadingType || '');
   const [cargoForm, setCargoForm] = useState<CargoForm | ''>(initialData?.cargoForm || '');
   const [cargoWeight, setCargoWeight] = useState<string>(initialData?.cargoWeight?.toString() || '');
@@ -69,11 +67,33 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
 
   const [availableOriginDistricts, setAvailableOriginDistricts] = useState<readonly string[]>([]);
   const [availableDestinationDistricts, setAvailableDestinationDistricts] = useState<readonly string[]>([]);
+
+  const [vehicleTypeOptions, setVehicleTypeOptions] = useState<VehicleTypeSetting[]>([]);
+  const [cargoTypeOptions, setCargoTypeOptions] = useState<CargoTypeSetting[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      setOptionsLoading(true);
+      try {
+        const [vehicles, cargos] = await Promise.all([
+          getAllVehicleTypes(),
+          getAllCargoTypes()
+        ]);
+        setVehicleTypeOptions(vehicles.filter(v => v.isActive));
+        setCargoTypeOptions(cargos.filter(c => c.isActive));
+      } catch (error) {
+        console.error("Error fetching form options:", error);
+        toast({ title: "Hata", description: "Form seçenekleri yüklenemedi.", variant: "destructive" });
+      }
+      setOptionsLoading(false);
+    };
+    fetchOptions();
+  }, [toast]);
   
   useEffect(() => {
     if (isAuthenticated && user && !initialData) { 
-      // Pre-fill from user profile if available and it's a new form
-      setCompanyName(user.name || ''); // User's name or company name
+      setCompanyName(user.name || ''); 
       if (user.role === 'company') {
         const companyUser = user as import('@/types').CompanyUserProfile;
         setContactPerson(companyUser.contactFullName || '');
@@ -92,7 +112,7 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
       newDistricts = DISTRICTS_BY_CITY_TR[originCity as TurkishCity] || [];
     }
     setAvailableOriginDistricts(newDistricts);
-    if (!newDistricts.includes(originDistrict)) { // Reset if current district not in new list
+    if (!newDistricts.includes(originDistrict)) { 
         setOriginDistrict(''); 
     }
   }, [originCity, originCountry, originDistrict]);
@@ -129,15 +149,15 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
     const determinedShipmentScope: ShipmentScope = (originCountry === 'TR' && destinationCountry === 'TR') ? 'Yurt İçi' : 'Yurt Dışı';
 
     const newFreightData: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'> = {
-      postedBy: user.name, // Or a specific form field if you want to allow different "postedBy"
+      postedBy: user.name, 
       freightType: 'Ticari',
       companyName,
       contactPerson,
       contactEmail: contactEmail || undefined,
       workPhone: workPhone || undefined,
       mobilePhone,
-      cargoType: cargoType as CargoType,
-      vehicleNeeded: vehicleNeeded as VehicleNeeded,
+      cargoType: cargoType as CargoTypeName,
+      vehicleNeeded: vehicleNeeded as VehicleNeededName,
       loadingType: loadingType as LoadingType,
       cargoForm: cargoForm as CargoForm,
       cargoWeight: parsedCargoWeight,
@@ -152,14 +172,11 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
       loadingDate: format(loadingDate, "yyyy-MM-dd"),
       isContinuousLoad,
       shipmentScope: determinedShipmentScope,
-      isActive: true, // Default to active for new listings
+      isActive: true, 
     };
     
     try {
       await onSubmitSuccess(newFreightData);
-      // Reset form fields by parent component or here if desired
-      // For now, parent handles UI changes post-success (e.g., redirect, toast)
-      // If this form is reused for editing, initialData prop will handle re-population
     } catch (error) {
       console.error("Error in onSubmitSuccess for commercial freight:", error);
       toast({ title: "İlan Kayıt Hatası", description: "İlan kaydedilirken bir sorun oluştu. Lütfen tekrar deneyin.", variant: "destructive" });
@@ -207,6 +224,10 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
     return null; 
   };
 
+  if (optionsLoading) {
+    return <div className="flex justify-center items-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /> Yükleniyor...</div>;
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <Card className="shadow-md border">
@@ -251,16 +272,20 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="com-cargoType">Yük Cinsi (*)</Label>
-              <Select value={cargoType} onValueChange={(value) => setCargoType(value as CargoType)} required>
+              <Select value={cargoType} onValueChange={(value) => setCargoType(value as CargoTypeName)} required>
                 <SelectTrigger id="com-cargoType"><SelectValue placeholder="Yük cinsi seçin..." /></SelectTrigger>
-                <SelectContent>{CARGO_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {cargoTypeOptions.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="com-vehicleNeeded">Aranılan Araç (*)</Label>
-              <Select value={vehicleNeeded} onValueChange={(value) => setVehicleNeeded(value as VehicleNeeded)} required>
+              <Select value={vehicleNeeded} onValueChange={(value) => setVehicleNeeded(value as VehicleNeededName)} required>
                 <SelectTrigger id="com-vehicleNeeded"><SelectValue placeholder="Araç tipi seçin..." /></SelectTrigger>
-                <SelectContent>{VEHICLES_NEEDED.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {vehicleTypeOptions.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
           </div>
@@ -388,11 +413,12 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
         </CardContent>
       </Card>
       
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || !isAuthenticated}>
-        {formSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
-        {formSubmitting ? 'İlan Yayınlanıyor...' : 'Ticari İlanı Yayınla'}
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || !isAuthenticated || optionsLoading}>
+        {formSubmitting || optionsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
+        {formSubmitting ? 'İlan Yayınlanıyor...' : (optionsLoading ? 'Seçenekler Yükleniyor...' : 'Ticari İlanı Yayınla')}
       </Button>
       {!isAuthenticated && <p className="text-sm text-destructive text-center mt-2">İlan yayınlamak için giriş yapmalısınız.</p>}
     </form>
   );
 }
+
