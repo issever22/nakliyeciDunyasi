@@ -23,23 +23,34 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsRouteActive);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const authStatus = localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
-      setIsAdminAuthenticated(authStatus);
+    if (typeof window === 'undefined') {
+      setIsLoading(true); // Sunucuda veya pencere yoksa yükleniyor durumunda kal
+      return;
+    }
+
+    const authStatus = localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
+    setIsAdminAuthenticated(authStatus); // Diğer UI elemanları için state'i ayarla
+
+    if (!authStatus && pathname !== '/admin/login') {
+      router.push('/admin/login');
+      // Yönlendirme sırasında iskelet görünümü için yükleniyor durumuna geri dön
+      // Bu, yeni sayfa AdminLayout tarafından işlenene kadar içeriğin yanıp sönmesini engeller
+      setIsLoading(true); 
+    } else {
+      // Kimlik doğrulanmış veya zaten giriş sayfasında
       setIsLoading(false);
     }
-  }, [pathname]); 
+  }, [pathname, router]);
 
-  useEffect(() => {
-    if (!isLoading && !isAdminAuthenticated && pathname !== '/admin/login') {
-      router.push('/admin/login');
-    }
-  }, [isLoading, isAdminAuthenticated, pathname, router]);
 
   useEffect(() => {
     if (isSettingsRouteActive && !isSettingsOpen) {
       setIsSettingsOpen(true);
     }
+    // Ayarlar menüsünün dışında bir yere tıklandığında ve ayarlar menüsü açıksa kapatma mantığı,
+    // eğer settings dışı bir rota aktifse ve isSettingsOpen true ise setIsSettingsOpen(false) yapılabilir.
+    // Ancak bu, kullanıcının menüyü manuel olarak açık tutma isteğiyle çakışabilir.
+    // Şimdilik mevcut davranış korunuyor: sadece ilgili rota aktifse otomatik açılıyor.
   }, [isSettingsRouteActive, isSettingsOpen]);
 
   const handleLogout = () => {
@@ -66,10 +77,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Giriş sayfası AdminLayout tarafından sarmalanıyorsa, 
+  // children'ı doğrudan render et (yukarıdaki useEffect yönlendirmeyi zaten hallediyor)
   if (pathname === '/admin/login') {
     return <div className="min-h-screen">{children}</div>;
   }
   
+  // Eğer isLoading false ise ve hala kimlik doğrulanmamışsa (ve giriş sayfasında değilsek),
+  // yukarıdaki useEffect zaten yönlendirme yapmış olmalı.
+  // Bu ek kontrol, bir şekilde yönlendirme olmazsa null döndürerek içeriği gizler.
   if (!isAdminAuthenticated) {
      return null; 
   }
