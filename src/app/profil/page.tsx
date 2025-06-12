@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image'; // Import next/image
 import { useRequireAuth, useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -98,7 +99,7 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="md:col-span-1">
             <CardHeader className="items-center">
-              <Skeleton className="h-24 w-24 rounded-full" />
+              <Skeleton className="h-32 w-32 rounded-md mb-4" /> {/* Adjusted for rectangular logo placeholder */}
               <Skeleton className="h-8 w-48 mt-4" />
               <Skeleton className="h-4 w-64 mt-2" />
             </CardHeader>
@@ -141,14 +142,28 @@ export default function ProfilePage() {
       <h1 className="text-3xl font-bold mb-8 text-primary">Profilim</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Avatar and Basic Info */}
+        {/* Left Column: Avatar/Logo and Basic Info */}
         <div className="lg:col-span-4 xl:col-span-3">
           <Card className="shadow-lg sticky top-24">
             <CardHeader className="items-center text-center">
-              <Avatar className="w-28 h-28 mb-4 border-4 border-primary/50 shadow-md">
-                <AvatarImage src={(companyUser?.logoUrl || `https://placehold.co/120x120.png?text=${user.name.charAt(0)}`)} alt={user.name} data-ai-hint="person company logo"/>
-                <AvatarFallback className="text-4xl">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
+              {user.role === 'company' && companyUser?.logoUrl ? (
+                <div className="w-36 h-36 md:w-40 md:h-40 mb-4 relative border border-muted rounded-lg overflow-hidden shadow-md bg-card flex items-center justify-center p-2">
+                  <Image
+                    src={companyUser.logoUrl}
+                    alt={`${user.name} logo`}
+                    fill
+                    style={{ objectFit: 'contain' }}
+                    sizes="(max-width: 768px) 144px, 160px"
+                    priority
+                    data-ai-hint="company logo"
+                  />
+                </div>
+              ) : (
+                <Avatar className="w-28 h-28 mb-4 border-4 border-primary/50 shadow-md">
+                  <AvatarImage src={user.role === 'company' && companyUser?.logoUrl ? companyUser.logoUrl : `https://placehold.co/120x120.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person company" />
+                  <AvatarFallback className="text-4xl">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              )}
               <CardTitle className="text-2xl">{user.name}</CardTitle>
               <CardDescription className="flex items-center gap-1.5"><Mail size={14}/>{user.email}</CardDescription>
                {user.role === 'company' && companyUser?.username && (
@@ -332,4 +347,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
