@@ -120,20 +120,20 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
     } else if (profileDataFromForm.role === 'company') {
       const companyData = profileDataFromForm as CompanyRegisterData;
       finalProfileData = {
-        ...commonProfileData, // Includes email, name (as companyTitle), role, isActive, createdAt
+        ...commonProfileData, 
         role: 'company',
         username: companyData.username,
-        logoUrl: companyData.logoUrl || undefined, // Already handles empty string to undefined if logoUrl is falsy
+        logoUrl: companyData.logoUrl ? companyData.logoUrl : undefined,
         companyTitle: companyData.name, 
         contactFullName: companyData.contactFullName,
-        workPhone: companyData.workPhone || undefined,
+        workPhone: companyData.workPhone ? companyData.workPhone : undefined,
         mobilePhone: companyData.mobilePhone,
-        fax: companyData.fax || undefined,
-        website: companyData.website || undefined,
-        companyDescription: companyData.companyDescription || undefined,
+        fax: companyData.fax ? companyData.fax : undefined,
+        website: companyData.website ? companyData.website : undefined,
+        companyDescription: companyData.companyDescription ? companyData.companyDescription : undefined,
         companyType: companyData.companyType,
         addressCity: companyData.addressCity,
-        addressDistrict: companyData.addressDistrict || undefined,
+        addressDistrict: companyData.addressDistrict ? companyData.addressDistrict : undefined,
         fullAddress: companyData.fullAddress,
         workingMethods: companyData.workingMethods || [],
         workingRoutes: companyData.workingRoutes || [],
@@ -150,7 +150,7 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
     const userDocRef = doc(db, USERS_COLLECTION, uid);
     
     console.log(`[authService.ts] Attempting to create Firestore profile for UID: ${uid}`);
-    // console.log("[authService.ts] Data for Firestore:", JSON.stringify(finalProfileData, null, 2)); // Uncomment for deep debugging if needed
+    // console.log("[authService.ts] Data for Firestore:", JSON.stringify(finalProfileData, null, 2));
 
     await setDoc(userDocRef, finalProfileData);
     console.log(`[authService.ts] Successfully created Firestore profile for UID: ${uid}`);
@@ -159,15 +159,16 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
     if(savedDoc.exists()){
       return convertToUserProfile(savedDoc.data(), uid);
     }
-    // This part should ideally not be reached if setDoc was successful.
     console.warn(`[authService.ts] Firestore profile document not found immediately after creation for UID: ${uid}`);
     return null;
 
   } catch (error) {
-    // This is the most important log to check on the server side
-    console.error("[authService.ts] Error during Firestore profile creation (setDoc or getDoc):", error);
+    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.error("[authService.ts] CRITICAL: Error during Firestore profile creation (setDoc or getDoc). CHECK SERVER LOGS FOR THIS ERROR.");
+    console.error("[authService.ts] Error details:", error);
     console.error(`[authService.ts] Failed UID: ${uid}`);
     console.error("[authService.ts] Data that was attempted to be written (excluding sensitive info like password):", JSON.stringify(registrationData, (key, value) => key === 'password' ? undefined : value, 2));
+    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     return null;
   }
 }
