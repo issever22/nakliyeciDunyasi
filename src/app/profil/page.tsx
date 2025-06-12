@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image'; // Import next/image
+// import Image from 'next/image'; // next/image artık doğrudan logolar için kullanılmayacak
 import { useRequireAuth, useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -147,20 +147,18 @@ export default function ProfilePage() {
           <Card className="shadow-lg sticky top-24">
             <CardHeader className="items-center text-center">
               {user.role === 'company' && companyUser?.logoUrl ? (
-                <div className="w-36 h-36 md:w-40 md:h-40 mb-4 relative border border-muted rounded-lg overflow-hidden shadow-md bg-card flex items-center justify-center p-2">
-                  <Image
+                <div className="w-36 h-36 md:w-40 md:h-40 mb-4 p-2 border border-muted rounded-lg overflow-hidden shadow-md bg-card flex items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={companyUser.logoUrl}
                     alt={`${user.name} logo`}
-                    fill
-                    style={{ objectFit: 'contain' }}
-                    sizes="(max-width: 768px) 144px, 160px"
-                    priority
+                    className="max-w-full max-h-full object-contain"
                     data-ai-hint="company logo"
                   />
                 </div>
               ) : (
                 <Avatar className="w-28 h-28 mb-4 border-4 border-primary/50 shadow-md">
-                  <AvatarImage src={user.role === 'company' && companyUser?.logoUrl ? companyUser.logoUrl : `https://placehold.co/120x120.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person company" />
+                  <AvatarImage src={user.role === 'company' && companyUser?.logoUrl ? companyUser.logoUrl : `https://placehold.co/120x120.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person company"/>
                   <AvatarFallback className="text-4xl">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               )}

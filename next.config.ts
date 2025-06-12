@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -16,6 +17,8 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Example for issever.co was removed as logos can come from any domain.
+      // If you have other specific domains for next/image, add them here.
     ],
   },
 };

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, type FormEvent, useMemo, useCallback } from 'react';
-import Image from 'next/image'; // Import next/image
+// import Image from 'next/image'; // next/image artık logolar için kullanılmayacak
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -278,12 +278,11 @@ export default function UsersPage() {
               <TableCell>
                 {user.role === 'company' && (user as CompanyUserProfile).logoUrl ? (
                   <div className="w-12 h-12 relative border border-muted rounded-md overflow-hidden bg-card flex items-center justify-center p-1">
-                    <Image
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                       src={(user as CompanyUserProfile).logoUrl!}
                       alt={`${user.name} logo`}
-                      fill
-                      style={{ objectFit: 'contain' }}
-                      sizes="48px"
+                      className="max-w-full max-h-full object-contain"
                       data-ai-hint="company logo"
                     />
                   </div>
