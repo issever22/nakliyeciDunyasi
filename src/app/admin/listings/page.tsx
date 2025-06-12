@@ -20,7 +20,7 @@ import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon,
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import type { Freight, CommercialFreight, ResidentialFreight, FreightType, CargoType, VehicleNeeded, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel } from '@/types';
+import type { Freight, CommercialFreight, ResidentialFreight, FreightType, CargoType, VehicleNeeded, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, FreightCreationData, FreightUpdateData } from '@/types';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
 import { 
   CARGO_TYPES, 
@@ -36,12 +36,13 @@ import {
 } from '@/lib/constants';
 import { getAllListingsForAdmin, addListing, updateListing, deleteListing } from '@/services/listingsService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/useAuth'; // For userId
 
-
-const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => {
+const createEmptyFormData = (type: FreightType = 'Ticari', currentUserId?: string, currentUserName?: string): Partial<Freight> => {
   const base = {
-    id: `new-${Date.now()}`, 
-    userId: 'admin-user', 
+    // id is handled by backend
+    userId: currentUserId || 'admin-placeholder-uid', // This should be the actual admin's UID or a system UID
+    postedBy: currentUserName || 'Admin', // Name of admin or system
     companyName: '',
     contactPerson: '',
     contactEmail: '',
@@ -54,8 +55,6 @@ const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => 
     destinationCity: '' as TurkishCity,
     destinationDistrict: '',
     loadingDate: format(new Date(), "yyyy-MM-dd"),
-    // postedAt Firestore'a kayıtta eklenecek
-    postedBy: '', // companyName ile aynı olacak
     isActive: true,
     description: '',
   };
@@ -64,10 +63,10 @@ const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => 
     return {
       ...base,
       freightType: 'Ticari',
-      cargoType: '' as CargoType,
-      vehicleNeeded: '' as VehicleNeeded,
-      loadingType: '' as LoadingType,
-      cargoForm: '' as CargoForm,
+      cargoType: CARGO_TYPES[0] as CargoType, // Default to first option
+      vehicleNeeded: VEHICLES_NEEDED[0] as VehicleNeeded,
+      loadingType: LOADING_TYPES[0] as LoadingType,
+      cargoForm: CARGO_FORMS[0] as CargoForm,
       cargoWeight: 0,
       cargoWeightUnit: 'Ton' as WeightUnit,
       isContinuousLoad: false,
@@ -77,17 +76,17 @@ const createEmptyFormData = (type: FreightType = 'Ticari'): Partial<Freight> => 
     return {
       ...base,
       freightType: 'Evden Eve',
-      residentialTransportType: '' as ResidentialTransportType,
-      residentialPlaceType: '' as ResidentialPlaceType,
-      residentialElevatorStatus: '' as ResidentialElevatorStatus,
-      residentialFloorLevel: '' as ResidentialFloorLevel,
+      residentialTransportType: RESIDENTIAL_TRANSPORT_TYPES[0] as ResidentialTransportType,
+      residentialPlaceType: RESIDENTIAL_PLACE_TYPES[0] as ResidentialPlaceType,
+      residentialElevatorStatus: RESIDENTIAL_ELEVATOR_STATUSES[0] as ResidentialElevatorStatus,
+      residentialFloorLevel: RESIDENTIAL_FLOOR_LEVELS[0] as ResidentialFloorLevel,
     };
   }
 };
 
-
 export default function AdminListingsPage() {
   const { toast } = useToast();
+  const { user } = useAuth(); // Get admin user for userId and postedBy defaults
   const [allListings, setAllListings] = useState<Freight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,143 +94,148 @@ export default function AdminListingsPage() {
   const [editingListing, setEditingListing] = useState<Freight | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
   
-  const [currentFormData, setCurrentFormData] = useState<Partial<Freight>>(createEmptyFormData());
+  const [currentFormData, setCurrentFormData] = useState<Partial<Freight>>(createEmptyFormData('Ticari', user?.id, user?.name));
   
   const [availableOriginDistricts, setAvailableOriginDistricts] = useState<readonly string[]>([]);
   const [availableDestinationDistricts, setAvailableDestinationDistricts] = useState<readonly string[]>([]);
 
   const fetchListings = useCallback(async () => {
     setIsLoading(true);
-    const listingsFromDb = await getAllListingsForAdmin();
-    setAllListings(listingsFromDb);
+    try {
+      const listingsFromDb = await getAllListingsForAdmin();
+      setAllListings(listingsFromDb);
+    } catch (error) {
+      console.error("Failed to fetch admin listings:", error);
+      toast({ title: "Hata", description: "İlanlar yüklenirken bir sorun oluştu.", variant: "destructive" });
+    }
     setIsLoading(false);
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
 
   useEffect(() => {
-    if (editingListing) {
-      let loadingDateToSet = format(new Date(), "yyyy-MM-dd");
-      if (editingListing.loadingDate) {
-        const parsedDate = parseISO(editingListing.loadingDate);
-        if (isValid(parsedDate)) {
-          loadingDateToSet = format(parsedDate, "yyyy-MM-dd");
-        }
-      }
-      const formDataToSet: Partial<Freight> = {
-        ...editingListing,
-        loadingDate: loadingDateToSet,
-      };
-      setCurrentFormData(formDataToSet);
-      
-      if (editingListing.originCountry === 'TR' && TURKISH_CITIES.includes(editingListing.originCity as TurkishCity)) {
-        setAvailableOriginDistricts(DISTRICTS_BY_CITY_TR[editingListing.originCity as TurkishCity] || []);
+    // Populate form when editingListing changes or dialog opens for new
+    if (isAddEditDialogOpen) {
+      if (editingListing) {
+        // Ensure loadingDate is in 'yyyy-MM-dd' for the input field, from ISO string
+        const formDataToSet: Partial<Freight> = {
+          ...editingListing,
+          loadingDate: editingListing.loadingDate && isValid(parseISO(editingListing.loadingDate)) 
+            ? format(parseISO(editingListing.loadingDate), "yyyy-MM-dd") 
+            : format(new Date(), "yyyy-MM-dd"),
+        };
+        setCurrentFormData(formDataToSet);
       } else {
-        setAvailableOriginDistricts([]);
+        setCurrentFormData(createEmptyFormData('Ticari', user?.id, user?.name)); 
       }
-      if (editingListing.destinationCountry === 'TR' && TURKISH_CITIES.includes(editingListing.destinationCity as TurkishCity)) {
-        setAvailableDestinationDistricts(DISTRICTS_BY_CITY_TR[editingListing.destinationCity as TurkishCity] || []);
-      } else {
-        setAvailableDestinationDistricts([]);
-      }
-
-    } else {
-      setCurrentFormData(createEmptyFormData('Ticari')); 
-      setAvailableOriginDistricts([]);
-      setAvailableDestinationDistricts([]);
     }
-  }, [editingListing, isAddEditDialogOpen]);
+  }, [editingListing, isAddEditDialogOpen, user]);
 
  useEffect(() => {
+    // Update available districts when origin city/country changes
     let newDistricts: readonly string[] = [];
-    if (currentFormData.originCountry === 'TR' && TURKISH_CITIES.includes(currentFormData.originCity as TurkishCity)) {
+    if (currentFormData.originCountry === 'TR' && currentFormData.originCity && TURKISH_CITIES.includes(currentFormData.originCity as TurkishCity)) {
       newDistricts = DISTRICTS_BY_CITY_TR[currentFormData.originCity as TurkishCity] || [];
     }
     setAvailableOriginDistricts(newDistricts);
-
     if (currentFormData.originDistrict && !newDistricts.includes(currentFormData.originDistrict)) {
-        setCurrentFormData(prev => {
-            if (prev.originDistrict === '') return prev; 
-            return {...prev, originDistrict: ''};
-        });
+        setCurrentFormData(prev => ({...prev, originDistrict: ''}));
     }
   }, [currentFormData.originCity, currentFormData.originCountry, currentFormData.originDistrict]);
 
   useEffect(() => {
+    // Update available districts when destination city/country changes
     let newDistricts: readonly string[] = [];
-    if (currentFormData.destinationCountry === 'TR' && TURKISH_CITIES.includes(currentFormData.destinationCity as TurkishCity)) {
+    if (currentFormData.destinationCountry === 'TR' && currentFormData.destinationCity && TURKISH_CITIES.includes(currentFormData.destinationCity as TurkishCity)) {
       newDistricts = DISTRICTS_BY_CITY_TR[currentFormData.destinationCity as TurkishCity] || [];
     }
     setAvailableDestinationDistricts(newDistricts);
-
      if (currentFormData.destinationDistrict && !newDistricts.includes(currentFormData.destinationDistrict)) {
-        setCurrentFormData(prev => {
-            if (prev.destinationDistrict === '') return prev;
-            return {...prev, destinationDistrict: ''};
-        });
+        setCurrentFormData(prev => ({...prev, destinationDistrict: ''}));
     }
   }, [currentFormData.destinationCity, currentFormData.destinationCountry, currentFormData.destinationDistrict]);
 
 
   const handleAddNew = () => {
     setEditingListing(null);
-    setCurrentFormData(createEmptyFormData('Ticari')); 
+    setCurrentFormData(createEmptyFormData('Ticari', user?.id, user?.name)); 
     setIsAddEditDialogOpen(true);
   };
 
   const handleEdit = (listing: Freight) => {
     setEditingListing(listing);
+    // useEffect for [editingListing, isAddEditDialogOpen] will handle setting currentFormData
     setIsAddEditDialogOpen(true);
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormSubmitting(true);
-    if (!currentFormData.freightType || !currentFormData.companyName || !currentFormData.contactPerson || !currentFormData.mobilePhone || !currentFormData.originCity || !currentFormData.destinationCity || !currentFormData.loadingDate || !currentFormData.description) {
-      toast({ title: "Hata", description: "Lütfen tüm zorunlu alanları doldurun.", variant: "destructive" });
+
+    if (!user) {
+      toast({ title: "Yetkilendirme Hatası", description: "Bu işlemi yapmak için yetkiniz yok veya oturumunuz sonlanmış.", variant: "destructive" });
       setFormSubmitting(false);
       return;
     }
 
-    // postedBy'ı companyName ile set et
-    const dataToSubmit = {
-      ...currentFormData,
-      postedBy: currentFormData.companyName,
-    };
-
-    if (editingListing) {
-      const { id, postedAt, ...updateData } = dataToSubmit; // id ve postedAt'ı update datasına dahil etme
-      const success = await updateListing(editingListing.id, updateData as Partial<Freight>);
-      if (success) {
-        toast({ title: "Başarılı", description: "İlan güncellendi." });
-        fetchListings();
-      } else {
-        toast({ title: "Hata", description: "İlan güncellenemedi.", variant: "destructive" });
-      }
-    } else {
-      // id ve postedAt Omit<Freight, 'id' | 'postedAt'> type'ı tarafından yönetiliyor.
-      const { id, postedAt, ...createData } = dataToSubmit;
-      const newListingId = await addListing(createData as Omit<Freight, 'id' | 'postedAt'>);
-      if (newListingId) {
-        toast({ title: "Başarılı", description: "Yeni ilan eklendi." });
-        fetchListings();
-      } else {
-        toast({ title: "Hata", description: "Yeni ilan eklenemedi.", variant: "destructive" });
-      }
+    // Basic validation (more can be added)
+    if (!currentFormData.freightType || !currentFormData.companyName || !currentFormData.contactPerson || !currentFormData.mobilePhone || !currentFormData.originCity || !currentFormData.destinationCity || !currentFormData.loadingDate || !currentFormData.description) {
+      toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu (*) alanları doldurun.", variant: "destructive" });
+      setFormSubmitting(false);
+      return;
     }
-    setFormSubmitting(false);
-    setIsAddEditDialogOpen(false);
+    
+    const dataPayload = {
+      ...currentFormData,
+      postedBy: currentFormData.companyName, // Ensure postedBy is companyName
+      loadingDate: currentFormData.loadingDate ? format(parseISO(currentFormData.loadingDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"), // Ensure it's yyyy-MM-dd
+    } as FreightCreationData; // Assert type for addListing
+
+    // Remove id and other non-updatable fields for update operation
+    const { id, postedAt, userId, ...updatePayloadForService } = dataPayload;
+
+
+    try {
+      if (editingListing && editingListing.id) {
+        const success = await updateListing(editingListing.id, updatePayloadForService as FreightUpdateData);
+        if (success) {
+          toast({ title: "Başarılı", description: "İlan güncellendi." });
+        } else {
+          throw new Error("İlan güncellenemedi.");
+        }
+      } else {
+        // For add, ensure userId is present
+        const newListingId = await addListing(user.id, dataPayload);
+        if (newListingId) {
+          toast({ title: "Başarılı", description: "Yeni ilan eklendi." });
+        } else {
+          throw new Error("Yeni ilan eklenemedi.");
+        }
+      }
+      fetchListings(); // Refresh list
+      setIsAddEditDialogOpen(false); // Close dialog
+    } catch (error: any) {
+      console.error("Error submitting listing:", error);
+      toast({ title: "Hata", description: error.message || "Bir sorun oluştu.", variant: "destructive" });
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    const success = await deleteListing(id);
-    if (success) {
-      toast({ title: "Başarılı", description: "İlan silindi.", variant: "destructive" });
-      fetchListings();
-    } else {
-      toast({ title: "Hata", description: "İlan silinemedi.", variant: "destructive" });
+  const handleDelete = async (listingId: string) => {
+    try {
+      const success = await deleteListing(listingId);
+      if (success) {
+        toast({ title: "Başarılı", description: "İlan silindi.", variant: "destructive" });
+        fetchListings(); // Refresh list
+      } else {
+        throw new Error("İlan silinemedi.");
+      }
+    } catch (error: any) {
+      console.error("Error deleting listing:", error);
+      toast({ title: "Hata", description: error.message || "İlan silinirken bir sorun oluştu.", variant: "destructive" });
     }
   };
 
@@ -245,44 +249,40 @@ export default function AdminListingsPage() {
         (listing.originCity && (listing.originCity as string).toLowerCase().includes(searchTermLower)) ||
         (listing.destinationCity && (listing.destinationCity as string).toLowerCase().includes(searchTermLower))
       );
-    }).sort((a, b) => {
-       const dateA = a.postedAt ? parseISO(a.postedAt).getTime() : 0;
-       const dateB = b.postedAt ? parseISO(b.postedAt).getTime() : 0;
-       return dateB - dateA;
-    });
+    }).sort((a, b) => (a.postedAt && b.postedAt) ? parseISO(b.postedAt).getTime() - parseISO(a.postedAt).getTime() : 0);
   }, [allListings, searchTerm]);
 
   const renderCityInput = (country: CountryCode | string | undefined, city: string | TurkishCity | undefined, setCity: (city: string | TurkishCity) => void, type: 'origin' | 'destination') => {
     if (country === 'TR') {
       return (
         <Select value={city as TurkishCity || ''} onValueChange={(value) => setCity(value as TurkishCity)}>
-          <SelectTrigger id={`com-${type}CityTR`}><SelectValue placeholder="Şehir seçin..." /></SelectTrigger>
+          <SelectTrigger id={`dlg-${type}CityTR`}><SelectValue placeholder="Şehir seçin..." /></SelectTrigger>
           <SelectContent>{TURKISH_CITIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
         </Select>
       );
     }
-    return <Input id={`com-${type}CityOther`} placeholder="Şehir (Elle Giriş)" value={city as string || ''} onChange={(e) => setCity(e.target.value)} />;
+    return <Input id={`dlg-${type}CityOther`} placeholder="Şehir (Elle Giriş)" value={city as string || ''} onChange={(e) => setCity(e.target.value)} />;
   };
 
   const renderDistrictInput = (country: CountryCode | string | undefined, city: string | TurkishCity | undefined, district: string | undefined, setDistrict: (district: string) => void, availableDistrictsForInput: readonly string[], type: 'origin' | 'destination') => {
-    if (country === 'TR' && city && TURKISH_CITIES.includes(city as TurkishCity)) {
-        const districtsForCity = DISTRICTS_BY_CITY_TR[city as TurkishCity] || [];
-        if (districtsForCity.length > 0) {
-             return (
-                <Select value={district || ''} onValueChange={(value) => setDistrict(value)}>
-                <SelectTrigger id={`com-${type}DistrictTR`}><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
-                <SelectContent>{districtsForCity.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                </Select>
-            );
-        }
-        return <Input id={`com-${type}DistrictOtherTR`} placeholder="İlçe (Elle Giriş)" value={district || ''} onChange={(e) => setDistrict(e.target.value)} />;
+    if (country === 'TR' && city && TURKISH_CITIES.includes(city as TurkishCity) && availableDistrictsForInput.length > 0) {
+        return (
+          <Select value={district || ''} onValueChange={(value) => setDistrict(value)}>
+          <SelectTrigger id={`dlg-${type}DistrictTR`}><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
+          <SelectContent>{availableDistrictsForInput.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+          </Select>
+        );
+    }
+    if (country === 'TR' && city && TURKISH_CITIES.includes(city as TurkishCity) && availableDistrictsForInput.length === 0) {
+      return <Input id={`dlg-${type}DistrictOtherTR`} placeholder="İlçe (Elle Giriş)" value={district || ''} onChange={(e) => setDistrict(e.target.value)} />;
     }
     return null;
   };
   
-  const handleFreightTypeChange = (newType: FreightType) => {
+  const handleFreightTypeChangeInDialog = (newType: FreightType) => {
     setCurrentFormData(prev => ({
-      ...createEmptyFormData(newType), 
+      // Preserve common fields
+      ...createEmptyFormData(newType, user?.id, user?.name), // Re-init with new type defaults
       companyName: prev.companyName,
       contactPerson: prev.contactPerson,
       contactEmail: prev.contactEmail,
@@ -292,13 +292,15 @@ export default function AdminListingsPage() {
       description: prev.description,
       originCountry: prev.originCountry,
       originCity: prev.originCity,
+      originDistrict: prev.originDistrict,
       destinationCountry: prev.destinationCountry,
       destinationCity: prev.destinationCity,
+      destinationDistrict: prev.destinationDistrict,
       loadingDate: prev.loadingDate,
+      // Explicitly set new freightType
       freightType: newType, 
     }));
   };
-
 
   return (
     <div className="space-y-6">
@@ -324,17 +326,17 @@ export default function AdminListingsPage() {
           </div>
           {isLoading ? (
              <div className="space-y-4">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-12 w-full rounded-md" />
+                <Skeleton className="h-20 w-full rounded-md" />
+                <Skeleton className="h-20 w-full rounded-md" />
+                <Skeleton className="h-20 w-full rounded-md" />
             </div>
           ) : (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[100px]">İlan ID</TableHead>
+                  <TableHead className="w-[120px]">İlan ID</TableHead>
                   <TableHead className="w-[120px]">İlan Tipi</TableHead>
                   <TableHead className="min-w-[180px]">İlan Veren</TableHead>
                   <TableHead className="min-w-[200px]">Güzergah</TableHead>
@@ -346,7 +348,7 @@ export default function AdminListingsPage() {
               <TableBody>
                 {filteredListings.length > 0 ? filteredListings.map((listing) => (
                   <TableRow key={listing.id} className="hover:bg-muted/50">
-                    <TableCell className="font-mono text-xs">{listing.id}</TableCell>
+                    <TableCell className="font-mono text-xs truncate" title={listing.id}>{listing.id.substring(0,10)}...</TableCell>
                     <TableCell>
                       <Badge variant={listing.freightType === 'Ticari' ? 'default' : 'secondary'} className="text-xs">
                         {listing.freightType === 'Ticari' ? <Truck size={14} className="mr-1.5"/> : <Home size={14} className="mr-1.5"/>}
@@ -361,7 +363,7 @@ export default function AdminListingsPage() {
                         : 'Geçersiz Tarih'}
                     </TableCell>
                     <TableCell className="text-center">
-                       <Badge variant={listing.isActive ? "default" : "outline"} className={listing.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-red-500/10 text-red-700 border-red-400"}>
+                       <Badge variant={listing.isActive ? "default" : "outline"} className={listing.isActive ? "bg-green-100 text-green-700 border-green-300" : "bg-red-100 text-red-700 border-red-300"}>
                         {listing.isActive ? 'Evet' : 'Hayır'}
                       </Badge>
                     </TableCell>
@@ -380,7 +382,7 @@ export default function AdminListingsPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                "{listing.id}" ID'li ilanı silmek üzeresiniz. Bu işlem geri alınamaz.
+                                "{listing.companyName}" firmasının "{listing.id.substring(0,8)}..." ID'li ilanını silmek üzeresiniz. Bu işlem geri alınamaz.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -412,99 +414,99 @@ export default function AdminListingsPage() {
           setIsAddEditDialogOpen(isOpen);
           if (!isOpen) setEditingListing(null); 
       }}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto p-0">
           <form onSubmit={handleSubmit}>
-            <DialogHeader>
-              <DialogTitle>{editingListing ? 'İlanı Düzenle' : 'Yeni İlan Ekle'}</DialogTitle>
+            <DialogHeader className="p-6 pb-0">
+              <DialogTitle className="text-2xl">{editingListing ? 'İlanı Düzenle' : 'Yeni İlan Ekle'}</DialogTitle>
               <DialogDescription>
-                 {editingListing ? `"${editingListing.id}" ID'li ilanın bilgilerini güncelleyin.` : 'Yeni bir ilan için gerekli bilgileri girin.'}
+                 {editingListing ? `"${editingListing.id.substring(0,8)}..." ID'li ilanın bilgilerini güncelleyin.` : 'Yeni bir ilan için gerekli bilgileri girin.'}
               </DialogDescription>
             </DialogHeader>
             
-            <div className="grid gap-6 py-6">
+            <div className="p-6 grid gap-6">
               <div className="space-y-1.5">
-                <Label htmlFor="listingFreightType">İlan Tipi (*)</Label>
+                <Label htmlFor="dlg-listingFreightType">İlan Tipi (*)</Label>
                 <Select 
                     value={currentFormData.freightType || 'Ticari'} 
-                    onValueChange={(value) => handleFreightTypeChange(value as FreightType)}
-                    disabled={!!editingListing} 
+                    onValueChange={(value) => handleFreightTypeChangeInDialog(value as FreightType)}
+                    disabled={!!editingListing} // Prevent changing type when editing for simplicity
                 >
-                  <SelectTrigger id="listingFreightType"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="dlg-listingFreightType"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {FREIGHT_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Genel İlan Bilgileri</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <Card className="border shadow-sm">
+                <CardHeader className="bg-muted/30"><CardTitle className="text-base">Temel İlan Bilgileri</CardTitle></CardHeader>
+                <CardContent className="pt-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                        <Label htmlFor="listingCompanyName">Firma Adı (*)</Label>
-                        <Input id="listingCompanyName" value={currentFormData.companyName || ''} onChange={(e) => setCurrentFormData({...currentFormData, companyName: e.target.value})} required />
+                          <Label htmlFor="dlg-listingCompanyName">Firma Adı / Ad Soyad (*)</Label>
+                          <Input id="dlg-listingCompanyName" value={currentFormData.companyName || ''} onChange={(e) => setCurrentFormData({...currentFormData, companyName: e.target.value})} required />
                         </div>
                         <div className="space-y-1.5">
-                        <Label htmlFor="listingContactPerson">Yetkili Kişi (*)</Label>
-                        <Input id="listingContactPerson" value={currentFormData.contactPerson || ''} onChange={(e) => setCurrentFormData({...currentFormData, contactPerson: e.target.value})} required />
+                          <Label htmlFor="dlg-listingContactPerson">Yetkili Kişi (*)</Label>
+                          <Input id="dlg-listingContactPerson" value={currentFormData.contactPerson || ''} onChange={(e) => setCurrentFormData({...currentFormData, contactPerson: e.target.value})} required />
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                        <Label htmlFor="listingContactEmail">E-Posta</Label>
-                        <Input id="listingContactEmail" type="email" value={currentFormData.contactEmail || ''} onChange={(e) => setCurrentFormData({...currentFormData, contactEmail: e.target.value})} />
+                          <Label htmlFor="dlg-listingContactEmail">E-Posta</Label>
+                          <Input id="dlg-listingContactEmail" type="email" value={currentFormData.contactEmail || ''} onChange={(e) => setCurrentFormData({...currentFormData, contactEmail: e.target.value})} />
                         </div>
                         <div className="space-y-1.5">
-                        <Label htmlFor="listingWorkPhone">İş Telefonu</Label>
-                        <Input id="listingWorkPhone" value={currentFormData.workPhone || ''} onChange={(e) => setCurrentFormData({...currentFormData, workPhone: e.target.value})} />
+                          <Label htmlFor="dlg-listingWorkPhone">İş Telefonu</Label>
+                          <Input id="dlg-listingWorkPhone" value={currentFormData.workPhone || ''} onChange={(e) => setCurrentFormData({...currentFormData, workPhone: e.target.value})} />
                         </div>
                         <div className="space-y-1.5">
-                        <Label htmlFor="listingMobilePhone">Cep Telefonu (*)</Label>
-                        <Input id="listingMobilePhone" value={currentFormData.mobilePhone || ''} onChange={(e) => setCurrentFormData({...currentFormData, mobilePhone: e.target.value})} required />
+                          <Label htmlFor="dlg-listingMobilePhone">Cep Telefonu (*)</Label>
+                          <Input id="dlg-listingMobilePhone" value={currentFormData.mobilePhone || ''} onChange={(e) => setCurrentFormData({...currentFormData, mobilePhone: e.target.value})} required />
                         </div>
                     </div>
                 </CardContent>
               </Card>
 
               {currentFormData.freightType === 'Ticari' && (
-                <Card>
-                    <CardHeader><CardTitle className="text-base">Ticari Yük Detayları</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
+                <Card className="border shadow-sm">
+                    <CardHeader className="bg-muted/30"><CardTitle className="text-base">Ticari Yük Detayları</CardTitle></CardHeader>
+                    <CardContent className="pt-6 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                            <Label htmlFor="listingCargoType">Yük Cinsi (*)</Label>
-                            <Select value={(currentFormData as CommercialFreight).cargoType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, cargoType: v as CargoType})}>
-                                <SelectTrigger id="listingCargoType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                            <Label htmlFor="dlg-listingCargoType">Yük Cinsi (*)</Label>
+                            <Select value={(currentFormData as CommercialFreight).cargoType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, cargoType: v as CargoType})} required>
+                                <SelectTrigger id="dlg-listingCargoType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
                                 <SelectContent>{CARGO_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                             </Select>
                             </div>
                             <div className="space-y-1.5">
-                            <Label htmlFor="listingVehicleNeeded">Aranılan Araç (*)</Label>
-                             <Select value={(currentFormData as CommercialFreight).vehicleNeeded || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, vehicleNeeded: v as VehicleNeeded})}>
-                                <SelectTrigger id="listingVehicleNeeded"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                            <Label htmlFor="dlg-listingVehicleNeeded">Aranılan Araç (*)</Label>
+                             <Select value={(currentFormData as CommercialFreight).vehicleNeeded || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, vehicleNeeded: v as VehicleNeeded})} required>
+                                <SelectTrigger id="dlg-listingVehicleNeeded"><SelectValue placeholder="Seçin..." /></SelectTrigger>
                                 <SelectContent>{VEHICLES_NEEDED.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                             </Select>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1.5">
-                            <Label htmlFor="listingLoadingType">Yükleniş Şekli (*)</Label>
-                            <Select value={(currentFormData as CommercialFreight).loadingType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, loadingType: v as LoadingType})}>
-                                <SelectTrigger id="listingLoadingType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                            <Label htmlFor="dlg-listingLoadingType">Yükleniş Şekli (*)</Label>
+                            <Select value={(currentFormData as CommercialFreight).loadingType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, loadingType: v as LoadingType})} required>
+                                <SelectTrigger id="dlg-listingLoadingType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
                                 <SelectContent>{LOADING_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                             </Select>
                             </div>
                             <div className="space-y-1.5">
-                            <Label htmlFor="listingCargoForm">Yükün Biçimi (*)</Label>
-                             <Select value={(currentFormData as CommercialFreight).cargoForm || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, cargoForm: v as CargoForm})}>
-                                <SelectTrigger id="listingCargoForm"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                            <Label htmlFor="dlg-listingCargoForm">Yükün Biçimi (*)</Label>
+                             <Select value={(currentFormData as CommercialFreight).cargoForm || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, cargoForm: v as CargoForm})} required>
+                                <SelectTrigger id="dlg-listingCargoForm"><SelectValue placeholder="Seçin..." /></SelectTrigger>
                                 <SelectContent>{CARGO_FORMS.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                             </Select>
                             </div>
                             <div className="space-y-1.5">
-                            <Label htmlFor="listingCargoWeight">Yük Miktarı/Tonajı (*)</Label>
+                            <Label htmlFor="dlg-listingCargoWeight">Yük Miktarı/Tonajı (*)</Label>
                             <div className="flex gap-2">
-                                <Input id="listingCargoWeight" type="number" value={(currentFormData as CommercialFreight).cargoWeight || ''} onChange={(e) => setCurrentFormData({...currentFormData, cargoWeight: parseFloat(e.target.value) || 0})} required />
+                                <Input id="dlg-listingCargoWeight" type="number" value={(currentFormData as CommercialFreight).cargoWeight?.toString() || ''} onChange={(e) => setCurrentFormData({...currentFormData, cargoWeight: parseFloat(e.target.value) || 0})} required />
                                 <Select value={(currentFormData as CommercialFreight).cargoWeightUnit || 'Ton'} onValueChange={(v) => setCurrentFormData({...currentFormData, cargoWeightUnit: v as WeightUnit})}>
                                 <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>{WEIGHT_UNITS.map(unit => <SelectItem key={unit} value={unit}>{unit}</SelectItem>)}</SelectContent>
@@ -513,45 +515,45 @@ export default function AdminListingsPage() {
                             </div>
                         </div>
                          <div className="flex items-center space-x-2 pt-2">
-                            <Checkbox id="listingIsContinuousLoad" checked={(currentFormData as CommercialFreight).isContinuousLoad || false} onCheckedChange={(checked) => setCurrentFormData({...currentFormData, isContinuousLoad: Boolean(checked)})} />
-                            <Label htmlFor="listingIsContinuousLoad" className="text-sm font-medium">Sürekli (Proje) Yük</Label>
+                            <Checkbox id="dlg-listingIsContinuousLoad" checked={(currentFormData as CommercialFreight).isContinuousLoad || false} onCheckedChange={(checked) => setCurrentFormData({...currentFormData, isContinuousLoad: Boolean(checked)})} />
+                            <Label htmlFor="dlg-listingIsContinuousLoad" className="text-sm font-medium cursor-pointer">Sürekli (Proje) Yük</Label>
                         </div>
                     </CardContent>
                 </Card>
               )}
 
               {currentFormData.freightType === 'Evden Eve' && (
-                 <Card>
-                    <CardHeader><CardTitle className="text-base">Evden Eve Nakliyat Detayları</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
+                 <Card className="border shadow-sm">
+                    <CardHeader className="bg-muted/30"><CardTitle className="text-base">Evden Eve Nakliyat Detayları</CardTitle></CardHeader>
+                    <CardContent className="pt-6 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label htmlFor="listingResidentialTransportType">Taşımacılık Türü (*)</Label>
-                                <Select value={(currentFormData as ResidentialFreight).residentialTransportType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialTransportType: v as ResidentialTransportType})}>
-                                <SelectTrigger id="listingResidentialTransportType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                                <Label htmlFor="dlg-listingResidentialTransportType">Taşımacılık Türü (*)</Label>
+                                <Select value={(currentFormData as ResidentialFreight).residentialTransportType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialTransportType: v as ResidentialTransportType})} required>
+                                <SelectTrigger id="dlg-listingResidentialTransportType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
                                 <SelectContent>{RESIDENTIAL_TRANSPORT_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label htmlFor="listingResidentialPlaceType">Nakliyesi Yapılacak Yer (*)</Label>
-                                <Select value={(currentFormData as ResidentialFreight).residentialPlaceType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialPlaceType: v as ResidentialPlaceType})}>
-                                <SelectTrigger id="listingResidentialPlaceType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                                <Label htmlFor="dlg-listingResidentialPlaceType">Nakliyesi Yapılacak Yer (*)</Label>
+                                <Select value={(currentFormData as ResidentialFreight).residentialPlaceType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialPlaceType: v as ResidentialPlaceType})} required>
+                                <SelectTrigger id="dlg-listingResidentialPlaceType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
                                 <SelectContent>{RESIDENTIAL_PLACE_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label htmlFor="listingResidentialElevatorStatus">Asansör Durumu (*)</Label>
-                                <Select value={(currentFormData as ResidentialFreight).residentialElevatorStatus || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialElevatorStatus: v as ResidentialElevatorStatus})}>
-                                <SelectTrigger id="listingResidentialElevatorStatus"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                                <Label htmlFor="dlg-listingResidentialElevatorStatus">Asansör Durumu (*)</Label>
+                                <Select value={(currentFormData as ResidentialFreight).residentialElevatorStatus || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialElevatorStatus: v as ResidentialElevatorStatus})} required>
+                                <SelectTrigger id="dlg-listingResidentialElevatorStatus"><SelectValue placeholder="Seçin..." /></SelectTrigger>
                                 <SelectContent>{RESIDENTIAL_ELEVATOR_STATUSES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label htmlFor="listingResidentialFloorLevel">Eşyanın Bulunduğu Kat (*)</Label>
-                                <Select value={(currentFormData as ResidentialFreight).residentialFloorLevel || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialFloorLevel: v as ResidentialFloorLevel})}>
-                                <SelectTrigger id="listingResidentialFloorLevel"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                                <Label htmlFor="dlg-listingResidentialFloorLevel">Eşyanın Bulunduğu Kat (*)</Label>
+                                <Select value={(currentFormData as ResidentialFreight).residentialFloorLevel || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialFloorLevel: v as ResidentialFloorLevel})} required>
+                                <SelectTrigger id="dlg-listingResidentialFloorLevel"><SelectValue placeholder="Seçin..." /></SelectTrigger>
                                 <SelectContent>{RESIDENTIAL_FLOOR_LEVELS.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
@@ -560,53 +562,53 @@ export default function AdminListingsPage() {
                 </Card>
               )}
               
-               <Card>
-                <CardHeader><CardTitle className="text-base">Konum ve Tarih Bilgileri</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+               <Card className="border shadow-sm">
+                <CardHeader className="bg-muted/30"><CardTitle className="text-base">Konum ve Tarih Bilgileri</CardTitle></CardHeader>
+                <CardContent className="pt-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3">
-                        <h4 className="font-medium">Yükleneceği Yer (*)</h4>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="listingOriginCountry">Ülke</Label>
-                            <Select value={currentFormData.originCountry || 'TR'} onValueChange={(v) => setCurrentFormData({...currentFormData, originCountry: v as CountryCode, originCity: '', originDistrict: ''})}>
-                            <SelectTrigger id="listingOriginCountry"><SelectValue /></SelectTrigger>
-                            <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="listingOriginCity">Şehir</Label>
-                            {renderCityInput(currentFormData.originCountry, currentFormData.originCity, (cityVal: TurkishCity | string) => setCurrentFormData({...currentFormData, originCity: cityVal, originDistrict: ''}), 'origin')}
-                        </div>
-                        {currentFormData.originCountry === 'TR' && (
-                            <div className="space-y-1.5">
-                            <Label htmlFor="listingOriginDistrict">İlçe</Label>
-                            {renderDistrictInput(currentFormData.originCountry, currentFormData.originCity, currentFormData.originDistrict, (districtVal: string) => setCurrentFormData({...currentFormData, originDistrict: districtVal}), availableOriginDistricts, 'origin')}
-                            </div>
-                        )}
+                          <h4 className="font-medium text-sm">Yükleneceği Yer (*)</h4>
+                          <div className="space-y-1.5">
+                              <Label htmlFor="dlg-listingOriginCountry">Ülke</Label>
+                              <Select value={currentFormData.originCountry || 'TR'} onValueChange={(v) => setCurrentFormData({...currentFormData, originCountry: v as CountryCode, originCity: '', originDistrict: ''})}>
+                              <SelectTrigger id="dlg-listingOriginCountry"><SelectValue /></SelectTrigger>
+                              <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
+                              </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                              <Label htmlFor="dlg-listingOriginCity">Şehir (*)</Label>
+                              {renderCityInput(currentFormData.originCountry, currentFormData.originCity, (cityVal: TurkishCity | string) => setCurrentFormData({...currentFormData, originCity: cityVal, originDistrict: ''}), 'origin')}
+                          </div>
+                          {currentFormData.originCountry === 'TR' && (
+                              <div className="space-y-1.5">
+                              <Label htmlFor="dlg-listingOriginDistrict">İlçe</Label>
+                              {renderDistrictInput(currentFormData.originCountry, currentFormData.originCity, currentFormData.originDistrict, (districtVal: string) => setCurrentFormData({...currentFormData, originDistrict: districtVal}), availableOriginDistricts, 'origin')}
+                              </div>
+                          )}
                         </div>
                         <div className="space-y-3">
-                        <h4 className="font-medium">İstikamet (Varış Yeri) (*)</h4>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="listingDestinationCountry">Ülke</Label>
-                            <Select value={currentFormData.destinationCountry || 'TR'} onValueChange={(v) => setCurrentFormData({...currentFormData, destinationCountry: v as CountryCode, destinationCity: '', destinationDistrict: ''})}>
-                            <SelectTrigger id="listingDestinationCountry"><SelectValue /></SelectTrigger>
-                            <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="listingDestinationCity">Şehir</Label>
-                            {renderCityInput(currentFormData.destinationCountry, currentFormData.destinationCity, (cityVal: TurkishCity | string) => setCurrentFormData({...currentFormData, destinationCity: cityVal, destinationDistrict: ''}), 'destination')}
-                        </div>
-                        {currentFormData.destinationCountry === 'TR' && (
-                            <div className="space-y-1.5">
-                            <Label htmlFor="listingDestinationDistrict">İlçe</Label>
-                            {renderDistrictInput(currentFormData.destinationCountry, currentFormData.destinationCity, currentFormData.destinationDistrict, (districtVal: string) => setCurrentFormData({...currentFormData, destinationDistrict: districtVal}), availableDestinationDistricts, 'destination')}
-                            </div>
-                        )}
+                          <h4 className="font-medium text-sm">İstikamet (Varış Yeri) (*)</h4>
+                          <div className="space-y-1.5">
+                              <Label htmlFor="dlg-listingDestinationCountry">Ülke</Label>
+                              <Select value={currentFormData.destinationCountry || 'TR'} onValueChange={(v) => setCurrentFormData({...currentFormData, destinationCountry: v as CountryCode, destinationCity: '', destinationDistrict: ''})}>
+                              <SelectTrigger id="dlg-listingDestinationCountry"><SelectValue /></SelectTrigger>
+                              <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
+                              </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                              <Label htmlFor="dlg-listingDestinationCity">Şehir (*)</Label>
+                              {renderCityInput(currentFormData.destinationCountry, currentFormData.destinationCity, (cityVal: TurkishCity | string) => setCurrentFormData({...currentFormData, destinationCity: cityVal, destinationDistrict: ''}), 'destination')}
+                          </div>
+                          {currentFormData.destinationCountry === 'TR' && (
+                              <div className="space-y-1.5">
+                              <Label htmlFor="dlg-listingDestinationDistrict">İlçe</Label>
+                              {renderDistrictInput(currentFormData.destinationCountry, currentFormData.destinationCity, currentFormData.destinationDistrict, (districtVal: string) => setCurrentFormData({...currentFormData, destinationDistrict: districtVal}), availableDestinationDistricts, 'destination')}
+                              </div>
+                          )}
                         </div>
                     </div>
                      <div className="space-y-1.5">
-                        <Label htmlFor="listingLoadingDate">Yükleme Tarihi (*)</Label>
+                        <Label htmlFor="dlg-listingLoadingDate">Yükleme Tarihi (*)</Label>
                         <Popover>
                             <PopoverTrigger asChild>
                             <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!currentFormData.loadingDate && "text-muted-foreground"}`}>
@@ -623,6 +625,7 @@ export default function AdminListingsPage() {
                                 onSelect={(date) => setCurrentFormData({...currentFormData, loadingDate: date ? format(date, "yyyy-MM-dd") : undefined})} 
                                 initialFocus 
                                 locale={tr} 
+                                disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))}
                             />
                             </PopoverContent>
                         </Popover>
@@ -631,15 +634,15 @@ export default function AdminListingsPage() {
                </Card>
 
               <div className="space-y-1.5">
-                <Label htmlFor="listingDescription">Açıklama (*)</Label>
-                <Textarea id="listingDescription" value={currentFormData.description || ''} onChange={(e) => setCurrentFormData({...currentFormData, description: e.target.value})} required rows={4}/>
+                <Label htmlFor="dlg-listingDescription">Açıklama (*)</Label>
+                <Textarea id="dlg-listingDescription" value={currentFormData.description || ''} onChange={(e) => setCurrentFormData({...currentFormData, description: e.target.value})} required rows={3}/>
               </div>
               <div className="flex items-center space-x-2 pt-2">
-                 <Switch id="listingIsActive" checked={currentFormData.isActive === undefined ? true : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData({...currentFormData, isActive: checked})} />
-                <Label htmlFor="listingIsActive" className="font-medium cursor-pointer">İlan Aktif mi?</Label>
+                 <Switch id="dlg-listingIsActive" checked={currentFormData.isActive === undefined ? true : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData({...currentFormData, isActive: checked})} />
+                <Label htmlFor="dlg-listingIsActive" className="font-medium cursor-pointer">İlan Aktif mi?</Label>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="p-6 pt-0 border-t sticky bottom-0 bg-background">
                  <DialogClose asChild>
                     <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>

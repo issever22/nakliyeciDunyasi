@@ -32,22 +32,25 @@ export type ResidentialFloorLevel = typeof RESIDENTIAL_FLOOR_LEVELS[number];
 
 interface BaseFreight {
   id: string;
-  userId: string;
-  companyName: string; 
+  userId: string; // Firebase UID of the user who posted
+  postedBy: string; // Name of the person/company posting (can be user.name or form input)
+  companyName: string; // Typically the company name or individual's name if not a company
   contactPerson: string; 
   contactEmail?: string;
   workPhone?: string; 
   mobilePhone: string; 
+  
   originCountry: CountryCode | string; 
   originCity: TurkishCity | string;    
   originDistrict?: string;   
+  
   destinationCountry: CountryCode | string; 
   destinationCity: TurkishCity | string;     
   destinationDistrict?: string;    
-  loadingDate: string; 
-  postedAt: string; 
-  postedBy: string; 
-  isActive?: boolean;
+  
+  loadingDate: string; // ISO string (YYYY-MM-DD)
+  postedAt: string; // ISO string (Timestamp from Firestore)
+  isActive: boolean;
   description: string;
 }
 
@@ -59,7 +62,7 @@ export interface CommercialFreight extends BaseFreight {
   cargoForm: CargoForm;
   cargoWeight: number;
   cargoWeightUnit: WeightUnit;
-  isContinuousLoad?: boolean; 
+  isContinuousLoad: boolean; 
   shipmentScope: ShipmentScope; 
 }
 
@@ -72,6 +75,11 @@ export interface ResidentialFreight extends BaseFreight {
 }
 
 export type Freight = CommercialFreight | ResidentialFreight;
+
+// For creating/updating listings, ID and postedAt are handled by the backend.
+export type FreightCreationData = Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'> | Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>;
+export type FreightUpdateData = Partial<FreightCreationData>;
+
 
 // User Profile and Auth Types
 export type UserRole = 'individual' | 'company';
@@ -90,14 +98,13 @@ interface BaseUserProfile {
 
 export interface IndividualUserProfile extends BaseUserProfile {
   role: 'individual';
-  // Any individual-specific fields here
 }
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
   username: string;
   logoUrl?: string;
-  companyTitle: string; // This will be same as 'name' for company users
+  companyTitle: string; 
   contactFullName: string;
   workPhone?: string;
   mobilePhone: string;
@@ -113,16 +120,15 @@ export interface CompanyUserProfile extends BaseUserProfile {
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
   membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string;
-  membershipEndDate?: string; // ISO string
+  membershipEndDate?: string; // ISO string YYYY-MM-DD
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
 
-// Data structure for registration
 interface BaseRegisterData {
   email: string;
-  password?: string; // Password is for Firebase Auth, not stored in Firestore profile
-  name: string; // Full name for individual, Company Title for company
+  password?: string; 
+  name: string; 
   role: UserRole;
 }
 
@@ -134,7 +140,6 @@ export interface CompanyRegisterData extends BaseRegisterData {
   role: 'company';
   username: string;
   logoUrl?: string;
-  // companyTitle is derived from 'name'
   contactFullName: string;
   workPhone?: string;
   mobilePhone: string;
@@ -149,7 +154,6 @@ export interface CompanyRegisterData extends BaseRegisterData {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
-  // Membership details are typically set after registration or by admin
 }
 
 export type RegisterData = IndividualRegisterData | CompanyRegisterData;
@@ -206,8 +210,8 @@ export interface AnnouncementSetting {
   title: string;
   content: string;
   targetAudience: TargetAudience;
-  startDate?: string; // ISO string
-  endDate?: string; // ISO string
+  startDate?: string; // ISO string YYYY-MM-DD
+  endDate?: string; // ISO string YYYY-MM-DD
   isActive: boolean;
   createdAt: string; // ISO string
 }
@@ -231,8 +235,8 @@ export interface Sponsor {
   linkUrl?: string; 
   entityType: SponsorEntityType; 
   entityName: string; 
-  startDate: string; // ISO string
-  endDate?: string; // ISO string
+  startDate: string; // ISO string YYYY-MM-DD
+  endDate?: string; // ISO string YYYY-MM-DD
   isActive: boolean;
   createdAt: string; // ISO string
 }
@@ -244,5 +248,5 @@ export type FreightFilterOptions = {
   vehicleNeeded?: VehicleNeeded;
   shipmentScope?: ShipmentScope;
   freightType?: FreightType;
-  sortBy?: string;
+  sortBy?: 'newest' | 'oldest';
 };

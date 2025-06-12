@@ -2,125 +2,142 @@
 import type { Freight, CommercialFreight, ResidentialFreight } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, Truck, CalendarDays, Info, User, Globe, PackageIcon, Repeat, Layers, Weight, PackagePlus, Boxes, Home, Building, ArrowUpDown, ChevronsUpDown, Tag } from 'lucide-react';
+import { MapPin, Truck, CalendarDays, Info, User, Globe, Package as PackageIcon, Repeat, Layers, Weight, PackagePlus, Boxes, Home, Building, ArrowUpDown, ChevronsUpDown, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
+import { format, formatDistanceToNow, parseISO, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { COUNTRIES } from '@/lib/locationData';
+import Link from 'next/link';
 
 interface FreightCardProps {
-  freight: Freight; // This is now a union type
+  freight: Freight;
 }
 
 export default function FreightCard({ freight }: FreightCardProps) {
-  const timeAgo = formatDistanceToNow(parseISO(freight.postedAt), { addSuffix: true, locale: tr });
+  let timeAgo = 'bilinmiyor';
+  if (freight.postedAt && isValid(parseISO(freight.postedAt))) {
+    timeAgo = formatDistanceToNow(parseISO(freight.postedAt), { addSuffix: true, locale: tr });
+  }
   
   let formattedLoadingDate = "Belirtilmemiş";
-  try {
-    if (freight.loadingDate && typeof freight.loadingDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(freight.loadingDate)) {
-      // Handles both "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm:ss.sssZ" by taking first 10 chars
-      const datePart = freight.loadingDate.substring(0, 10);
-      formattedLoadingDate = format(parseISO(datePart), 'dd.MM.yyyy', { locale: tr });
-    } else if (freight.loadingDate instanceof Date) {
-       formattedLoadingDate = format(freight.loadingDate, 'dd.MM.yyyy', { locale: tr });
-    }
-  } catch (e) {
-    console.warn("Invalid loading date for freight card:", freight.id, freight.loadingDate, e);
+  if (freight.loadingDate && isValid(parseISO(freight.loadingDate))) {
+      formattedLoadingDate = format(parseISO(freight.loadingDate), 'dd MMMM yyyy', { locale: tr });
   }
 
   const getCountryName = (code: string) => COUNTRIES.find(c => c.code === code)?.name || code;
 
-  const originDisplay = `${getCountryName(freight.originCountry as string)}${freight.originCity ? `, ${freight.originCity}` : ''}${freight.originDistrict ? `, ${freight.originDistrict}` : ''}`;
-  const destinationDisplay = `${getCountryName(freight.destinationCountry as string)}${freight.destinationCity ? `, ${freight.destinationCity}` : ''}${freight.destinationDistrict ? `, ${freight.destinationDistrict}` : ''}`;
+  const originDisplay = `${getCountryName(freight.originCountry)}${freight.originCity ? `, ${freight.originCity}` : ''}${freight.originDistrict ? `, ${freight.originDistrict}` : ''}`;
+  const destinationDisplay = `${getCountryName(freight.destinationCountry)}${freight.destinationCity ? `, ${freight.destinationCity}` : ''}${freight.destinationDistrict ? `, ${freight.destinationDistrict}` : ''}`;
 
   const FreightTypeIcon = freight.freightType === 'Evden Eve' ? Home : Truck;
 
   return (
-    <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
-      <CardHeader className="bg-muted/30 p-4">
+    <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full bg-card text-card-foreground">
+      <CardHeader className="bg-muted/20 p-4 border-b">
         <div className="flex justify-between items-start gap-2">
-          <CardTitle className="text-lg text-primary flex items-start gap-2">
+          <CardTitle className="text-lg font-semibold text-primary flex items-start gap-2">
             <MapPin size={20} className="mt-1 flex-shrink-0 text-primary" /> 
             <span className="leading-tight">{originDisplay} <br className="hidden sm:inline"/>&rarr; {destinationDisplay}</span>
           </CardTitle>
-           <Badge variant={freight.freightType === 'Evden Eve' ? "secondary" : "outline"} className="whitespace-nowrap flex-shrink-0 text-xs py-1 px-2 flex items-center gap-1">
+           <Badge variant={freight.freightType === 'Evden Eve' ? "secondary" : "default"} className="whitespace-nowrap flex-shrink-0 text-xs py-1 px-2 flex items-center gap-1">
             <FreightTypeIcon size={14} /> {freight.freightType}
           </Badge>
         </div>
-        <CardDescription className="text-sm mt-1 pt-1 flex items-center justify-between">
+        <CardDescription className="text-xs mt-1 pt-1 flex items-center justify-between text-muted-foreground">
             <span className="flex items-center">
-                <User size={16} className="mr-2 text-muted-foreground" />
-                İlan Veren: {freight.companyName || freight.postedBy}
+                <User size={14} className="mr-1.5" />
+                {freight.companyName || freight.postedBy}
             </span>
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+            <span>{timeAgo}</span>
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-4 space-y-2 flex-grow">
+      <CardContent className="p-4 space-y-2 text-sm flex-grow">
         {freight.freightType === 'Ticari' && (
           <>
-            <div className="flex items-center gap-2 text-sm">
-              <Globe size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Kapsam:</span> {freight.shipmentScope} {freight.isContinuousLoad && <Badge variant="outline" className="ml-1 bg-green-100 text-green-700 border-green-300 text-xs py-0.5 px-1.5"><Repeat size={12} className="inline mr-1"/>Sürekli</Badge>}</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Layers size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Yük Cinsi:</span> {freight.cargoType}</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Truck size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Araç:</span> {freight.vehicleNeeded}</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <PackagePlus size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Yükleniş:</span> {freight.loadingType}</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Boxes size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Biçim:</span> {freight.cargoForm}</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Weight size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Tonaj:</span> {freight.cargoWeight} {freight.cargoWeightUnit}</p>
-            </div>
+            {(freight as CommercialFreight).shipmentScope && 
+              <div className="flex items-center gap-2">
+                <Globe size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Kapsam:</span> {(freight as CommercialFreight).shipmentScope} {(freight as CommercialFreight).isContinuousLoad && <Badge variant="outline" className="ml-1 bg-green-100 text-green-700 border-green-300 text-xs py-0.5 px-1.5"><Repeat size={12} className="inline mr-1"/>Sürekli</Badge>}</p>
+              </div>
+            }
+            {(freight as CommercialFreight).cargoType && 
+              <div className="flex items-center gap-2">
+                <Layers size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Yük Cinsi:</span> {(freight as CommercialFreight).cargoType}</p>
+              </div>
+            }
+            {(freight as CommercialFreight).vehicleNeeded &&
+              <div className="flex items-center gap-2">
+                <Truck size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Araç:</span> {(freight as CommercialFreight).vehicleNeeded}</p>
+              </div>
+            }
+            {(freight as CommercialFreight).loadingType &&
+              <div className="flex items-center gap-2">
+                <PackagePlus size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Yükleniş:</span> {(freight as CommercialFreight).loadingType}</p>
+              </div>
+            }
+            {(freight as CommercialFreight).cargoForm && 
+              <div className="flex items-center gap-2">
+                <Boxes size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Biçim:</span> {(freight as CommercialFreight).cargoForm}</p>
+              </div>
+            }
+            {(freight as CommercialFreight).cargoWeight !== undefined &&
+              <div className="flex items-center gap-2">
+                <Weight size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Tonaj:</span> {(freight as CommercialFreight).cargoWeight} {(freight as CommercialFreight).cargoWeightUnit}</p>
+              </div>
+            }
           </>
         )}
 
         {freight.freightType === 'Evden Eve' && (
           <>
-            <div className="flex items-center gap-2 text-sm">
-              <Tag size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Taşıma Türü:</span> {freight.residentialTransportType}</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <PackageIcon size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Nakliye Yeri:</span> {freight.residentialPlaceType}</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <ChevronsUpDown size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Asansör:</span> {freight.residentialElevatorStatus}</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Building size={16} className="text-muted-foreground flex-shrink-0" />
-              <p><span className="font-medium">Kat:</span> {freight.residentialFloorLevel}</p>
-            </div>
+            {(freight as ResidentialFreight).residentialTransportType &&
+              <div className="flex items-center gap-2">
+                <Tag size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Taşıma Türü:</span> {(freight as ResidentialFreight).residentialTransportType}</p>
+              </div>
+            }
+            {(freight as ResidentialFreight).residentialPlaceType &&
+              <div className="flex items-center gap-2">
+                <PackageIcon size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Nakliye Yeri:</span> {(freight as ResidentialFreight).residentialPlaceType}</p>
+              </div>
+            }
+            {(freight as ResidentialFreight).residentialElevatorStatus &&
+              <div className="flex items-center gap-2">
+                <ArrowUpDown size={16} className="text-muted-foreground flex-shrink-0" /> {/* Changed icon */}
+                <p><span className="font-medium">Asansör:</span> {(freight as ResidentialFreight).residentialElevatorStatus}</p>
+              </div>
+            }
+            {(freight as ResidentialFreight).residentialFloorLevel &&
+              <div className="flex items-center gap-2">
+                <Building size={16} className="text-muted-foreground flex-shrink-0" />
+                <p><span className="font-medium">Kat:</span> {(freight as ResidentialFreight).residentialFloorLevel}</p>
+              </div>
+            }
           </>
         )}
         
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2">
           <CalendarDays size={16} className="text-muted-foreground flex-shrink-0" />
           <p><span className="font-medium">Yükleme/Taşıma Tarihi:</span> {formattedLoadingDate}</p>
         </div>
-        <div className="flex items-start gap-2 text-sm pt-1.5">
+        <div className="flex items-start gap-2 pt-1.5">
           <Info size={16} className="text-muted-foreground mt-0.5 flex-shrink-0" />
           <div>
             <span className="font-medium">Açıklama:</span>
-            <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">{freight.description}</p>
+            <p className="line-clamp-2 text-xs text-muted-foreground/80 leading-relaxed">{freight.description}</p>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="p-4 bg-muted/30 mt-auto border-t">
-        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-          Detayları Gör ve Teklif Ver
+      <CardFooter className="p-4 bg-muted/20 mt-auto border-t">
+        <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+          {/* Link to a potential detail page - adjust as needed */}
+          <Link href={`/ilan/${freight.id}`}>Detayları Gör</Link> 
         </Button>
       </CardFooter>
     </Card>
