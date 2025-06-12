@@ -20,21 +20,22 @@ import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon,
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import type { Freight, CommercialFreight, ResidentialFreight, FreightType, CargoType as CargoTypeName, VehicleNeeded as VehicleNeededName, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, FreightCreationData, FreightUpdateData, VehicleTypeSetting, CargoTypeSetting } from '@/types';
+import type { Freight, CommercialFreight, ResidentialFreight, FreightType, CargoType as CargoTypeName, VehicleNeeded as VehicleNeededName, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, FreightCreationData, FreightUpdateData, VehicleTypeSetting, CargoTypeSetting, TransportTypeSetting } from '@/types';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
 import { 
   LOADING_TYPES, 
   CARGO_FORMS, 
   WEIGHT_UNITS,
   FREIGHT_TYPES,
-  RESIDENTIAL_TRANSPORT_TYPES,
+  // RESIDENTIAL_TRANSPORT_TYPES, // Will come from DB
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS
-} from '@/lib/constants'; // VEHICLES_NEEDED and CARGO_TYPES will come from DB
+} from '@/lib/constants'; 
 import { getAllListingsForAdmin, addListing, updateListing, deleteListing } from '@/services/listingsService';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
 import { getAllCargoTypes } from '@/services/cargoTypesService';
+import { getAllTransportTypes } from '@/services/transportTypesService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth'; 
 
@@ -75,7 +76,7 @@ const createEmptyFormData = (type: FreightType = 'Ticari', currentUserId?: strin
     return {
       ...base,
       freightType: 'Evden Eve',
-      residentialTransportType: RESIDENTIAL_TRANSPORT_TYPES[0] as ResidentialTransportType,
+      residentialTransportType: '' as ResidentialTransportType, // Changed from RESIDENTIAL_TRANSPORT_TYPES[0]
       residentialPlaceType: RESIDENTIAL_PLACE_TYPES[0] as ResidentialPlaceType,
       residentialElevatorStatus: RESIDENTIAL_ELEVATOR_STATUSES[0] as ResidentialElevatorStatus,
       residentialFloorLevel: RESIDENTIAL_FLOOR_LEVELS[0] as ResidentialFloorLevel,
@@ -100,17 +101,22 @@ export default function AdminListingsPage() {
 
   const [vehicleTypeOptions, setVehicleTypeOptions] = useState<VehicleTypeSetting[]>([]);
   const [cargoTypeOptions, setCargoTypeOptions] = useState<CargoTypeSetting[]>([]);
+  const [residentialTransportTypeOptions, setResidentialTransportTypeOptions] = useState<TransportTypeSetting[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(true);
 
   const fetchFormOptions = useCallback(async () => {
     setOptionsLoading(true);
     try {
-      const [vehicles, cargos] = await Promise.all([
+      const [vehicles, cargos, transportTypes] = await Promise.all([
         getAllVehicleTypes(),
-        getAllCargoTypes()
+        getAllCargoTypes(),
+        getAllTransportTypes()
       ]);
       setVehicleTypeOptions(vehicles.filter(v => v.isActive));
       setCargoTypeOptions(cargos.filter(c => c.isActive));
+      setResidentialTransportTypeOptions(
+        transportTypes.filter(t => (t.applicableTo === 'Evden Eve' || t.applicableTo === 'Her İkisi de') && t.isActive)
+      );
     } catch (error) {
       console.error("Error fetching form options for admin:", error);
       toast({ title: "Hata", description: "Form seçenekleri yüklenemedi.", variant: "destructive" });
@@ -501,7 +507,7 @@ export default function AdminListingsPage() {
                             <div className="space-y-1.5">
                             <Label htmlFor="dlg-listingCargoType">Yük Cinsi (*)</Label>
                             <Select value={(currentFormData as CommercialFreight).cargoType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, cargoType: v as CargoTypeName})} required disabled={optionsLoading}>
-                                <SelectTrigger id="dlg-listingCargoType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                                <SelectTrigger id="dlg-listingCargoType"><SelectValue placeholder={optionsLoading ? "Yükleniyor..." : "Seçin..."} /></SelectTrigger>
                                 <SelectContent>
                                   {cargoTypeOptions.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
                                 </SelectContent>
@@ -510,7 +516,7 @@ export default function AdminListingsPage() {
                             <div className="space-y-1.5">
                             <Label htmlFor="dlg-listingVehicleNeeded">Aranılan Araç (*)</Label>
                              <Select value={(currentFormData as CommercialFreight).vehicleNeeded || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, vehicleNeeded: v as VehicleNeededName})} required disabled={optionsLoading}>
-                                <SelectTrigger id="dlg-listingVehicleNeeded"><SelectValue placeholder="Seçin..." /></SelectTrigger>
+                                <SelectTrigger id="dlg-listingVehicleNeeded"><SelectValue placeholder={optionsLoading ? "Yükleniyor..." : "Seçin..."} /></SelectTrigger>
                                 <SelectContent>
                                   {vehicleTypeOptions.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
                                 </SelectContent>
@@ -558,9 +564,11 @@ export default function AdminListingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label htmlFor="dlg-listingResidentialTransportType">Taşımacılık Türü (*)</Label>
-                                <Select value={(currentFormData as ResidentialFreight).residentialTransportType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialTransportType: v as ResidentialTransportType})} required>
-                                <SelectTrigger id="dlg-listingResidentialTransportType"><SelectValue placeholder="Seçin..." /></SelectTrigger>
-                                <SelectContent>{RESIDENTIAL_TRANSPORT_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                                <Select value={(currentFormData as ResidentialFreight).residentialTransportType || ''} onValueChange={(v) => setCurrentFormData({...currentFormData, residentialTransportType: v as ResidentialTransportType})} required disabled={optionsLoading}>
+                                <SelectTrigger id="dlg-listingResidentialTransportType"><SelectValue placeholder={optionsLoading ? "Yükleniyor..." : "Seçin..."} /></SelectTrigger>
+                                <SelectContent>
+                                  {residentialTransportTypeOptions.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
+                                </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-1.5">

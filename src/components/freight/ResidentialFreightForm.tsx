@@ -11,18 +11,18 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
-  RESIDENTIAL_TRANSPORT_TYPES,
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS
 } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
-import type { ResidentialFreight, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, FreightCreationData } from '@/types';
+import type { ResidentialFreight, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, TransportTypeSetting } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import { Send, Briefcase, User, Mail, Phone, Smartphone, Package, Truck, Layers, Scale, FileText, MapPin, CalendarIcon, Home, Building, ArrowUpDown, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { Send, Briefcase, User, Mail, Phone, Smartphone, MapPin, CalendarIcon, Home, Loader2 } from 'lucide-react';
+import { getAllTransportTypes } from '@/services/transportTypesService';
 
 interface ResidentialFreightFormProps {
   onSubmitSuccess: (newFreightData: Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>) => Promise<void>;
@@ -58,9 +58,30 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
   );
   
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [availableTransportTypes, setAvailableTransportTypes] = useState<TransportTypeSetting[]>([]);
 
   const [availableOriginDistricts, setAvailableOriginDistricts] = useState<readonly string[]>([]);
   const [availableDestinationDistricts, setAvailableDestinationDistricts] = useState<readonly string[]>([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      setOptionsLoading(true);
+      try {
+        const transportTypesFromDb = await getAllTransportTypes();
+        setAvailableTransportTypes(
+          transportTypesFromDb.filter(
+            (type) => (type.applicableTo === 'Evden Eve' || type.applicableTo === 'Her İkisi de') && type.isActive
+          )
+        );
+      } catch (error) {
+        console.error("Error fetching transport types for residential form:", error);
+        toast({ title: "Hata", description: "Taşımacılık türleri yüklenemedi.", variant: "destructive" });
+      }
+      setOptionsLoading(false);
+    };
+    fetchOptions();
+  }, [toast]);
 
   useEffect(() => {
      if (isAuthenticated && user && !initialData) { 
@@ -183,6 +204,10 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
     }
     return null;
   };
+  
+  if (optionsLoading) {
+    return <div className="flex justify-center items-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /> Yükleniyor...</div>;
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -228,9 +253,11 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="res-residentialTransportType">Taşımacılık Türü (*)</Label>
-              <Select value={residentialTransportType} onValueChange={(value) => setResidentialTransportType(value as ResidentialTransportType)} required>
-                <SelectTrigger id="res-residentialTransportType"><SelectValue placeholder="Taşımacılık türü seçin..." /></SelectTrigger>
-                <SelectContent>{RESIDENTIAL_TRANSPORT_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+              <Select value={residentialTransportType} onValueChange={(value) => setResidentialTransportType(value as ResidentialTransportType)} required disabled={optionsLoading}>
+                <SelectTrigger id="res-residentialTransportType"><SelectValue placeholder={optionsLoading ? "Yükleniyor..." : "Taşımacılık türü seçin..."} /></SelectTrigger>
+                <SelectContent>
+                  {availableTransportTypes.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -349,11 +376,12 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
         </CardContent>
       </Card>
 
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || !isAuthenticated}>
-        {formSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
-        {formSubmitting ? 'İlan Yayınlanıyor...' : 'Evden Eve İlanı Yayınla'}
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || !isAuthenticated || optionsLoading}>
+        {formSubmitting || optionsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
+        {formSubmitting ? 'İlan Yayınlanıyor...' : (optionsLoading ? 'Seçenekler Yükleniyor...' : 'Evden Eve İlanı Yayınla')}
       </Button>
       {!isAuthenticated && <p className="text-sm text-destructive text-center mt-2">İlan yayınlamak için giriş yapmalısınız.</p>}
     </form>
   );
 }
+
