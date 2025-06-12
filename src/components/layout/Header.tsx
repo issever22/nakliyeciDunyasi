@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info } from 'lucide-react';
+import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import type { AnnouncementSetting } from '@/types';
 import { getAllAnnouncements } from '@/services/announcementsService';
 import { useEffect, useState, useMemo } from 'react';
@@ -29,6 +30,7 @@ export default function Header() {
   const [announcements, setAnnouncements] = useState<AnnouncementSetting[]>([]);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(true);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     async function fetchAnnouncements() {
@@ -38,7 +40,7 @@ export default function Header() {
         setAnnouncements(fetchedAnnouncements);
       } catch (error) {
         console.error("Duyurular yüklenirken hata oluştu:", error);
-        setAnnouncements([]); // Hata durumunda boş liste
+        setAnnouncements([]); 
       }
       setIsLoadingAnnouncements(false);
     }
@@ -47,7 +49,7 @@ export default function Header() {
 
   const activeAnnouncements = useMemo(() => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Günün başlangıcıyla karşılaştırma yapmak için
+    today.setHours(0, 0, 0, 0); 
 
     return announcements.filter(ann => {
       if (!ann.isActive) return false;
@@ -74,8 +76,10 @@ export default function Header() {
         }
       }
       return startDateValid && endDateValid;
-    }).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()); // En yeni önce
+    }).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()); 
   }, [announcements]);
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <header className="bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg">
@@ -85,7 +89,8 @@ export default function Header() {
           <h1 className="text-2xl font-bold text-primary font-headline">Nakliyeci Dünyası</h1>
         </Link>
         
-        <nav className="flex items-center gap-4">
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center gap-2">
           <Button variant="ghost" asChild>
             <Link href="/">Ana Sayfa</Link>
           </Button>
@@ -149,7 +154,7 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={(user as any).logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person avatar" />
+                    <AvatarImage src={(user as any).logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person avatar"/>
                     <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -188,6 +193,101 @@ export default function Header() {
             </>
           )}
         </nav>
+
+        {/* Mobile Navigation Trigger & Duyurular */}
+        <div className="flex items-center gap-2 md:hidden">
+           <Popover open={popoverOpen && mobileMenuOpen === false} onOpenChange={(open) => {if (!mobileMenuOpen) setPopoverOpen(open)}}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Bildirimler">
+                <Bell className="h-5 w-5" />
+                {activeAnnouncements.length > 0 && !isLoadingAnnouncements && (
+                  <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-4 border-b">
+                  <h3 className="text-lg font-medium text-foreground">Duyurular</h3>
+                </div>
+                <ScrollArea className="h-[300px]">
+                  <div className="p-4 space-y-4">
+                    {isLoadingAnnouncements ? (
+                      <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /><p className="ml-2 text-muted-foreground">Yükleniyor...</p></div>
+                    ) : activeAnnouncements.length > 0 ? (
+                      activeAnnouncements.map((ann, index) => (
+                        <React.Fragment key={ann.id}>
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-foreground">{ann.title}</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{ann.content}</p>
+                             <p className="text-xs text-muted-foreground/70 pt-1">{isValid(parseISO(ann.createdAt)) ? format(parseISO(ann.createdAt), "dd MMM yy, HH:mm", { locale: tr }) : '-'}</p>
+                          </div>
+                          {index < activeAnnouncements.length - 1 && <Separator />}
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-center"><Info className="h-8 w-8 text-muted-foreground mb-2" /><p className="text-sm text-muted-foreground">Aktif duyuru yok.</p></div>
+                    )}
+                  </div>
+                </ScrollArea>
+            </PopoverContent>
+          </Popover>
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6" />
+                <span className="sr-only">Menüyü Aç</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0 flex flex-col">
+              <SheetHeader className="p-4 border-b">
+                <SheetTitle>
+                    <Link href="/" className="flex items-center gap-2" onClick={closeMobileMenu}>
+                        <AppIcon className="h-7 w-7 text-primary" />
+                        <span className="text-xl font-bold text-primary font-headline">Nakliyeci Dünyası</span>
+                    </Link>
+                </SheetTitle>
+              </SheetHeader>
+              <nav className="flex-grow p-4 space-y-2">
+                <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                  <Link href="/">Ana Sayfa</Link>
+                </Button>
+                {isAuthenticated && (
+                  <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/yeni-ilan" className="flex items-center gap-1">
+                      <PlusCircle size={20} /> İlan Ver
+                    </Link>
+                  </Button>
+                )}
+                {isAuthenticated && user && (
+                    <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                        <Link href="/profil" className="flex items-center gap-1">
+                            <UserCircle size={20} /> Profilim
+                        </Link>
+                    </Button>
+                )}
+              </nav>
+              <div className="p-4 border-t mt-auto">
+                {isAuthenticated && user ? (
+                    <Button variant="destructive" className="w-full text-base" onClick={() => { logout(); closeMobileMenu(); }}>
+                        <LogOut className="mr-2 h-5 w-5" /> Çıkış Yap
+                    </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <Button variant="outline" asChild className="w-full text-base" onClick={closeMobileMenu}>
+                      <Link href="/auth/giris">Giriş Yap</Link>
+                    </Button>
+                    <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base" onClick={closeMobileMenu}>
+                      <Link href="/auth/kayit">Kayıt Ol</Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );
