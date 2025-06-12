@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
-import type { AnnouncementSetting } from '@/types';
+import type { AnnouncementSetting, UserProfile } from '@/types';
 import { getAllAnnouncements } from '@/services/announcementsService';
 import { useEffect, useState, useMemo } from 'react';
 import { format, parseISO, isValid, isAfter, isBefore, isEqual } from 'date-fns';
@@ -40,7 +40,7 @@ export default function Header() {
         setAnnouncements(fetchedAnnouncements);
       } catch (error) {
         console.error("Duyurular yüklenirken hata oluştu:", error);
-        setAnnouncements([]); 
+        setAnnouncements([]);
       }
       setIsLoadingAnnouncements(false);
     }
@@ -49,7 +49,7 @@ export default function Header() {
 
   const activeAnnouncements = useMemo(() => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); 
+    today.setHours(0, 0, 0, 0);
 
     return announcements.filter(ann => {
       if (!ann.isActive) return false;
@@ -61,7 +61,7 @@ export default function Header() {
           parsedStartDate.setHours(0,0,0,0);
           startDateValid = isEqual(today, parsedStartDate) || isAfter(today, parsedStartDate);
         } else {
-          startDateValid = false; 
+          startDateValid = false;
         }
       }
 
@@ -75,11 +75,111 @@ export default function Header() {
           endDateValid = false;
         }
       }
-      return startDateValid && endDateValid;
-    }).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()); 
-  }, [announcements]);
+
+      if (!(startDateValid && endDateValid)) return false;
+
+      // Hedef kitle kontrolü
+      if (ann.targetAudience === 'Tümü') return true;
+      if (isAuthenticated && user) {
+        if (user.role === 'individual' && ann.targetAudience === 'Bireysel Kullanıcılar') return true;
+        if (user.role === 'company' && ann.targetAudience === 'Firma Kullanıcıları') return true;
+      }
+      
+      return false; // Eğer yukarıdaki koşullar sağlanmazsa gösterme
+    }).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
+  }, [announcements, isAuthenticated, user]);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  const AnnouncementBell = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <Popover open={isMobile ? false : popoverOpen} onOpenChange={isMobile ? () => {} : setPopoverOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Bildirimler" className="relative">
+          <Bell className="h-5 w-5" />
+          {activeAnnouncements.length > 0 && !isLoadingAnnouncements && (
+            <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 sm:w-96 p-0" align="end">
+        <div className="p-4 border-b">
+          <h3 className="text-lg font-medium text-foreground">Duyurular</h3>
+        </div>
+        <ScrollArea className="h-[300px] sm:h-[400px]">
+          <div className="p-4 space-y-4">
+            {isLoadingAnnouncements ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <p className="ml-2 text-muted-foreground">Duyurular yükleniyor...</p>
+              </div>
+            ) : activeAnnouncements.length > 0 ? (
+              activeAnnouncements.map((ann, index) => (
+                <React.Fragment key={ann.id}>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">{ann.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{ann.content}</p>
+                    <p className="text-xs text-muted-foreground/70 pt-1">
+                      {isValid(parseISO(ann.createdAt)) ? format(parseISO(ann.createdAt), "dd MMMM yyyy, HH:mm", { locale: tr }) : 'Bilinmeyen tarih'}
+                    </p>
+                  </div>
+                  {index < activeAnnouncements.length - 1 && <Separator />}
+                </React.Fragment>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Info className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">Şu anda aktif duyuru bulunmamaktadır.</p>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+
+  const MobileAnnouncementBell = () => (
+     <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Bildirimler" className="relative">
+          <Bell className="h-5 w-5" />
+          {activeAnnouncements.length > 0 && !isLoadingAnnouncements && (
+            <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="end" side="bottom">
+        <div className="p-4 border-b">
+          <h3 className="text-lg font-medium text-foreground">Duyurular</h3>
+        </div>
+        <ScrollArea className="h-[300px]">
+          <div className="p-4 space-y-4">
+             {isLoadingAnnouncements ? (
+              <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /><p className="ml-2 text-muted-foreground">Yükleniyor...</p></div>
+            ) : activeAnnouncements.length > 0 ? (
+              activeAnnouncements.map((ann, index) => (
+                <React.Fragment key={ann.id}>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">{ann.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{ann.content}</p>
+                     <p className="text-xs text-muted-foreground/70 pt-1">{isValid(parseISO(ann.createdAt)) ? format(parseISO(ann.createdAt), "dd MMM yy, HH:mm", { locale: tr }) : '-'}</p>
+                  </div>
+                  {index < activeAnnouncements.length - 1 && <Separator />}
+                </React.Fragment>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center"><Info className="h-8 w-8 text-muted-foreground mb-2" /><p className="text-sm text-muted-foreground">Aktif duyuru yok.</p></div>
+            )}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
 
   return (
     <header className="bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg">
@@ -102,52 +202,7 @@ export default function Header() {
             </Button>
           )}
           
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Bildirimler">
-                <Bell className="h-5 w-5" />
-                {activeAnnouncements.length > 0 && !isLoadingAnnouncements && (
-                  <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 sm:w-96 p-0" align="end">
-              <div className="p-4 border-b">
-                <h3 className="text-lg font-medium text-foreground">Duyurular</h3>
-              </div>
-              <ScrollArea className="h-[300px] sm:h-[400px]">
-                <div className="p-4 space-y-4">
-                  {isLoadingAnnouncements ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      <p className="ml-2 text-muted-foreground">Duyurular yükleniyor...</p>
-                    </div>
-                  ) : activeAnnouncements.length > 0 ? (
-                    activeAnnouncements.map((ann, index) => (
-                      <React.Fragment key={ann.id}>
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-foreground">{ann.title}</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{ann.content}</p>
-                          <p className="text-xs text-muted-foreground/70 pt-1">
-                            {isValid(parseISO(ann.createdAt)) ? format(parseISO(ann.createdAt), "dd MMMM yyyy, HH:mm", { locale: tr }) : 'Bilinmeyen tarih'}
-                          </p>
-                        </div>
-                        {index < activeAnnouncements.length - 1 && <Separator />}
-                      </React.Fragment>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <Info className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">Şu anda aktif duyuru bulunmamaktadır.</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </PopoverContent>
-          </Popover>
+          <AnnouncementBell />
 
           {isAuthenticated && user ? (
             <DropdownMenu>
@@ -196,44 +251,7 @@ export default function Header() {
 
         {/* Mobile Navigation Trigger & Duyurular */}
         <div className="flex items-center gap-2 md:hidden">
-           <Popover open={popoverOpen && mobileMenuOpen === false} onOpenChange={(open) => {if (!mobileMenuOpen) setPopoverOpen(open)}}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Bildirimler">
-                <Bell className="h-5 w-5" />
-                {activeAnnouncements.length > 0 && !isLoadingAnnouncements && (
-                  <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="end">
-                <div className="p-4 border-b">
-                  <h3 className="text-lg font-medium text-foreground">Duyurular</h3>
-                </div>
-                <ScrollArea className="h-[300px]">
-                  <div className="p-4 space-y-4">
-                    {isLoadingAnnouncements ? (
-                      <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /><p className="ml-2 text-muted-foreground">Yükleniyor...</p></div>
-                    ) : activeAnnouncements.length > 0 ? (
-                      activeAnnouncements.map((ann, index) => (
-                        <React.Fragment key={ann.id}>
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-foreground">{ann.title}</p>
-                            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{ann.content}</p>
-                             <p className="text-xs text-muted-foreground/70 pt-1">{isValid(parseISO(ann.createdAt)) ? format(parseISO(ann.createdAt), "dd MMM yy, HH:mm", { locale: tr }) : '-'}</p>
-                          </div>
-                          {index < activeAnnouncements.length - 1 && <Separator />}
-                        </React.Fragment>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-8 text-center"><Info className="h-8 w-8 text-muted-foreground mb-2" /><p className="text-sm text-muted-foreground">Aktif duyuru yok.</p></div>
-                    )}
-                  </div>
-                </ScrollArea>
-            </PopoverContent>
-          </Popover>
+           <MobileAnnouncementBell />
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -292,3 +310,5 @@ export default function Header() {
     </header>
   );
 }
+
+    
