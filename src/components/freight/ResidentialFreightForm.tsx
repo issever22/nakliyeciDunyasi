@@ -21,7 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import { Send, Briefcase, User, Mail, Phone, Smartphone, MapPin, CalendarIcon, Home, Loader2 } from 'lucide-react';
+import { Send, Briefcase, User, Mail, Phone, Smartphone, MapPin, CalendarIcon, Home, Loader2, FileText } from 'lucide-react';
 import { getAllTransportTypes } from '@/services/transportTypesService';
 
 interface ResidentialFreightFormProps {
