@@ -18,10 +18,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { PlusCircle, Edit, Trash2, Search, Users as UsersIcon, User as UserIcon, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import type { UserProfile, IndividualUserProfile, CompanyUserProfile, UserRole } from '@/types';
+import type { UserProfile, IndividualUserProfile, CompanyUserProfile, UserRole, RegisterData } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { authService } from '@/services/authService';
+import { 
+  getAllUsers, 
+  updateUser as updateUserService,
+  deleteUser as deleteUserService,
+  register as registerAdminUser
+} from '@/services/authService';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const USER_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
@@ -48,7 +53,7 @@ export default function UsersPage() {
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
-    const usersFromDb = await authService.getAllUsers();
+    const usersFromDb = await getAllUsers();
     setAllUsers(usersFromDb);
     setIsLoading(false);
   }, []);
@@ -131,13 +136,13 @@ export default function UsersPage() {
     if (dataToSubmit.role === 'company' && dataToSubmit.membershipEndDate instanceof Date) {
         dataToSubmit.membershipEndDate = format(dataToSubmit.membershipEndDate, "yyyy-MM-dd");
     } else if (dataToSubmit.role === 'company' && dataToSubmit.membershipEndDate === undefined) {
-        dataToSubmit.membershipEndDate = null; // explicitly set to null for Firestore if cleared
+        dataToSubmit.membershipEndDate = null; 
     }
 
 
     if (editingUser) {
-      const { id, createdAt, password, ...updateData } = dataToSubmit; // Don't send id, createdAt or password for update unless specifically handling password change
-      const success = await authService.updateUser(editingUser.id, updateData as Partial<UserProfile>);
+      const { id, createdAt, password, ...updateData } = dataToSubmit; 
+      const success = await updateUserService(editingUser.id, updateData as Partial<UserProfile>);
       if (success) {
         toast({ title: "Başarılı", description: "Kullanıcı güncellendi." });
         fetchUsers();
@@ -146,7 +151,7 @@ export default function UsersPage() {
       }
     } else {
        const { id, createdAt, ...createData } = dataToSubmit;
-      const newUser = await authService.register(createData as RegisterData); // RegisterData expects password
+      const newUser = await registerAdminUser(createData as RegisterData); 
       if (newUser) {
         toast({ title: "Başarılı", description: "Yeni kullanıcı eklendi." });
         fetchUsers();
@@ -159,7 +164,7 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const success = await authService.deleteUser(id);
+    const success = await deleteUserService(id);
     if (success) {
       toast({ title: "Başarılı", description: "Kullanıcı silindi.", variant: "destructive" });
       fetchUsers();
