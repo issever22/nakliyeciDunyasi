@@ -1,18 +1,18 @@
 
 "use client";
 
-import type { UserProfile, IndividualUserProfile, CompanyUserProfile, RegisterData } from '@/types';
+import type { UserProfile, RegisterData } from '@/types';
 // Import individual server actions
 import { 
   login as loginUserServerAction, 
   register as registerUserServerAction, 
-  logout as logoutUserServerAction,
-  getUserProfile as getUserProfileServerAction
+  logout as logoutUserServerAction, 
+  getUserProfile as getUserProfileServerAction 
 } from '@/services/authService'; 
 import { useRouter } from 'next/navigation';
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
-import { type User as FirebaseUser, onAuthStateChanged } from 'firebase/auth'; // Import onAuthStateChanged
-import { auth } from '@/lib/firebase'; // Import the auth instance
+import { type User as FirebaseUser, onAuthStateChanged } from 'firebase/auth'; 
+import { auth } from '@/lib/firebase'; 
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -34,51 +34,68 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     setLoading(true);
-    // Use onAuthStateChanged directly from firebase/auth
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setFirebaseUser(fbUser); // Store the Firebase Auth user object
+      setFirebaseUser(fbUser); 
       if (fbUser) {
-        const profile = await getUserProfileServerAction(fbUser.uid); // Call the server action
-        setUser(profile);
+        try {
+          const profile = await getUserProfileServerAction(fbUser.uid); 
+          setUser(profile);
+        } catch (error) {
+          console.error("Error fetching profile after auth state change:", error);
+          setUser(null); // Clear user profile on error
+        }
       } else {
         setUser(null);
       }
       setLoading(false);
     });
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, []);
+    return () => unsubscribe(); 
+  }, []); 
 
   const login = useCallback(async (email: string, pass: string) => {
     setLoading(true);
-    const loggedInUserProfile = await loginUserServerAction(email, pass); // Call imported server action
-    // onAuthStateChanged will handle setting user and firebaseUser state, and then fetch profile via getUserProfileServerAction
-    setLoading(false);
-    if (loggedInUserProfile) {
-      router.push('/'); // Navigate on successful login profile fetch by onAuthStateChanged
+    try {
+      const loggedInUserProfile = await loginUserServerAction(email, pass); 
+      if (loggedInUserProfile) {
+        setUser(loggedInUserProfile); // Immediately update user state
+        // onAuthStateChanged will also fire and re-confirm, which is fine.
+        router.push('/'); 
+      }
+      return loggedInUserProfile;
+    } finally {
+      setLoading(false);
     }
-    return loggedInUserProfile;
   }, [router]);
 
   const register = useCallback(async (data: RegisterData) => {
     setLoading(true);
-    const registeredUserProfile = await registerUserServerAction(data); // Call imported server action
-    // onAuthStateChanged will handle setting user and firebaseUser state, and then fetch profile
-    setLoading(false);
-    if (registeredUserProfile) {
-      router.push('/'); // Navigate on successful registration profile fetch by onAuthStateChanged
+    try {
+      const registeredUserProfile = await registerUserServerAction(data); 
+      if (registeredUserProfile) {
+        setUser(registeredUserProfile); // Immediately update user state
+        // onAuthStateChanged will also fire and re-confirm.
+        router.push('/'); 
+      }
+      return registeredUserProfile;
+    } finally {
+      setLoading(false);
     }
-    return registeredUserProfile;
   }, [router]);
 
   const logout = useCallback(async () => {
     setLoading(true);
-    await logoutUserServerAction(); // Call imported server action
-    // onAuthStateChanged will set user and firebaseUser to null
-    setLoading(false);
-    router.push('/auth/giris');
+    try {
+      await logoutUserServerAction(); 
+      // onAuthStateChanged will set user and firebaseUser to null
+      setUser(null); // Explicitly clear local state as well
+      setFirebaseUser(null);
+      router.push('/auth/giris');
+    } finally {
+      setLoading(false);
+    }
   }, [router]);
   
-  const isAuthenticated = !!firebaseUser && !!user; // Check both Firebase Auth user and Firestore profile
+  const isAuthenticated = !!firebaseUser && !!user; 
 
   return (
     <AuthContext.Provider value={{ user, firebaseUser, login, register, logout, loading, isAuthenticated }}>
