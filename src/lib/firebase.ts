@@ -5,6 +5,15 @@ import { getAuth, type Auth } from "firebase/auth"; // Import Firebase Auth
 // import { getDatabase } from "firebase/database"; // Realtime Database için eklenebilir
 // import { getAnalytics } from "firebase/analytics"; // Analytics için eklenebilir
 
+// Check if critical environment variables are set BEFORE attempting to use them
+if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  throw new Error(
+    "Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is not set or not accessible in your environment variables. " +
+    "Please ensure it is correctly defined in your .env.local file at the root of your project, " +
+    "and that you have RESTARTED your Next.js development server after making changes to .env.local."
+  );
+}
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
