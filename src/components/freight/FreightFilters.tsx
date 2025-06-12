@@ -14,9 +14,7 @@ interface FreightFiltersProps {
   isLoading?: boolean;
 }
 
-const ALL_FREIGHT_TYPES_VALUE = ""; // Use empty string for "all"
-const ALL_VEHICLES_VALUE = "";
-const ALL_SHIPMENT_SCOPES_VALUE = "";
+const ALL_OPTIONS_VALUE = "_ALL_"; // Use a non-empty string for "all" options
 
 export default function FreightFilters({ onFilterChange, isLoading }: FreightFiltersProps) {
   const [originCity, setOriginCity] = useState('');
@@ -61,15 +59,15 @@ export default function FreightFilters({ onFilterChange, isLoading }: FreightFil
           <div className="relative mt-1">
             <ListFilter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Select
-              value={freightType || ALL_FREIGHT_TYPES_VALUE}
-              onValueChange={(value) => setFreightType(value === ALL_FREIGHT_TYPES_VALUE ? '' : value as FreightType)}
+              value={freightType || ALL_OPTIONS_VALUE}
+              onValueChange={(value) => setFreightType(value === ALL_OPTIONS_VALUE ? '' : value as FreightType)}
               disabled={isLoading}
             >
               <SelectTrigger className="w-full pl-9">
                 <SelectValue placeholder="Tüm İlan Tipleri" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL_FREIGHT_TYPES_VALUE}>Tüm İlan Tipleri</SelectItem>
+                <SelectItem value={ALL_OPTIONS_VALUE}>Tüm İlan Tipleri</SelectItem>
                 {FREIGHT_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
@@ -111,15 +109,15 @@ export default function FreightFilters({ onFilterChange, isLoading }: FreightFil
           <div className="relative mt-1">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Select 
-              value={shipmentScope || ALL_SHIPMENT_SCOPES_VALUE} 
-              onValueChange={(value) => setShipmentScope(value === ALL_SHIPMENT_SCOPES_VALUE ? '' : value as ShipmentScope)}
+              value={shipmentScope || ALL_OPTIONS_VALUE} 
+              onValueChange={(value) => setShipmentScope(value === ALL_OPTIONS_VALUE ? '' : value as ShipmentScope)}
               disabled={isLoading || disableCommercialFilters}
             >
               <SelectTrigger className="w-full pl-9">
                 <SelectValue placeholder="Tüm Kapsamlar" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL_SHIPMENT_SCOPES_VALUE}>Tüm Kapsamlar</SelectItem>
+                <SelectItem value={ALL_OPTIONS_VALUE}>Tüm Kapsamlar</SelectItem>
                 {SHIPMENT_SCOPES.map((scope) => (
                   <SelectItem key={scope} value={scope}>{scope}</SelectItem>
                 ))}
@@ -132,15 +130,15 @@ export default function FreightFilters({ onFilterChange, isLoading }: FreightFil
           <div className="relative mt-1">
             <VehicleIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Select 
-              value={vehicleNeeded || ALL_VEHICLES_VALUE} 
-              onValueChange={(value) => setVehicleNeeded(value === ALL_VEHICLES_VALUE ? '' : value as VehicleNeeded)}
+              value={vehicleNeeded || ALL_OPTIONS_VALUE} 
+              onValueChange={(value) => setVehicleNeeded(value === ALL_OPTIONS_VALUE ? '' : value as VehicleNeeded)}
               disabled={isLoading || disableCommercialFilters}
             >
               <SelectTrigger className="w-full pl-9">
                 <SelectValue placeholder="Tüm Araç Tipleri" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL_VEHICLES_VALUE}>Tüm Araç Tipleri</SelectItem>
+                <SelectItem value={ALL_OPTIONS_VALUE}>Tüm Araç Tipleri</SelectItem>
                 {VEHICLES_NEEDED.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
@@ -180,3 +178,4 @@ const Label = ({ htmlFor, children, className }: { htmlFor: string, children: Re
     {children}
   </label>
 );
+
