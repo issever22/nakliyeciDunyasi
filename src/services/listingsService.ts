@@ -16,7 +16,8 @@ import {
   limit,
   startAfter,
   DocumentData,
-  QueryDocumentSnapshot
+  QueryDocumentSnapshot,
+  getDoc
 } from 'firebase/firestore';
 import { parseISO } from 'date-fns';
 
