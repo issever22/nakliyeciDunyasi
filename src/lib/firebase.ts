@@ -2,41 +2,64 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth"; // Import Firebase Auth
-// import { getDatabase } from "firebase/database"; // Realtime Database için eklenebilir
-// import { getAnalytics } from "firebase/analytics"; // Analytics için eklenebilir
 
-// Check if critical environment variables are set BEFORE attempting to use them
-if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-  throw new Error(
-    "Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is not set or not accessible in your environment variables. " +
-    "Please ensure it is correctly defined in your .env.local file at the root of your project, " +
-    "and that you have RESTARTED your Next.js development server after making changes to .env.local."
-  );
+// Log all available environment variable keys for debugging
+console.log("--- Firebase Environment Variables Diagnostics ---");
+console.log("Available process.env keys:", Object.keys(process.env));
+
+// Read all expected environment variables
+const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
+const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
+const databaseURL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL; 
+const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID; 
+
+// Log the values of environment variables as read by the script
+console.log("Attempted to read NEXT_PUBLIC_FIREBASE_API_KEY. Value:", apiKey);
+console.log("Attempted to read NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN. Value:", authDomain);
+console.log("Attempted to read NEXT_PUBLIC_FIREBASE_PROJECT_ID. Value:", projectId);
+console.log("Attempted to read NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET. Value:", storageBucket);
+console.log("Attempted to read NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID. Value:", messagingSenderId);
+console.log("Attempted to read NEXT_PUBLIC_FIREBASE_APP_ID. Value:", appId);
+console.log("Attempted to read NEXT_PUBLIC_FIREBASE_DATABASE_URL. Value:", databaseURL);
+console.log("Attempted to read NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID. Value:", measurementId);
+console.log("-------------------------------------------------");
+
+
+// Check if critical environment variables are set
+if (!apiKey || !authDomain || !projectId) {
+  let errorMessage = "One or more critical Firebase environment variables are not set or not accessible: \n";
+  if (!apiKey) errorMessage += "- NEXT_PUBLIC_FIREBASE_API_KEY is missing.\n";
+  if (!authDomain) errorMessage += "- NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN is missing.\n";
+  if (!projectId) errorMessage += "- NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing.\n";
+  
+  errorMessage += "\nPlease ensure they are correctly defined in your .env.local file at the root of your project (the same level as package.json). ";
+  errorMessage += "After creating or modifying the .env.local file, you MUST RESTART your Next.js development server for the changes to take effect.";
+  throw new Error(errorMessage);
 }
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL, // Opsiyonel, Realtime Database için
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Opsiyonel, Analytics için
+  apiKey,
+  authDomain,
+  databaseURL, 
+  projectId,
+  storageBucket, 
+  messagingSenderId, 
+  appId, 
+  measurementId, 
 };
 
 let app: FirebaseApp;
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
-  // if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
-  //   getAnalytics(app); // Analytics'i başlatmak için (opsiyonel)
-  // }
 } else {
   app = getApps()[0];
 }
 
 const db: Firestore = getFirestore(app);
-const auth: Auth = getAuth(app); // Initialize Firebase Auth
-// const database = getDatabase(app); // Realtime Database için
+const auth: Auth = getAuth(app);
 
-export { db, auth, app }; // Export auth instance
+export { db, auth, app };
