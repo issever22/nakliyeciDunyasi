@@ -15,6 +15,7 @@ import EditCompanyDetailsModal from '@/components/profile/EditCompanyDetailsModa
 import ManageCompanyVehiclesModal from '@/components/profile/ManageCompanyVehiclesModal';
 import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDocsModal';
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
+import { useRouter } from 'next/navigation';
 
 import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -23,9 +24,14 @@ import { getAllMemberships } from '@/services/membershipsService';
 import { format, parseISO, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
+import { WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
+import { COUNTRIES } from '@/lib/locationData';
+
+
 export default function ProfilePage() {
   const { user, loading: authLoading, isAuthenticated } = useRequireAuth();
-  const { logout } = useAuth(); // For potential direct logout button
+  const { logout } = useAuth(); 
+  const router = useRouter();
   
   const [companyUser, setCompanyUser] = useState<CompanyUserProfile | null>(null);
 
@@ -64,7 +70,7 @@ export default function ProfilePage() {
       };
       fetchCompanySettings();
     } else if (user && user.role === 'individual') {
-      setCompanyUser(null); // Ensure companyUser is null for individuals
+      setCompanyUser(null); 
     }
   }, [user]);
 
@@ -75,7 +81,13 @@ export default function ProfilePage() {
     // For immediate UI update, one might re-cast 'user' or merge.
     // For simplicity, we'll rely on the modal closing and potential re-render or useAuth update.
     console.log("Profile updated, parent page notified (placeholder)", updatedProfile);
-    // Potentially: setUser(updatedProfile) if useAuth exposes a setter or if managing local copy
+    // Re-fetch the user or update context if useAuth provides a mechanism.
+    // For now, if it's the current user, let's optimistically update the local state.
+    if (user && user.id === updatedProfile.id) {
+        if (updatedProfile.role === 'company') {
+            setCompanyUser(updatedProfile as CompanyUserProfile);
+        }
+    }
   };
 
 
@@ -176,9 +188,9 @@ export default function ProfilePage() {
                         <div><strong className="text-muted-foreground">İş Tel:</strong> {companyUser.workPhone || '-'}</div>
                         <div><strong className="text-muted-foreground">Fax:</strong> {companyUser.fax || '-'}</div>
                         <div><strong className="text-muted-foreground">Firma Türü:</strong> {companyUser.companyType === 'local' ? 'Yerel Firma' : 'Yabancı Firma'}</div>
-                         <div><strong className="text-muted-foreground">Web Sitesi:</strong> {companyUser.website ? <a href={companyUser.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{companyUser.website}</a> : '-'}</div>
+                         <div><strong className="text-muted-foreground">Web Sitesi:</strong> {companyUser.website ? <a href={companyUser.website.startsWith('http') ? companyUser.website : `//${companyUser.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{companyUser.website}</a> : '-'}</div>
                     </div>
-                    <div><strong className="text-muted-foreground">Adres:</strong> {`${companyUser.fullAddress}, ${companyUser.addressDistrict || ''} ${companyUser.addressCity}`}</div>
+                    <div><strong className="text-muted-foreground">Adres:</strong> {`${companyUser.fullAddress || ''}${companyUser.addressDistrict ? `, ${companyUser.addressDistrict}` : ''}${companyUser.addressCity ? `, ${companyUser.addressCity}` : ''}`}</div>
                     <div><strong className="text-muted-foreground">Açıklama:</strong> {companyUser.companyDescription || <span className="italic text-muted-foreground/70">Belirtilmemiş</span>}</div>
                      <div>
                         <strong className="text-muted-foreground block mb-1">Çalışma Yöntemleri:</strong>
@@ -320,3 +332,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
