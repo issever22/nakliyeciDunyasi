@@ -50,23 +50,23 @@ const convertToUserProfile = (docData: DocumentData, id: string): UserProfile =>
       isActive: data.isActive,
       createdAt: data.createdAt,
       username: data.username || '',
-      logoUrl: data.logoUrl,
+      logoUrl: data.logoUrl || undefined, // Ensure undefined if falsy
       companyTitle: data.name, // Explicitly setting companyTitle from name
       contactFullName: data.contactFullName || '',
-      workPhone: data.workPhone,
+      workPhone: data.workPhone || undefined,
       mobilePhone: data.mobilePhone || '',
-      fax: data.fax,
-      website: data.website,
-      companyDescription: data.companyDescription,
+      fax: data.fax || undefined,
+      website: data.website || undefined,
+      companyDescription: data.companyDescription || undefined,
       companyType: data.companyType || 'local',
       addressCity: data.addressCity || '',
-      addressDistrict: data.addressDistrict,
+      addressDistrict: data.addressDistrict || undefined,
       fullAddress: data.fullAddress || '',
       workingMethods: data.workingMethods || [],
       workingRoutes: data.workingRoutes || [],
       preferredCities: data.preferredCities || [],
       preferredCountries: data.preferredCountries || [],
-      membershipStatus: data.membershipStatus,
+      membershipStatus: data.membershipStatus || 'Yok',
       membershipEndDate: data.membershipEndDate,
     };
     return companyProfile;
@@ -98,7 +98,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
-export async function createUserProfile(uid: string, registrationData: RegisterData): Promise<UserProfile | null> {
+export async function createUserProfile(uid: string, registrationData: RegisterData): Promise<{ profile: UserProfile | null; error?: string }> {
   try {
     const { password, ...profileDataFromForm } = registrationData; // Exclude password
 
@@ -113,63 +113,108 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
     let finalProfileData: Omit<UserProfile, 'id'>;
 
     if (profileDataFromForm.role === 'individual') {
+      if (!commonProfileData.name || typeof commonProfileData.name !== 'string' || commonProfileData.name.trim() === '') {
+        console.error("[authService.ts] Critical: Individual name is missing or invalid. UID:", uid);
+        return { profile: null, error: "Individual name is missing or invalid." };
+      }
       finalProfileData = {
         ...commonProfileData,
         role: 'individual',
       } as Omit<IndividualUserProfile, 'id'>;
     } else if (profileDataFromForm.role === 'company') {
       const companyData = profileDataFromForm as CompanyRegisterData;
+
+      // Pre-flight checks for critical company data
+      if (!companyData.username || typeof companyData.username !== 'string' || companyData.username.trim() === '') {
+        console.error("[authService.ts] Critical: Company username is missing or invalid. UID:", uid, "Username:", companyData.username);
+        return { profile: null, error: "Company username is missing or invalid." };
+      }
+      if (!commonProfileData.name || typeof commonProfileData.name !== 'string' || commonProfileData.name.trim() === '') {
+        console.error("[authService.ts] Critical: Company name (title) is missing or invalid. UID:", uid, "Name:", commonProfileData.name);
+        return { profile: null, error: "Company name (title) is missing or invalid." };
+      }
+       if (!companyData.contactFullName || typeof companyData.contactFullName !== 'string' || companyData.contactFullName.trim() === '') {
+        console.error("[authService.ts] Critical: Company contact full name is missing or invalid. UID:", uid);
+        return { profile: null, error: "Company contact full name is missing or invalid." };
+      }
+      if (!companyData.mobilePhone || typeof companyData.mobilePhone !== 'string' || companyData.mobilePhone.trim() === '') {
+        console.error("[authService.ts] Critical: Company mobile phone is missing or invalid. UID:", uid);
+        return { profile: null, error: "Company mobile phone is missing or invalid." };
+      }
+      if (!companyData.companyType || typeof companyData.companyType !== 'string' || companyData.companyType.trim() === '') {
+        console.error("[authService.ts] Critical: Company type is missing or invalid. UID:", uid);
+        return { profile: null, error: "Company type is missing or invalid." };
+      }
+       if (!companyData.addressCity || typeof companyData.addressCity !== 'string' || companyData.addressCity.trim() === '') {
+        console.error("[authService.ts] Critical: Company address city is missing or invalid. UID:", uid);
+        return { profile: null, error: "Company address city is missing or invalid." };
+      }
+       if (!companyData.fullAddress || typeof companyData.fullAddress !== 'string' || companyData.fullAddress.trim() === '') {
+        console.error("[authService.ts] Critical: Company full address is missing or invalid. UID:", uid);
+        return { profile: null, error: "Company full address is missing or invalid." };
+      }
+
       finalProfileData = {
         ...commonProfileData, 
         role: 'company',
         username: companyData.username,
-        logoUrl: companyData.logoUrl ? companyData.logoUrl : undefined,
-        companyTitle: companyData.name, 
+        logoUrl: companyData.logoUrl || undefined,
+        companyTitle: commonProfileData.name, 
         contactFullName: companyData.contactFullName,
-        workPhone: companyData.workPhone ? companyData.workPhone : undefined,
+        workPhone: companyData.workPhone || undefined,
         mobilePhone: companyData.mobilePhone,
-        fax: companyData.fax ? companyData.fax : undefined,
-        website: companyData.website ? companyData.website : undefined,
-        companyDescription: companyData.companyDescription ? companyData.companyDescription : undefined,
+        fax: companyData.fax || undefined,
+        website: companyData.website || undefined,
+        companyDescription: companyData.companyDescription || undefined,
         companyType: companyData.companyType,
         addressCity: companyData.addressCity,
-        addressDistrict: companyData.addressDistrict ? companyData.addressDistrict : undefined,
+        addressDistrict: companyData.addressDistrict || undefined,
         fullAddress: companyData.fullAddress,
-        workingMethods: companyData.workingMethods || [],
-        workingRoutes: companyData.workingRoutes || [],
-        preferredCities: companyData.preferredCities || [],
-        preferredCountries: companyData.preferredCountries || [],
+        workingMethods: Array.isArray(companyData.workingMethods) ? companyData.workingMethods : [],
+        workingRoutes: Array.isArray(companyData.workingRoutes) ? companyData.workingRoutes : [],
+        preferredCities: Array.isArray(companyData.preferredCities) ? companyData.preferredCities.filter(c => c) : [],
+        preferredCountries: Array.isArray(companyData.preferredCountries) ? companyData.preferredCountries.filter(c => c) : [],
         membershipStatus: 'Yok', 
         membershipEndDate: undefined,
       } as Omit<CompanyUserProfile, 'id'>;
     } else {
       console.error("[authService.ts] Invalid role specified for profile creation:", profileDataFromForm.role);
-      return null;
+      return { profile: null, error: "Invalid user role specified for profile creation." };
     }
     
     const userDocRef = doc(db, USERS_COLLECTION, uid);
     
     console.log(`[authService.ts] Attempting to create Firestore profile for UID: ${uid}`);
-    // console.log("[authService.ts] Data for Firestore:", JSON.stringify(finalProfileData, null, 2));
+    console.log("[authService.ts] Data for Firestore:", JSON.stringify(finalProfileData, null, 2));
 
     await setDoc(userDocRef, finalProfileData);
     console.log(`[authService.ts] Successfully created Firestore profile for UID: ${uid}`);
     
     const savedDoc = await getDoc(userDocRef);
     if(savedDoc.exists()){
-      return convertToUserProfile(savedDoc.data(), uid);
+      return { profile: convertToUserProfile(savedDoc.data(), uid) };
     }
-    console.warn(`[authService.ts] Firestore profile document not found immediately after creation for UID: ${uid}`);
-    return null;
+    console.warn(`[authService.ts] Firestore profile document not found immediately after creation for UID: ${uid}. This is unexpected.`);
+    return { profile: null, error: "Profile verification failed after creation." };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     console.error("[authService.ts] CRITICAL: Error during Firestore profile creation (setDoc or getDoc). CHECK SERVER LOGS FOR THIS ERROR.");
     console.error("[authService.ts] Error details:", error);
     console.error(`[authService.ts] Failed UID: ${uid}`);
-    console.error("[authService.ts] Data that was attempted to be written (excluding sensitive info like password):", JSON.stringify(registrationData, (key, value) => key === 'password' ? undefined : value, 2));
+    // Avoid logging the full registrationData if it contains sensitive info like password, even though we try to remove it.
+    // Log specific fields if necessary for debugging, but be cautious.
+    const safeRegistrationData = {...registrationData};
+    delete safeRegistrationData.password;
+    console.error("[authService.ts] Data that was attempted to be written (excluding password):", JSON.stringify(safeRegistrationData, null, 2));
     console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    return null;
+    let errorMessage = "An unknown error occurred during profile creation.";
+    if (error.message) {
+        errorMessage = error.message;
+    } else if (typeof error === 'string') {
+        errorMessage = error;
+    }
+    return { profile: null, error: `Firestore operation failed: ${errorMessage}` };
   }
 }
   
@@ -220,4 +265,3 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
     return false;
   }
 }
-
