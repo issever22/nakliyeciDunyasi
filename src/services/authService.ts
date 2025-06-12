@@ -90,42 +90,41 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     if (userDocSnap.exists()) {
       return convertToUserProfile(userDocSnap.data(), userDocSnap.id);
     }
-    console.log(`No profile found for UID: ${uid}`);
+    console.log(`[authService.ts] No profile found for UID: ${uid}`);
     return null;
   } catch (error) {
-    console.error("Error fetching user profile from Firestore:", error);
+    console.error("[authService.ts] Error fetching user profile from Firestore:", error);
     return null;
   }
 }
 
 export async function createUserProfile(uid: string, registrationData: RegisterData): Promise<UserProfile | null> {
   try {
-    const { password, ...profileData } = registrationData; // Exclude password
+    const { password, ...profileDataFromForm } = registrationData; // Exclude password
 
     const commonProfileData = {
-      email: profileData.email,
-      name: profileData.name, // This is fullName for individual, companyTitle for company
-      role: profileData.role,
+      email: profileDataFromForm.email,
+      name: profileDataFromForm.name, // This is fullName for individual, companyTitle for company
+      role: profileDataFromForm.role,
       isActive: true,
       createdAt: Timestamp.fromDate(new Date()),
     };
 
     let finalProfileData: Omit<UserProfile, 'id'>;
 
-    if (profileData.role === 'individual') {
+    if (profileDataFromForm.role === 'individual') {
       finalProfileData = {
         ...commonProfileData,
         role: 'individual',
       } as Omit<IndividualUserProfile, 'id'>;
-    } else if (profileData.role === 'company') {
-      const companyData = profileData as CompanyRegisterData;
+    } else if (profileDataFromForm.role === 'company') {
+      const companyData = profileDataFromForm as CompanyRegisterData;
       finalProfileData = {
-        ...commonProfileData,
+        ...commonProfileData, // Includes email, name (as companyTitle), role, isActive, createdAt
         role: 'company',
-        name: companyData.name, // This is the companyTitle
         username: companyData.username,
-        logoUrl: companyData.logoUrl || undefined,
-        companyTitle: companyData.name, // Explicitly from registration name
+        logoUrl: companyData.logoUrl || undefined, // Already handles empty string to undefined if logoUrl is falsy
+        companyTitle: companyData.name, 
         contactFullName: companyData.contactFullName,
         workPhone: companyData.workPhone || undefined,
         mobilePhone: companyData.mobilePhone,
@@ -140,25 +139,35 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
         workingRoutes: companyData.workingRoutes || [],
         preferredCities: companyData.preferredCities || [],
         preferredCountries: companyData.preferredCountries || [],
-        membershipStatus: 'Yok', // Default for new company
+        membershipStatus: 'Yok', 
         membershipEndDate: undefined,
       } as Omit<CompanyUserProfile, 'id'>;
     } else {
-      console.error("Invalid role specified for profile creation:", profileData.role);
+      console.error("[authService.ts] Invalid role specified for profile creation:", profileDataFromForm.role);
       return null;
     }
     
     const userDocRef = doc(db, USERS_COLLECTION, uid);
+    
+    console.log(`[authService.ts] Attempting to create Firestore profile for UID: ${uid}`);
+    // console.log("[authService.ts] Data for Firestore:", JSON.stringify(finalProfileData, null, 2)); // Uncomment for deep debugging if needed
+
     await setDoc(userDocRef, finalProfileData);
+    console.log(`[authService.ts] Successfully created Firestore profile for UID: ${uid}`);
     
     const savedDoc = await getDoc(userDocRef);
     if(savedDoc.exists()){
       return convertToUserProfile(savedDoc.data(), uid);
     }
+    // This part should ideally not be reached if setDoc was successful.
+    console.warn(`[authService.ts] Firestore profile document not found immediately after creation for UID: ${uid}`);
     return null;
 
   } catch (error) {
-    console.error("Error creating user profile in Firestore: ", error);
+    // This is the most important log to check on the server side
+    console.error("[authService.ts] Error during Firestore profile creation (setDoc or getDoc):", error);
+    console.error(`[authService.ts] Failed UID: ${uid}`);
+    console.error("[authService.ts] Data that was attempted to be written (excluding sensitive info like password):", JSON.stringify(registrationData, (key, value) => key === 'password' ? undefined : value, 2));
     return null;
   }
 }
@@ -169,7 +178,7 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => convertToUserProfile(doc.data(), doc.id));
   } catch (error) {
-    console.error("Error fetching all user profiles from Firestore: ", error);
+    console.error("[authService.ts] Error fetching all user profiles from Firestore: ", error);
     return [];
   }
 }
@@ -179,24 +188,22 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
     const docRef = doc(db, USERS_COLLECTION, uid);
     const updateData = { ...data };
 
-    // Remove fields that should not be directly updated or are managed by Firebase Auth
     delete updateData.id;
     delete (updateData as any).password; 
-    delete updateData.email; // Email typically updated via Firebase Auth methods
-    delete updateData.role; // Role shouldn't change after creation usually
-    delete updateData.createdAt; // Should not be updated
+    delete updateData.email; 
+    delete updateData.role; 
+    delete updateData.createdAt; 
 
     if (updateData.membershipEndDate && typeof updateData.membershipEndDate === 'string') {
       updateData.membershipEndDate = Timestamp.fromDate(parseISO(updateData.membershipEndDate)) as any;
     } else if (updateData.hasOwnProperty('membershipEndDate') && (updateData.membershipEndDate === null || updateData.membershipEndDate === undefined)) {
-       (updateData as CompanyUserProfile).membershipEndDate = undefined; // Explicitly set to undefined if cleared
+       (updateData as CompanyUserProfile).membershipEndDate = undefined; 
     }
-
 
     await updateDoc(docRef, updateData);
     return true;
   } catch (error) {
-    console.error("Error updating user profile in Firestore: ", error);
+    console.error("[authService.ts] Error updating user profile in Firestore: ", error);
     return false;
   }
 }
@@ -205,13 +212,11 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
   try {
     const docRef = doc(db, USERS_COLLECTION, uid);
     await deleteDoc(docRef);
-    // Note: This does NOT delete the Firebase Auth user.
-    // Deleting a Firebase Auth user requires Admin SDK or client-side re-authentication and delete.
-    // For simplicity, we're only deleting the Firestore profile record here.
-    console.log(`Firestore profile for UID ${uid} deleted. Firebase Auth user may still exist.`);
+    console.log(`[authService.ts] Firestore profile for UID ${uid} deleted. Firebase Auth user may still exist.`);
     return true;
   } catch (error) {
-    console.error("Error deleting user profile from Firestore: ", error);
+    console.error("[authService.ts] Error deleting user profile from Firestore: ", error);
     return false;
   }
 }
+
