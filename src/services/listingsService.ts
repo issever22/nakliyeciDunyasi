@@ -1,7 +1,7 @@
 
 'use server';
 import { db } from '@/lib/firebase';
-import type { Freight, CommercialFreight, ResidentialFreight } from '@/types';
+import type { Freight, CommercialFreight, ResidentialFreight, FreightFilterOptions } from '@/types';
 import { 
   collection, 
   addDoc, 
@@ -17,20 +17,21 @@ import {
   startAfter,
   DocumentData,
   QueryDocumentSnapshot,
-  getDoc
+  getDoc,
+  QueryConstraint // Import QueryConstraint
 } from 'firebase/firestore';
 import { parseISO } from 'date-fns';
 
 const LISTINGS_COLLECTION = 'listings';
 
-// Firestore'dan gelen Timestamp'ı YYYY-MM-DD string'ine çevirir
 const formatTimestampToDateString = (timestamp: Timestamp | string | undefined): string => {
-  if (!timestamp) return new Date().toISOString().split('T')[0]; // Veya uygun bir varsayılan
+  if (!timestamp) return new Date().toISOString().split('T')[0];
   if (typeof timestamp === 'string') {
      try {
       return parseISO(timestamp).toISOString().split('T')[0];
     } catch (e) {
-      return new Date().toISOString().split('T')[0];
+      console.warn("Invalid date string for parsing in listingsService:", timestamp, e);
+      return new Date().toISOString().split('T')[0]; // Fallback
     }
   }
   return timestamp.toDate().toISOString().split('T')[0];
@@ -39,19 +40,24 @@ const formatTimestampToDateString = (timestamp: Timestamp | string | undefined):
 const convertToFreight = (docData: DocumentData, id: string): Freight => {
   const data = { ...docData };
   
-  // Tarih alanlarını string'e çevirme
   if (data.loadingDate) {
     data.loadingDate = formatTimestampToDateString(data.loadingDate);
   }
-  if (data.postedAt && data.postedAt.toDate) { // postedAt Timestamp ise
+  
+  if (data.postedAt && typeof data.postedAt.toDate === 'function') {
     data.postedAt = data.postedAt.toDate().toISOString();
   } else if (typeof data.postedAt === 'string') {
-    // Zaten string ise dokunma
+    // Check if it's a valid ISO string, otherwise fallback
+    try {
+      parseISO(data.postedAt); // This will throw if invalid
+    } catch (e) {
+      console.warn("Invalid postedAt string, falling back for freight ID:", id, data.postedAt);
+      data.postedAt = new Date().toISOString(); // Fallback
+    }
   } else {
-    data.postedAt = new Date().toISOString(); // Fallback
+    data.postedAt = new Date().toISOString(); 
   }
   
-  // isActive alanı için varsayılan değer
   data.isActive = data.isActive === undefined ? true : data.isActive;
 
   return {
@@ -63,19 +69,68 @@ const convertToFreight = (docData: DocumentData, id: string): Freight => {
 
 export const getListings = async (
     lastVisible?: QueryDocumentSnapshot<DocumentData> | null, 
-    pageSize: number = 10
+    pageSize: number = 10,
+    currentFilters?: FreightFilterOptions
   ): Promise<{freights: Freight[], newLastVisible: QueryDocumentSnapshot<DocumentData> | null}> => {
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
-    let q;
-    if (lastVisible) {
-      q = query(listingsRef, orderBy('postedAt', 'desc'), startAfter(lastVisible), limit(pageSize));
-    } else {
-      q = query(listingsRef, orderBy('postedAt', 'desc'), limit(pageSize));
+    const queryConstraints: QueryConstraint[] = [];
+
+    // Default filter: always get active listings
+    queryConstraints.push(where("isActive", "==", true));
+
+    // Apply filters from currentFilters
+    if (currentFilters) {
+      if (currentFilters.originCity) {
+        queryConstraints.push(where("originCity", "==", currentFilters.originCity));
+      }
+      if (currentFilters.destinationCity) {
+        queryConstraints.push(where("destinationCity", "==", currentFilters.destinationCity));
+      }
+      if (currentFilters.freightType) {
+        queryConstraints.push(where("freightType", "==", currentFilters.freightType));
+        // Apply type-specific filters only if freightType is selected
+        if (currentFilters.freightType === 'Ticari') {
+          if (currentFilters.vehicleNeeded) {
+            queryConstraints.push(where("vehicleNeeded", "==", currentFilters.vehicleNeeded));
+          }
+          if (currentFilters.shipmentScope) {
+            queryConstraints.push(where("shipmentScope", "==", currentFilters.shipmentScope));
+          }
+        }
+      } else {
+        // If no specific freightType, but other commercial filters are present,
+        // it implies user might be looking for commercial even without explicitly selecting type.
+        // This logic might need refinement based on desired UX.
+        if (currentFilters.vehicleNeeded) {
+          queryConstraints.push(where("vehicleNeeded", "==", currentFilters.vehicleNeeded));
+        }
+        if (currentFilters.shipmentScope) {
+          queryConstraints.push(where("shipmentScope", "==", currentFilters.shipmentScope));
+        }
+      }
     }
+    
+    // Sorting: Firestore requires the orderBy field to be the first inequality field if one exists.
+    // For simplicity with multiple '==' where clauses, we stick to 'postedAt' for now.
+    // Complex sorting with multiple filters might require composite indexes.
+    if (currentFilters?.sortBy === 'oldest') {
+        queryConstraints.push(orderBy('postedAt', 'asc'));
+    } else {
+        queryConstraints.push(orderBy('postedAt', 'desc')); // Default to newest
+    }
+
+    if (lastVisible) {
+      queryConstraints.push(startAfter(lastVisible));
+    }
+    queryConstraints.push(limit(pageSize));
+    
+    const q = query(listingsRef, ...queryConstraints);
+    
     const querySnapshot = await getDocs(q);
     const freights = querySnapshot.docs.map(doc => convertToFreight(doc.data(), doc.id));
     const newLastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
+    
     return { freights, newLastVisible: newLastVisibleDoc };
   } catch (error) {
     console.error("Error fetching listings: ", error);
@@ -120,10 +175,9 @@ export const updateListing = async (id: string, listingData: Partial<Freight>): 
     const dataToUpdate = { ...listingData };
 
     if (dataToUpdate.loadingDate && typeof dataToUpdate.loadingDate === 'string') {
-      dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate)) as any; // any to bypass type error with Timestamp
+      dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate)) as any; 
     }
-    // postedAt genellikle güncellenmez, ama gerekirse benzer dönüşüm yapılabilir
-    // id ve postedAt'ı güncelleme verisinden çıkaralım (eğer varsa)
+    
     delete dataToUpdate.id;
     delete dataToUpdate.postedAt;
 
@@ -146,10 +200,10 @@ export const deleteListing = async (id: string): Promise<boolean> => {
   }
 };
 
-// Admin panelinde tüm ilanları getirmek için (sayfalama olmadan veya farklı bir sayfalama ile)
 export const getAllListingsForAdmin = async (): Promise<Freight[]> => {
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
+    // Admin should see all listings, regardless of isActive status for management purposes
     const q = query(listingsRef, orderBy('postedAt', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => convertToFreight(doc.data(), doc.id));

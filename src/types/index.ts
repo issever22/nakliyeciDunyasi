@@ -236,3 +236,13 @@ export interface Sponsor {
   isActive: boolean;
   createdAt: string; // ISO string
 }
+
+// Type for Freight Filters
+export type FreightFilterOptions = {
+  originCity?: string;
+  destinationCity?: string;
+  vehicleNeeded?: VehicleNeeded;
+  shipmentScope?: ShipmentScope;
+  freightType?: FreightType;
+  sortBy?: string;
+};

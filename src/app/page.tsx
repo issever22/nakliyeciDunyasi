@@ -4,15 +4,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
 import FreightFilters from '@/components/freight/FreightFilters';
-import type { Freight, VehicleNeeded, ShipmentScope, FreightType } from '@/types';
+import type { Freight, CommercialFreight, FreightFilterOptions, VehicleNeeded, ShipmentScope, FreightType } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import Image from 'next/image';
-import { getListings } from '@/services/listingsService'; // Firestore service
+import { getListings } from '@/services/listingsService'; 
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { parseISO } from 'date-fns';
 
 
 export default function HomePage() {
@@ -21,82 +22,54 @@ export default function HomePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const pageSize = 6; // Number of items per page
+  const pageSize = 6; 
 
-  const [filters, setFilters] = useState<{ 
-    originCity?: string; 
-    destinationCity?: string; 
-    vehicleNeeded?: VehicleNeeded; 
-    shipmentScope?: ShipmentScope; 
-    freightType?: FreightType;
-    sortBy?: string 
-  }>({});
-
-  const fetchInitialFreights = useCallback(async () => {
-    setIsLoading(true);
-    const { freights: newFreights, newLastVisible } = await getListings(null, pageSize);
-    setAllFreights(newFreights.filter(f => f.isActive !== false)); // Sadece aktif ilanları göster
-    setLastVisible(newLastVisible);
-    setHasMore(newFreights.length === pageSize);
-    setIsLoading(false);
-  }, [pageSize]);
+  const [filters, setFilters] = useState<FreightFilterOptions>({});
 
   useEffect(() => {
-    fetchInitialFreights();
-  }, [fetchInitialFreights]);
+    const fetchInitialData = async () => {
+      setIsLoading(true);
+      const { freights: newFreights, newLastVisible } = await getListings(null, pageSize, filters);
+      setAllFreights(newFreights);
+      setLastVisible(newLastVisible);
+      setHasMore(newFreights.length === pageSize);
+      setIsLoading(false);
+    };
+    fetchInitialData();
+  }, [filters, pageSize]); // Depend on filters and pageSize
 
   const loadMoreFreights = async () => {
     if (!hasMore || isLoadingMore) return;
     setIsLoadingMore(true);
-    const { freights: newFreights, newLastVisible } = await getListings(lastVisible, pageSize);
-    setAllFreights(prevFreights => [...prevFreights, ...newFreights.filter(f => f.isActive !== false)]);
+    const { freights: newFreights, newLastVisible } = await getListings(lastVisible, pageSize, filters);
+    setAllFreights(prevFreights => [...prevFreights, ...newFreights]);
     setLastVisible(newLastVisible);
     setHasMore(newFreights.length === pageSize);
     setIsLoadingMore(false);
   };
 
-  const handleFilter = (newFilters: typeof filters) => {
-    // Firestore'da filtreleme yapmak için bu fonksiyonu genişletmeniz gerekecek.
-    // Şimdilik, bu filtreleri state'e kaydediyoruz ve client-side filtreleme devam ediyor.
-    // Gerçek bir uygulamada, getListings fonksiyonu bu filtreleri alıp Firestore query'sine eklemeli.
+  const handleFilter = (newFilters: FreightFilterOptions) => {
     setFilters(newFilters);
-    // İdealde, filtreler değiştiğinde fetchInitialFreights'i filtrelerle çağırırdık.
-    // Örnek: fetchInitialFreights(newFilters); ve getListings(filters, null, pageSize)
-    // Bu, mevcut getListings yapısında büyük değişiklik gerektirir. Şimdilik client-side filtreleme.
+    // Reset pagination for new filter
+    setLastVisible(null); 
+    setAllFreights([]); // Clear current freights to reflect new filter results
+    setHasMore(true); // Assume there might be more data with new filters
   };
 
   const filteredFreights = useMemo(() => {
-    let freights = [...allFreights];
-    if (filters.originCity) {
-      freights = freights.filter(f => String(f.originCity).toLowerCase().includes(filters.originCity!.toLowerCase()));
-    }
-    if (filters.destinationCity) {
-      freights = freights.filter(f => String(f.destinationCity).toLowerCase().includes(filters.destinationCity!.toLowerCase()));
-    }
-    if (filters.freightType) {
-      freights = freights.filter(f => f.freightType === filters.freightType);
-    }
+    // Client-side filtering logic based on 'filters' is removed
+    // as Firestore query now handles primary filtering (origin, destination, type, etc.).
+    // Sorting is still done client-side after fetching.
+    let freightsToDisplay = [...allFreights];
     
-    if (!filters.freightType || filters.freightType === 'Ticari') {
-        if (filters.vehicleNeeded && filters.freightType === 'Ticari') {
-          freights = freights.filter(f => (f as CommercialFreight).vehicleNeeded === filters.vehicleNeeded);
-        }
-        if (filters.shipmentScope && filters.freightType === 'Ticari') {
-          freights = freights.filter(f => (f as CommercialFreight).shipmentScope === filters.shipmentScope);
-        }
-    } else if (filters.freightType === 'Evden Eve') {
-        if(filters.vehicleNeeded || filters.shipmentScope) {
-            freights = freights.filter(f => f.freightType === 'Evden Eve');
-        }
-    }
-
     if (filters.sortBy === 'oldest') {
-      freights.sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
+      freightsToDisplay.sort((a, b) => parseISO(a.postedAt).getTime() - parseISO(b.postedAt).getTime());
     } else { 
-      freights.sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
+      // Default to newest or if sortBy is 'newest'
+      freightsToDisplay.sort((a, b) => parseISO(b.postedAt).getTime() - parseISO(a.postedAt).getTime());
     }
-    return freights;
-  }, [allFreights, filters]);
+    return freightsToDisplay;
+  }, [allFreights, filters.sortBy]);
 
 
   return (
@@ -160,6 +133,9 @@ export default function HomePage() {
                   Daha Fazla Yükle
                 </Button>
               </div>
+            )}
+             {!hasMore && filteredFreights.length > pageSize && (
+                 <p className="text-center mt-10 text-muted-foreground">Gösterilecek başka ilan bulunmuyor.</p>
             )}
           </>
         ) : (
