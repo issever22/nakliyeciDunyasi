@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = '123'; 
@@ -25,18 +25,40 @@ export default function AdminLoginForm() {
     event.preventDefault();
     setIsLoading(true);
 
+    // Simulate async check (can be removed if not needed for UI, but helps with perceived responsiveness)
     setTimeout(() => {
       if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
         if (typeof window !== 'undefined') {
-          localStorage.setItem(ADMIN_AUTH_KEY, 'true');
+          try {
+            localStorage.setItem(ADMIN_AUTH_KEY, 'true');
+            // Log to confirm item is set and what its value is immediately after setting
+            console.log('ADMIN_AUTH_KEY set in localStorage. Value:', localStorage.getItem(ADMIN_AUTH_KEY));
+          } catch (e) {
+            console.error('Failed to set ADMIN_AUTH_KEY in localStorage:', e);
+            toast({ 
+              title: "LocalStorage Hatası", 
+              description: "Oturum bilgisi kaydedilemedi. Tarayıcı ayarlarınızı (örneğin, gizli modda depolama izni) kontrol edin veya site verilerini temizlemeyi deneyin.", 
+              variant: "destructive",
+              duration: 7000 // Show for longer
+            });
+            setIsLoading(false);
+            return; // Stop further execution if localStorage fails
+          }
+        } else {
+          console.warn('window object not available when trying to set localStorage for admin auth. This should not happen in a client component event handler.');
+           toast({ title: "İstemci Hatası", description: "Beklenmedik bir durum oluştu, lütfen tekrar deneyin.", variant: "destructive" });
+           setIsLoading(false);
+           return;
         }
+        
         toast({ title: "Giriş Başarılı", description: "Panele yönlendiriliyorsunuz..." });
         router.push('/admin/dashboard');
+        // setIsLoading(false) is not strictly necessary here as navigation will unmount or change context
       } else {
         toast({ title: "Giriş Başarısız", description: "Geçersiz kullanıcı adı veya şifre.", variant: "destructive" });
         setIsLoading(false);
       }
-    }, 500);
+    }, 500); 
   };
 
   return (
@@ -57,6 +79,7 @@ export default function AdminLoginForm() {
               required
               placeholder="admin"
               className="text-base"
+              autoComplete="username"
             />
           </div>
           <div className="space-y-2">
@@ -70,6 +93,7 @@ export default function AdminLoginForm() {
                 required
                 placeholder="••••••••"
                 className="text-base pr-10"
+                autoComplete="current-password"
               />
               <Button
                 type="button"
@@ -86,6 +110,7 @@ export default function AdminLoginForm() {
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
           </Button>
         </CardFooter>
