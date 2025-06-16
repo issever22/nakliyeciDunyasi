@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import type { AnnouncementSetting, UserProfile } from '@/types';
 import { getAllAnnouncements } from '@/services/announcementsService';
-import { useEffect, useState, useMemo, forwardRef } from 'react';
+import { useEffect, useState, useMemo, forwardRef, useCallback, useRef } from 'react'; // Added useCallback, useRef
 import { format, parseISO, isValid, isAfter, isBefore, isEqual } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import React from 'react';
@@ -71,6 +71,33 @@ export default function Header() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+
+  const [showNavbar, setShowNavbar] = useState(true);
+  const lastScrollY = useRef(0);
+  const scrollThreshold = 100; // Show/hide after scrolling 100px
+
+  const controlNavbar = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
+        setShowNavbar(false);
+      } else {
+        setShowNavbar(true);
+      }
+      lastScrollY.current = currentScrollY;
+    }
+  }, []); // Empty dependency array as lastScrollY is a ref
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      lastScrollY.current = window.scrollY; // Initialize on mount
+      window.addEventListener('scroll', controlNavbar);
+      return () => {
+        window.removeEventListener('scroll', controlNavbar);
+      };
+    }
+  }, [controlNavbar]);
+
 
   useEffect(() => {
     async function fetchAnnouncements() {
@@ -212,15 +239,21 @@ export default function Header() {
   );
 
   return (
-    <header className="bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg">
+    <header
+      className={cn(
+        "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg",
+        "transition-transform duration-300 ease-in-out",
+        showNavbar ? "translate-y-0" : "-translate-y-full"
+      )}
+    >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <AppIcon className="h-8 w-8 text-primary" data-ai-hint="truck logistics" />
           <h1 className="text-2xl font-bold text-primary font-headline">Nakliyeci Dünyası</h1>
         </Link>
         
-        <nav className="hidden md:flex items-center gap-x-3"> {/* Adjusted gap */}
-          <div className="flex items-center gap-1"> {/* Search Group */}
+        <nav className="hidden md:flex items-center gap-x-3">
+          <div className="flex items-center gap-1">
             <Input placeholder="Firmalarda ara..." className="h-9 w-48 md:w-56 lg:w-64" />
             <Button type="submit" size="sm" variant="outline" className="h-9 px-3">
               <Search className="h-4 w-4 md:mr-2" />
@@ -310,7 +343,6 @@ export default function Header() {
                 </div>
               </div>
               <nav className="flex-grow p-4 space-y-2">
-                {/* Ana Sayfa linki kaldırıldı */}
                 <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                   <Link href="/hakkimizda">Hakkımızda</Link>
                 </Button>
@@ -354,7 +386,7 @@ export default function Header() {
       </div>
       
       <nav className="border-t bg-background/70 backdrop-blur-md hidden md:block">
-        <div className="container mx-auto px-4 flex items-center justify-center h-14"> {/* Changed to justify-center */}
+        <div className="container mx-auto px-4 flex items-center justify-center h-14">
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
@@ -452,10 +484,8 @@ export default function Header() {
 
             </NavigationMenuList>
           </NavigationMenu>
-          {/* Search bar removed from here as it's moved to the top header */}
         </div>
       </nav>
     </header>
   );
 }
-
