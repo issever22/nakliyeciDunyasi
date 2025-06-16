@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
-import FreightFilters from '@/components/freight/FreightFilters'; // Restored
+import FreightFilters from '@/components/freight/FreightFilters'; 
 import type { Freight, FreightFilterOptions } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -23,7 +23,7 @@ export default function HomePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({ sortBy: 'newest' }); // Restored filters state
+  const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({ sortBy: 'newest' });
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -48,6 +48,30 @@ export default function HomePage() {
         pageSize: PAGE_SIZE,
         filters: appliedFilters 
       });
+
+      if (result.error) {
+        console.error("[HomePage - fetchFreights] Error from getListings service:", result.error.message);
+        if (result.error.indexCreationUrl) {
+          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          console.error("!!! TARAYICI KONSOLU - EKSİK FIRESTORE INDEX !!!");
+          console.error("!!! Düzeltmek için, aşağıdaki bağlantıyı ziyaret ederek bileşik dizini oluşturun:");
+          console.error(`!!! ${result.error.indexCreationUrl}`);
+          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          toast({
+            title: "Firestore Index Hatası",
+            description: `Eksik bir Firestore dizini var. Lütfen tarayıcı konsolundaki bağlantıyı kullanarak dizini oluşturun. URL: ${result.error.indexCreationUrl}`,
+            variant: "destructive",
+            duration: 20000 // Keep it open longer
+          });
+        } else {
+           toast({ title: "Veri Yükleme Hatası", description: result.error.message, variant: "destructive" });
+        }
+        setFetchError(result.error.message);
+        setFreights([]); // Clear freights on error
+        setHasMore(false);
+        return; // Stop further processing
+      }
+      
       const newFreights = result.freights;
       
       console.log(`[HomePage - fetchFreights] getListings returned. New freights count: ${newFreights.length}. Next doc exists: ${!!result.newLastVisibleDoc}`);
@@ -60,10 +84,11 @@ export default function HomePage() {
       setLastVisibleDoc(result.newLastVisibleDoc);
       setHasMore(!!result.newLastVisibleDoc && newFreights.length === PAGE_SIZE);
 
-    } catch (error) {
-      console.error("[HomePage - fetchFreights] Error fetching freights:", error);
-      setFetchError("İlanlar yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
-      toast({ title: "Veri Yükleme Hatası", description: "İlanlar çekilirken bir sorun oluştu.", variant: "destructive" });
+    } catch (error) { // This catch block is for unexpected errors during the fetchFreights execution itself
+      console.error("[HomePage - fetchFreights] Unexpected error during fetch operation:", error);
+      const errorMsg = "İlanlar yüklenirken beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin.";
+      setFetchError(errorMsg);
+      toast({ title: "Beklenmedik Hata", description: errorMsg, variant: "destructive" });
     } finally {
       console.log('[HomePage - fetchFreights] Finally block.');
       if (isLoadMore) {
@@ -73,8 +98,7 @@ export default function HomePage() {
         setInitialLoadComplete(true);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]); // Removed currentFilters, setFreights, setLastVisibleDoc, setHasMore, setIsLoading, setIsLoadingMore, setFetchError, setInitialLoadComplete
+  }, [toast]); 
 
   useEffect(() => {
     console.log('[HomePage - useEffect[currentFilters]] Filters changed or initial load. Calling fetchFreights(null, currentFilters). Current Filters:', currentFilters);
@@ -85,11 +109,8 @@ export default function HomePage() {
   const handleFilterChange = useCallback((newFilters: FreightFilterOptions) => {
     console.log('[HomePage - handleFilterChange] New filters received:', newFilters);
     setCurrentFilters(newFilters);
-    // Reset pagination for new filter
-    setLastVisibleDoc(null);
-    setHasMore(true);
-    setInitialLoadComplete(false); // Force loading state for new filter
-  }, []); // setCurrentFilters, setLastVisibleDoc, setHasMore, setInitialLoadComplete are stable
+    setInitialLoadComplete(false); 
+  }, []); 
 
   const loadMoreFreights = () => {
     console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore, 'LastVisibleDoc:', !!lastVisibleDoc);
