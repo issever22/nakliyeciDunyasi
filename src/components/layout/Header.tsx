@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText } from 'lucide-react';
+import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText, Search } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,10 +20,49 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import type { AnnouncementSetting, UserProfile } from '@/types';
 import { getAllAnnouncements } from '@/services/announcementsService';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, forwardRef } from 'react';
 import { format, parseISO, isValid, isAfter, isBefore, isEqual } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import React from 'react';
+import { usePathname } from 'next/navigation';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+
+const ListItem = React.forwardRef<
+  React.ElementRef<"a">,
+  React.ComponentPropsWithoutRef<"a">
+>(({ className, title, children, ...props }, ref) => {
+  return (
+    <li>
+      <NavigationMenuLink asChild>
+        <a
+          ref={ref}
+          className={cn(
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            className
+          )}
+          {...props}
+        >
+          <div className="text-sm font-medium leading-none">{title}</div>
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {children}
+          </p>
+        </a>
+      </NavigationMenuLink>
+    </li>
+  );
+});
+ListItem.displayName = "ListItem";
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -31,6 +70,7 @@ export default function Header() {
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(true);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     async function fetchAnnouncements() {
@@ -180,7 +220,8 @@ export default function Header() {
         </Link>
         
         <nav className="hidden md:flex items-center gap-2">
-          <Button variant="ghost" asChild>
+          {/* Main site-wide navigation can go here if simple, or be part of the new menu below for homepage */}
+           <Button variant="ghost" asChild>
             <Link href="/">Ana Sayfa</Link>
           </Button>
           {isAuthenticated && (
@@ -274,6 +315,7 @@ export default function Header() {
                         </Link>
                     </Button>
                 )}
+                 {/* Add more mobile links here based on the new nav if needed */}
               </nav>
               <div className="p-4 border-t mt-auto">
                 {isAuthenticated && user ? (
@@ -295,6 +337,117 @@ export default function Header() {
           </Sheet>
         </div>
       </div>
+      {pathname === '/' && (
+        <nav className="border-t bg-background/70 backdrop-blur-md hidden md:block">
+          <div className="container mx-auto px-4 flex items-center justify-between h-14">
+            <NavigationMenu>
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <Link href="/" legacyBehavior passHref>
+                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                      Anasayfa
+                    </NavigationMenuLink>
+                  </Link>
+                </NavigationMenuItem>
+
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger>Hakkımızda</NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+                      <ListItem href="/hakkimizda" title="Hakkımızda">
+                        Firmamız ve vizyonumuz hakkında daha fazla bilgi edinin.
+                      </ListItem>
+                      <ListItem href="/tasarladigimiz-afisler" title="Tasarladığımız Afişler">
+                        Referans afiş çalışmalarımız.
+                      </ListItem>
+                      <ListItem href="/tasarladigimiz-logolar" title="Tasarladığımız Logolar">
+                        Markanız için özgün logo tasarımları.
+                      </ListItem>
+                       <ListItem href="/tasarladigimiz-siteler" title="Tasarladığımız Siteler">
+                        Modern ve işlevsel web sitesi çözümleri.
+                      </ListItem>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger>Lojistik Firmalar</NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                      <ListItem href="/lojistik-firmalari/karayolu" title="Karayolu Lojistik Firmaları">
+                        Yurtiçi ve yurtdışı karayolu taşımacılığı.
+                      </ListItem>
+                      <ListItem href="/lojistik-firmalari/havayolu" title="Havayolu Lojistik Firmaları">
+                        Hızlı ve güvenli havayolu kargo çözümleri.
+                      </ListItem>
+                      <ListItem href="/lojistik-firmalari/demiryolu" title="Demiryolu Lojistik Firmaları">
+                        Çevreci ve ekonomik demiryolu taşımacılığı.
+                      </ListItem>
+                      <ListItem href="/lojistik-firmalari/denizyolu" title="Denizyolu Lojistik Firmaları">
+                        Uluslararası denizyolu konteyner ve yük taşımacılığı.
+                      </ListItem>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+                
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger>Nakliye Fiyatları</NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                     <ul className="grid w-[300px] gap-3 p-4 md:w-[400px] ">
+                       <ListItem href="/nakliye-fiyatlari/yurtici" title="Yurtiçi Nakliye Fiyatları">
+                        Şehirlerarası taşıma ücretleri ve teklifleri.
+                      </ListItem>
+                       <ListItem href="/nakliye-fiyatlari/yurtdisi" title="Yurtdışı Nakliye Fiyatları">
+                        Uluslararası taşıma maliyetleri ve çözümleri.
+                      </ListItem>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger>Nakliyeciler</NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <ul className="grid w-[300px] gap-3 p-4 md:w-[400px]">
+                       <ListItem href="/nakliyeciler/illere-gore" title="İllere Göre Nakliyeciler">
+                        Türkiye'nin her ilinden nakliye firmaları.
+                      </ListItem>
+                       <ListItem href="/nakliyeciler/ulkelere-gore" title="Ülkelere Göre Nakliyeciler">
+                        Farklı ülkelere hizmet veren nakliyeciler.
+                      </ListItem>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+                
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger>Bize Ulaşın</NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                     <ul className="grid w-[300px] gap-3 p-4 md:w-[400px]">
+                       <ListItem href="/iletisim" title="İletişim">
+                        Soru ve önerileriniz için bize yazın.
+                      </ListItem>
+                       <ListItem href="/banka-hesap-no" title="Banka Hesap No">
+                        Ödeme ve hesap bilgilerimiz.
+                      </ListItem>
+                      <ListItem href="/indir" title="Uygulamamızı İndir">
+                        Mobil uygulamalarımızla her yerden erişin.
+                      </ListItem>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+              </NavigationMenuList>
+            </NavigationMenu>
+            <div className="flex items-center gap-2">
+              <Input placeholder="Firmalarda ara..." className="h-9 w-48 md:w-56 lg:w-64" />
+              <Button type="submit" size="sm" variant="outline" className="h-9">
+                <Search className="h-4 w-4 mr-2 sm:mr-0 md:mr-2" />
+                <span className="hidden md:inline">Ara</span>
+              </Button>
+            </div>
+          </div>
+        </nav>
+      )}
     </header>
   );
 }
+
