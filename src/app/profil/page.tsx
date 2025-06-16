@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useRequireAuth, useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // Removed AvatarImage for direct img usage for logos
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, User as UserIcon, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks } from 'lucide-react';
@@ -17,7 +17,7 @@ import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDo
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
 import MyListingsTab from '@/components/profile/MyListingsTab';
 import { useRouter } from 'next/navigation';
-import { cn } from "@/lib/utils"; // Import cn utility
+import { cn } from "@/lib/utils"; 
 
 import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -25,10 +25,10 @@ import { getAllAuthDocs } from '@/services/authDocsService';
 import { getAllMemberships } from '@/services/membershipsService';
 import { format, parseISO, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import Image from 'next/image';
 
 import { WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import { COUNTRIES } from '@/lib/locationData';
-import Image from 'next/image';
 
 
 export default function ProfilePage() {
@@ -158,7 +158,6 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <Avatar className="w-28 h-28 mb-4 border-4 border-primary/50 shadow-md">
-                  {/* Removed AvatarImage, using img directly or fallback */}
                   <AvatarFallback className="text-4xl">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               )}
@@ -179,14 +178,12 @@ export default function ProfilePage() {
         <div className="lg:col-span-8 xl:col-span-9">
             <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="mb-6">
-                <div className="overflow-x-auto md:overflow-visible pb-1"> {/* Added pb-1 for scrollbar space */}
-                  <TabsList 
+                 <TabsList 
                     className={cn(
-                      "inline-flex w-auto p-1 rounded-md bg-muted/50", // Base for mobile: inline-flex and auto width
-                      "md:grid md:w-full", // md and up: switch to grid and full width
+                      "grid w-full p-1 rounded-md bg-muted/50", // Base styling for TabsList
                       user.role === 'company' 
-                        ? `md:grid-cols-3 lg:grid-cols-${companyTabsCount}` 
-                        : "md:grid-cols-2"
+                        ? "grid-cols-3 md:grid-cols-3 lg:grid-cols-5" // Company: 3 cols mobile, 3 cols md, 5 cols lg
+                        : "grid-cols-2" // Individual: 2 cols on all screens (default and md)
                     )}
                   >
                     <TabsTrigger value="details" className="text-xs sm:text-sm">
@@ -201,7 +198,6 @@ export default function ProfilePage() {
                       </>
                     )}
                   </TabsList>
-                </div>
               </div>
 
               <TabsContent value="details">
@@ -366,4 +362,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
