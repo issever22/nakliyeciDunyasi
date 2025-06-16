@@ -13,7 +13,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card'
 import Image from 'next/image';
 import { getListings } from '@/services/listingsService'; 
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast'; // toast import edildi
+import { useToast } from '@/hooks/use-toast'; 
 
 const PAGE_SIZE = 6;
 
@@ -23,7 +23,8 @@ export default function HomePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({ sortBy: 'newest' });
+  // Initialize with a minimal filter object as the service now ignores most properties for diagnosis
+  const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({}); 
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { toast } = useToast(); 
@@ -44,11 +45,15 @@ export default function HomePage() {
     }
 
     try {
-      const { freights: newFreights, newLastVisibleDoc: nextDoc } = await getListings({
+      // Pass a minimal filter object for now as the service is ignoring most filters
+      const result = await getListings({
         lastVisibleDoc: reset ? null : lastVisibleDoc, 
         pageSize: PAGE_SIZE,
-        filters: filters,
+        filters: {}, // Send empty or minimal filters
       });
+      const newFreights = result.freights;
+      const nextDoc = result.newLastVisibleDoc;
+
 
       console.log('[HomePage - fetchFreights] getListings returned. New freights count:', newFreights.length, 'Next doc exists:', !!nextDoc);
       if (newFreights.length > 0) {
@@ -79,33 +84,28 @@ export default function HomePage() {
       }
     }
   }, [
-    setFreights, 
-    setLastVisibleDoc, 
-    setHasMore, 
-    setFetchError, 
-    setIsLoading, 
-    setIsLoadingMore, 
-    setInitialLoadComplete, 
-    toast
-    // `lastVisibleDoc` is intentionally omitted here as it's read from state within the function.
-    // `PAGE_SIZE` is a constant defined outside, so it doesn't need to be in dependencies.
-    // `getListings` is a stable server action import.
+    lastVisibleDoc, // Keep lastVisibleDoc as it's used for pagination
+    toast,
+    // Removed other state setters that might cause re-creation if not stable.
+    // PAGE_SIZE is stable. getListings is a stable import.
   ]);
 
   useEffect(() => {
-    console.log('[HomePage - useEffect[currentFilters]] Filters changed. Calling fetchFreights with reset.');
+    console.log('[HomePage - useEffect[currentFilters]] Filters changed (or initial load). Calling fetchFreights with reset.');
+    // currentFilters will be passed but mostly ignored by the service for now.
     fetchFreights(currentFilters, true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters, fetchFreights]); 
+  }, [currentFilters, fetchFreights]); // fetchFreights added as dependency
 
   const handleFilterChange = (newFilters: FreightFilterOptions) => {
-    console.log('[HomePage - handleFilterChange] New filters received:', JSON.stringify(newFilters));
+    console.log('[HomePage - handleFilterChange] New filters received (will be mostly ignored by service for now):', JSON.stringify(newFilters));
     setCurrentFilters(newFilters); 
   };
 
   const loadMoreFreights = () => {
     console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore);
     if (hasMore && !isLoadingMore) {
+      // currentFilters will be passed but mostly ignored by the service for now.
       fetchFreights(currentFilters, false); 
     }
   };
@@ -233,3 +233,4 @@ export default function HomePage() {
     </div>
   );
 }
+

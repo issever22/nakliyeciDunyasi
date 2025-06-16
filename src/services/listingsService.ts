@@ -33,17 +33,23 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   let loadingDateStr: string;
   if (data.loadingDate && data.loadingDate instanceof Timestamp) {
     loadingDateStr = data.loadingDate.toDate().toISOString().split('T')[0];
+  } else if (data.loadingDate && typeof data.loadingDate === 'string' && isValid(parseISO(data.loadingDate))) {
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is a string. Converting. Original:`, data.loadingDate);
+    loadingDateStr = data.loadingDate;
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is not a Firestore Timestamp. Defaulting to today. Original:`, data.loadingDate);
-    loadingDateStr = new Date().toISOString().split('T')[0]; // Fallback to today's date as string
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is invalid or missing. Defaulting to today. Original:`, data.loadingDate);
+    loadingDateStr = new Date().toISOString().split('T')[0];
   }
 
   let postedAtStr: string;
   if (data.postedAt && data.postedAt instanceof Timestamp) {
     postedAtStr = data.postedAt.toDate().toISOString();
+  } else if (data.postedAt && typeof data.postedAt === 'string' && isValid(parseISO(data.postedAt))) {
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is a string. Converting. Original:`, data.postedAt);
+    postedAtStr = data.postedAt;
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is not a Firestore Timestamp. Defaulting to current time. Original:`, data.postedAt);
-    postedAtStr = new Date().toISOString(); // Fallback to current time as ISO string
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is invalid or missing. Defaulting to current time. Original:`, data.postedAt);
+    postedAtStr = new Date().toISOString();
   }
   
   const baseFreight = {
@@ -63,7 +69,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true,
+    isActive: data.isActive === true, // Ensure isActive is explicitly true
     description: data.description || '',
   };
 
@@ -135,7 +141,8 @@ export const getListings = async (
     
     queryConstraints.push(where('isActive', '==', true));
     
-    // --- TEMPORARILY COMMENTED OUT FOR DIAGNOSIS ---
+    // --- TEMPORARILY COMMENTED OUT ALL FILTERS AND ORDERING FOR DIAGNOSIS ---
+    console.warn('[listingsService - getListings] DIAGNOSIS: ALL FILTERS AND ORDERING ARE TEMPORARILY REMOVED.');
     // if (filters.freightType) {
     //   queryConstraints.push(where('freightType', '==', filters.freightType));
     //   if (filters.freightType === 'Ticari') {
@@ -149,13 +156,8 @@ export const getListings = async (
     // if (filters.destinationCity) {
     //    queryConstraints.push(where('destinationCity', '==', filters.destinationCity));
     // }
-    // --- END OF TEMPORARILY COMMENTED OUT SECTION ---
-
-    // --- TEMPORARILY REMOVED ORDERBY FOR DIAGNOSIS ---
     // queryConstraints.push(orderBy('postedAt', filters.sortBy === 'oldest' ? 'asc' : 'desc'));
-    console.warn('[listingsService - getListings] DIAGNOSIS: orderBy("postedAt") is temporarily REMOVED.');
-    // --- END OF TEMPORARILY REMOVED ORDERBY ---
-    
+    // --- END OF TEMPORARILY COMMENTED OUT SECTION ---
 
     if (lastVisibleDoc) {
       queryConstraints.push(startAfter(lastVisibleDoc));
@@ -165,9 +167,9 @@ export const getListings = async (
     const constraintDescriptions = queryConstraints.map(c => {
         let desc = `Type: ${c.type}`;
         try {
-            if ((c as any)._fiel_) desc += `, Field: ${(c as any)._fiel_.path.segments.join('.')}`; // Updated to access path segments
+            if ((c as any)._fieldPath && (c as any)._fieldPath.segments) desc += `, Field: ${(c as any)._fieldPath.segments.join('.')}`;
             if ((c as any)._op) desc += `, Op: ${(c as any)._op}`;
-            if ((c as any)._valu_) desc += `, Value: ${JSON.stringify((c as any)._valu_)}`;
+            if ((c as any)._value) desc += `, Value: ${JSON.stringify((c as any)._value)}`;
         } catch (e) { /* ignore errors from accessing internal props */ }
         return desc;
     });
@@ -272,18 +274,17 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
       if (isValid(parseISO(dataToUpdate.loadingDate))) {
         dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate));
       } else {
-        console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Keeping existing or removing if explicitly null.`);
-        // If we want to remove it if it's explicitly set to an invalid string, we could do:
-        // delete dataToUpdate.loadingDate; 
-        // Or ensure it's set to null if that's the desired behavior on invalid input during update
-        dataToUpdate.loadingDate = null; // Or handle as per business logic
+        console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Setting to null.`);
+        dataToUpdate.loadingDate = null; 
       }
     } else if (dataToUpdate.hasOwnProperty('loadingDate') && (dataToUpdate.loadingDate === null || dataToUpdate.loadingDate === undefined)) {
-        dataToUpdate.loadingDate = null; // Ensure null is passed to Firestore if explicitly cleared
+        dataToUpdate.loadingDate = null;
     }
     
     delete dataToUpdate.id; 
     delete dataToUpdate.postedAt;
+    delete dataToUpdate.userId;
+
 
     await updateDoc(docRef, dataToUpdate);
     console.log(`[listingsService - updateListing] Successfully updated listing with ID: ${id}`);
@@ -307,4 +308,3 @@ export const deleteListing = async (id: string): Promise<boolean> => {
   }
 };
     
-
