@@ -25,17 +25,17 @@ const convertToUserProfile = (docData: DocumentData, id: string): UserProfile =>
 
   if (data.createdAt && data.createdAt instanceof Timestamp) {
     data.createdAt = data.createdAt.toDate().toISOString();
-  } else if (data.createdAt && typeof data.createdAt === 'string' && isValid(parseISO(data.createdAt))) {
-    // Already ISO string
   } else {
+    console.warn(`[authService] User ${id}: createdAt is not a Timestamp or is missing. Defaulting. Original:`, data.createdAt);
     data.createdAt = new Date().toISOString(); // fallback
   }
 
   if (data.membershipEndDate && data.membershipEndDate instanceof Timestamp) {
     data.membershipEndDate = data.membershipEndDate.toDate().toISOString();
-  } else if (data.membershipEndDate && typeof data.membershipEndDate === 'string' && isValid(parseISO(data.membershipEndDate))) {
-    // Already ISO string
+  } else if (data.membershipEndDate === null || data.membershipEndDate === undefined) {
+    data.membershipEndDate = undefined; // Explicitly undefined if null/missing
   } else {
+     console.warn(`[authService] User ${id}: membershipEndDate is present but not a Timestamp. Setting to undefined. Original:`, data.membershipEndDate);
     data.membershipEndDate = undefined;
   }
 
@@ -51,7 +51,7 @@ const convertToUserProfile = (docData: DocumentData, id: string): UserProfile =>
       createdAt: data.createdAt,
       username: data.username || '',
       logoUrl: data.logoUrl || undefined,
-      companyTitle: data.name, // companyTitle is the same as name for company profiles
+      companyTitle: data.name, 
       contactFullName: data.contactFullName || '',
       workPhone: data.workPhone || undefined,
       mobilePhone: data.mobilePhone || '',
@@ -109,7 +109,7 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
       name: profileDataFromForm.name, 
       role: profileDataFromForm.role,
       isActive: true,
-      createdAt: Timestamp.fromDate(new Date()),
+      createdAt: Timestamp.fromDate(new Date()), // Always Timestamp
     };
 
     let finalProfileDataForFirestore: Omit<UserProfile, 'id'>;
@@ -168,6 +168,7 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
         preferredCities: Array.isArray(companyData.preferredCities) ? companyData.preferredCities.filter(c => c) : [],
         preferredCountries: Array.isArray(companyData.preferredCountries) ? companyData.preferredCountries.filter(c => c) : [],
         membershipStatus: 'Yok',
+        // membershipEndDate will be handled below
         ownedVehicles: [], 
         authDocuments: [], 
       };
@@ -175,7 +176,7 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
       if (companyData.membershipEndDate && typeof companyData.membershipEndDate === 'string' && isValid(parseISO(companyData.membershipEndDate))) {
         companyProfileBase.membershipEndDate = Timestamp.fromDate(parseISO(companyData.membershipEndDate));
       } else {
-        companyProfileBase.membershipEndDate = null;
+        companyProfileBase.membershipEndDate = null; // Firestore handles null
       }
       finalProfileDataForFirestore = companyProfileBase as Omit<CompanyUserProfile, 'id'>;
 
@@ -220,14 +221,18 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
     delete updateData.password;
     delete updateData.email;
     delete updateData.role;
-    delete updateData.createdAt;
+    delete updateData.createdAt; // createdAt should not be updated
 
     if (updateData.hasOwnProperty('membershipEndDate')) {
       if (updateData.membershipEndDate && typeof updateData.membershipEndDate === 'string' && isValid(parseISO(updateData.membershipEndDate))) {
         updateData.membershipEndDate = Timestamp.fromDate(parseISO(updateData.membershipEndDate));
+      } else if (updateData.membershipEndDate === undefined || updateData.membershipEndDate === null || (typeof updateData.membershipEndDate === 'string' && updateData.membershipEndDate.trim() === '')) {
+        // Explicitly set to null in Firestore if cleared or invalid
+        updateData.membershipEndDate = null; 
       } else {
-         // If it's explicitly null, undefined, or an invalid string, set to null in Firestore
-        updateData.membershipEndDate = null;
+         // If it's an invalid date string not handled above, perhaps log and don't update
+         console.warn(`[authService] updateUserProfile: Invalid membershipEndDate string for UID ${uid}: ${updateData.membershipEndDate}. Field not updated.`);
+         delete updateData.membershipEndDate;
       }
     }
     

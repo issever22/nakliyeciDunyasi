@@ -24,26 +24,23 @@ const convertToSponsor = (docData: DocumentData, id: string): Sponsor => {
   
   if (data.startDate && data.startDate instanceof Timestamp) {
     data.startDate = data.startDate.toDate().toISOString();
-  } else if (data.startDate && typeof data.startDate === 'string' && isValid(parseISO(data.startDate))) {
-    // Already ISO string
   } else {
-     data.startDate = new Date().toISOString(); // fallback
+    console.warn(`[sponsorsService] Sponsor ${id}: startDate is not a Timestamp or is missing. Original:`, data.startDate);
+    data.startDate = new Date().toISOString(); // fallback, as startDate is mandatory
   }
 
   if (data.endDate && data.endDate instanceof Timestamp) {
     data.endDate = data.endDate.toDate().toISOString();
-  } else if (data.endDate && typeof data.endDate === 'string' && isValid(parseISO(data.endDate))) {
-    // Already ISO string
   } else {
-      data.endDate = undefined; 
+    console.warn(`[sponsorsService] Sponsor ${id}: endDate is not a Timestamp or is missing. Original:`, data.endDate);
+    data.endDate = undefined; // endDate is optional
   }
 
   if (data.createdAt && data.createdAt instanceof Timestamp) {
     data.createdAt = data.createdAt.toDate().toISOString();
-  } else if (data.createdAt && typeof data.createdAt === 'string' && isValid(parseISO(data.createdAt))) {
-    // Already ISO string
   } else {
-     data.createdAt = new Date().toISOString(); // fallback
+    console.warn(`[sponsorsService] Sponsor ${id}: createdAt is not a Timestamp or is missing. Defaulting. Original:`, data.createdAt);
+    data.createdAt = new Date().toISOString(); // fallback
   }
   
   data.isActive = data.isActive === undefined ? true : data.isActive;
@@ -73,15 +70,19 @@ export const addSponsor = async (sponsorData: Omit<Sponsor, 'id' | 'createdAt'>)
       createdAt: Timestamp.fromDate(new Date()),
       isActive: sponsorData.isActive === undefined ? true : sponsorData.isActive,
     };
+
     if (sponsorData.startDate && isValid(parseISO(sponsorData.startDate))) {
         dataToSave.startDate = Timestamp.fromDate(parseISO(sponsorData.startDate));
     } else {
-        return null; // Or throw error, startDate is mandatory per type
+        // startDate is mandatory per type, should ideally throw error or handle
+        console.error("[sponsorsService] addSponsor: Invalid or missing startDate.");
+        return null; 
     }
+
     if (sponsorData.endDate && isValid(parseISO(sponsorData.endDate))) {
         dataToSave.endDate = Timestamp.fromDate(parseISO(sponsorData.endDate));
     } else {
-        dataToSave.endDate = null; // endDate is optional
+        dataToSave.endDate = null; // endDate is optional, Firestore handles null
     }
 
     const docRef = await addDoc(collection(db, SPONSORS_COLLECTION), dataToSave);
@@ -100,18 +101,18 @@ export const updateSponsor = async (id: string, sponsorData: Partial<Omit<Sponso
     if (dataToUpdate.hasOwnProperty('startDate')) {
       if (dataToUpdate.startDate && typeof dataToUpdate.startDate === 'string' && isValid(parseISO(dataToUpdate.startDate))) {
         dataToUpdate.startDate = Timestamp.fromDate(parseISO(dataToUpdate.startDate));
-      } else if (!dataToUpdate.startDate) { // if it's null or undefined
-          // startDate is mandatory, so this case should ideally not happen or be an error.
-          // For robustness, we might prevent update or log error. Here, we'll remove it from update if invalid.
-          delete dataToUpdate.startDate;
-          console.warn(`updateSponsor: Invalid or missing startDate for sponsor ${id}. Field not updated.`);
+      } else {
+          // startDate is mandatory, so if it's invalid/null during update, it's problematic.
+          // Depending on business logic, either disallow update or remove field.
+          console.warn(`[sponsorsService] updateSponsor: Invalid or missing startDate for sponsor ${id}. Field not updated or set to null based on logic.`);
+          delete dataToUpdate.startDate; // Or set to a valid default if applicable
       }
     }
     if (dataToUpdate.hasOwnProperty('endDate')) {
       if (dataToUpdate.endDate && typeof dataToUpdate.endDate === 'string' && isValid(parseISO(dataToUpdate.endDate))) {
         dataToUpdate.endDate = Timestamp.fromDate(parseISO(dataToUpdate.endDate));
       } else {
-        dataToUpdate.endDate = null; // Set to null if invalid, empty, or explicitly set to null
+        dataToUpdate.endDate = null; 
       }
     }
     

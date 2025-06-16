@@ -31,34 +31,18 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   const docId = id || (docSnap as QueryDocumentSnapshot<DocumentData>).id;
 
   let loadingDateStr: string;
-  if (data.loadingDate) {
-    if (data.loadingDate instanceof Timestamp) {
-      loadingDateStr = data.loadingDate.toDate().toISOString().split('T')[0];
-    } else if (typeof data.loadingDate === 'string' && isValid(parseISO(data.loadingDate))) {
-      console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is a string, should be Timestamp. Converting for client. Original:`, data.loadingDate);
-      loadingDateStr = parseISO(data.loadingDate).toISOString().split('T')[0];
-    } else {
-      console.warn(`[listingsService - convertToFreight] Listing ${docId}: Invalid or unhandled loadingDate format. Defaulting to today. Original:`, data.loadingDate);
-      loadingDateStr = new Date().toISOString().split('T')[0];
-    }
+  if (data.loadingDate && data.loadingDate instanceof Timestamp) {
+    loadingDateStr = data.loadingDate.toDate().toISOString().split('T')[0];
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: Missing loadingDate. Defaulting to today.`);
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is not a Firestore Timestamp or is missing. Defaulting to today. Original:`, data.loadingDate);
     loadingDateStr = new Date().toISOString().split('T')[0];
   }
 
   let postedAtStr: string;
-  if (data.postedAt) {
-    if (data.postedAt instanceof Timestamp) {
-      postedAtStr = data.postedAt.toDate().toISOString();
-    } else if (typeof data.postedAt === 'string' && isValid(parseISO(data.postedAt))) {
-      console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is a string, should be Timestamp. Converting for client. Original:`, data.postedAt);
-      postedAtStr = parseISO(data.postedAt).toISOString();
-    } else {
-      console.warn(`[listingsService - convertToFreight] Listing ${docId}: Invalid or unhandled postedAt format. Defaulting to current time. Original:`, data.postedAt);
-      postedAtStr = new Date().toISOString();
-    }
+  if (data.postedAt && data.postedAt instanceof Timestamp) {
+    postedAtStr = data.postedAt.toDate().toISOString();
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: Missing postedAt. Defaulting to current time.`);
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is not a Firestore Timestamp or is missing. Defaulting to current time. Original:`, data.postedAt);
     postedAtStr = new Date().toISOString();
   }
   
@@ -79,7 +63,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true,
+    isActive: data.isActive === true, // Ensure boolean true
     description: data.description || '',
   };
 
@@ -143,7 +127,7 @@ export const getListings = async (
   } = {}
 ): Promise<{ freights: Freight[]; newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null }> => {
   const { lastVisibleDoc = null, pageSize = 6, filters = {} } = options;
-  console.log('[listingsService - getListings] Called with options:', JSON.stringify({ pageSize, filters }, null, 2));
+  // console.log('[listingsService - getListings] Called with options:', JSON.stringify({ pageSize, filters }, null, 2));
   
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
@@ -151,22 +135,19 @@ export const getListings = async (
     
     queryConstraints.push(where('isActive', '==', true));
     
-    if (filters.freightType) {
-      queryConstraints.push(where('freightType', '==', filters.freightType));
-      if (filters.freightType === 'Ticari') {
-        if (filters.vehicleNeeded) queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
-        if (filters.shipmentScope) queryConstraints.push(where('shipmentScope', '==', filters.shipmentScope));
-      }
-    }
-    // Firestore requires the first orderBy to be on the field used in inequality filters.
-    // If city filters become range queries (e.g., for startsWith), this needs adjustment.
-    // For simple equality, order of `where` vs `orderBy('postedAt')` is less strict.
-    if (filters.originCity) {
-       queryConstraints.push(where('originCity', '==', filters.originCity));
-    }
-    if (filters.destinationCity) {
-       queryConstraints.push(where('destinationCity', '==', filters.destinationCity));
-    }
+    // if (filters.freightType) {
+    //   queryConstraints.push(where('freightType', '==', filters.freightType));
+    //   if (filters.freightType === 'Ticari') {
+    //     if (filters.vehicleNeeded) queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
+    //     if (filters.shipmentScope) queryConstraints.push(where('shipmentScope', '==', filters.shipmentScope));
+    //   }
+    // }
+    // if (filters.originCity) {
+    //    queryConstraints.push(where('originCity', '==', filters.originCity));
+    // }
+    // if (filters.destinationCity) {
+    //    queryConstraints.push(where('destinationCity', '==', filters.destinationCity));
+    // }
     queryConstraints.push(orderBy('postedAt', filters.sortBy === 'oldest' ? 'asc' : 'desc'));
     
 
@@ -177,9 +158,12 @@ export const getListings = async (
 
     const constraintDescriptions = queryConstraints.map(c => {
         let desc = `Type: ${c.type}`;
-        if ('_fiel_') desc += `, Field: ${(c as any)._fiel_.segments.join('.')}`; // Using internal property for logging
-        if ('_op') desc += `, Op: ${(c as any)._op}`;
-        if ('_valu_') desc += `, Value: ${JSON.stringify((c as any)._valu_)}`;
+        // Attempt to access internal properties for logging - might break with Firestore updates
+        try {
+            if ((c as any)._fiel_) desc += `, Field: ${(c as any)._fiel_.segments.join('.')}`;
+            if ((c as any)._op) desc += `, Op: ${(c as any)._op}`;
+            if ((c as any)._valu_) desc += `, Value: ${JSON.stringify((c as any)._valu_)}`;
+        } catch (e) { /* ignore errors from accessing internal props */ }
         return desc;
     });
     console.log('[listingsService - getListings] Final query constraints:', JSON.stringify(constraintDescriptions, null, 2));
@@ -192,13 +176,13 @@ export const getListings = async (
     const freights = querySnapshot.docs.map(doc => convertToFreight(doc));
     const newLastDoc = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
     
-    console.log(`[listingsService - getListings] Processed ${freights.length} listings. Has more: ${!!newLastDoc && querySnapshot.docs.length === pageSize}`);
-    if(freights.length > 0) {
-      console.log('[listingsService - getListings] First fetched listing (raw data from Firestore):', JSON.stringify(querySnapshot.docs[0].data(), null, 2));
-      console.log('[listingsService - getListings] First fetched listing (converted):', JSON.stringify(freights[0], null, 2));
-    } else {
-      console.log('[listingsService - getListings] No listings fetched or processed.');
-    }
+    // console.log(`[listingsService - getListings] Processed ${freights.length} listings. Has more: ${!!newLastDoc && querySnapshot.docs.length === pageSize}`);
+    // if(freights.length > 0) {
+    //   console.log('[listingsService - getListings] First fetched listing (raw data from Firestore):', JSON.stringify(querySnapshot.docs[0].data(), null, 2));
+    //   console.log('[listingsService - getListings] First fetched listing (converted):', JSON.stringify(freights[0], null, 2));
+    // } else {
+    //   console.log('[listingsService - getListings] No listings fetched or processed.');
+    // }
 
     return { freights, newLastVisibleDoc: newLastDoc };
   } catch (error) {
@@ -250,7 +234,7 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
     if (listingData.loadingDate && isValid(parseISO(listingData.loadingDate))) {
       loadingDateTimestamp = Timestamp.fromDate(parseISO(listingData.loadingDate));
     } else {
-      console.warn(`[listingsService - addListing] Invalid or missing loadingDate string. Defaulting to today. Original:`, listingData.loadingDate);
+      console.warn(`[listingsService - addListing] Invalid or missing loadingDate string for new listing. Defaulting to today. Original:`, listingData.loadingDate);
       loadingDateTimestamp = Timestamp.fromDate(new Date());
     }
 
@@ -261,7 +245,7 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
       companyName: listingData.companyName || 'Bilinmiyor',
       contactPerson: listingData.contactPerson || 'Bilinmiyor',
       mobilePhone: listingData.mobilePhone || 'Belirtilmedi',
-      postedAt: Timestamp.fromDate(new Date()),
+      postedAt: Timestamp.fromDate(new Date()), // Always a new Timestamp
       loadingDate: loadingDateTimestamp, 
       isActive: typeof listingData.isActive === 'boolean' ? listingData.isActive : true,
     };
@@ -288,8 +272,7 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
         delete dataToUpdate.loadingDate; 
       }
     } else if (dataToUpdate.hasOwnProperty('loadingDate') && dataToUpdate.loadingDate === null) {
-        // If explicitly set to null, perhaps remove or handle as error
-        console.warn(`[listingsService - updateListing] loadingDate explicitly set to null for ID ${id}. Consider behavior.`);
+        console.warn(`[listingsService - updateListing] loadingDate explicitly set to null for ID ${id}. Removing field from update.`);
         delete dataToUpdate.loadingDate;
     }
     
