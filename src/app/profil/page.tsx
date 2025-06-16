@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, User as UserIcon, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks, Tag } from 'lucide-react';
+import { Mail, User as UserIcon, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks, Tag, KeyRound, MessageSquareText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import EditProfileModal from '@/components/profile/EditProfileModal';
@@ -16,9 +16,10 @@ import ManageCompanyVehiclesModal from '@/components/profile/ManageCompanyVehicl
 import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDocsModal';
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
 import MyListingsTab from '@/components/profile/MyListingsTab';
-import MyTransportOffersTab from '@/components/profile/MyTransportOffersTab'; // New Tab Component
+import MyTransportOffersTab from '@/components/profile/MyTransportOffersTab';
 import { useRouter } from 'next/navigation';
-import { cn } from "@/lib/utils"; 
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -34,9 +35,10 @@ import { COUNTRIES } from '@/lib/locationData';
 
 export default function ProfilePage() {
   const { user, loading: authLoading, isAuthenticated } = useRequireAuth();
-  const { logout } = useAuth(); 
+  const { logout } = useAuth();
   const router = useRouter();
-  
+  const { toast } = useToast();
+
   const [companyUser, setCompanyUser] = useState<CompanyUserProfile | null>(null);
 
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeSetting[]>([]);
@@ -74,7 +76,7 @@ export default function ProfilePage() {
       };
       fetchCompanySettings();
     } else if (user && user.role === 'individual') {
-      setCompanyUser(null); 
+      setCompanyUser(null);
     }
   }, [user]);
 
@@ -87,6 +89,14 @@ export default function ProfilePage() {
         // This might require a refresh function in AuthContext or refetching the user.
         // For now, only local state `companyUser` is updated for company-specific fields.
     }
+  };
+
+  const handlePlaceholderClick = (featureName: string) => {
+    toast({
+      title: "Geliştirme Aşamasında",
+      description: `${featureName} özelliği yakında eklenecektir.`,
+      variant: "default",
+    });
   };
 
 
@@ -108,7 +118,7 @@ export default function ProfilePage() {
             </Card>
           </div>
           <div className="lg:col-span-8 xl:col-span-9 space-y-6">
-            <Skeleton className="h-12 w-full" /> 
+            <Skeleton className="h-12 w-full" />
             <Card><CardContent className="p-6 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-10 w-1/3" /></CardContent></Card>
             <Card><CardContent className="p-6 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-10 w-1/3" /></CardContent></Card>
           </div>
@@ -125,7 +135,7 @@ export default function ProfilePage() {
       </div>
     );
   }
-  
+
   const renderItemBadges = (items: string[] | undefined, emptyText: string) => {
     if (!items || items.length === 0) {
       return <p className="text-sm text-muted-foreground italic">{emptyText}</p>;
@@ -168,9 +178,15 @@ export default function ProfilePage() {
                  <Badge variant="outline" className="mt-1 text-xs">@{companyUser.username}</Badge>
                )}
             </CardHeader>
-            <CardContent className="text-center">
+            <CardContent className="text-center space-y-2">
               <Button onClick={() => setIsEditProfileModalOpen(true)} variant="outline" className="w-full">
                 <Edit3 className="mr-2 h-4 w-4" /> Temel Bilgileri Düzenle
+              </Button>
+              <Button onClick={() => handlePlaceholderClick("Şifre Değiştirme")} variant="outline" className="w-full">
+                <KeyRound className="mr-2 h-4 w-4" /> Şifre Değiştir
+              </Button>
+              <Button onClick={() => handlePlaceholderClick("Geri Bildirim")} variant="outline" className="w-full">
+                <MessageSquareText className="mr-2 h-4 w-4" /> Geri Bildirim Gönder
               </Button>
             </CardContent>
           </Card>
@@ -179,10 +195,10 @@ export default function ProfilePage() {
         <div className="lg:col-span-8 xl:col-span-9">
             <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="mb-6">
-                 <TabsList 
+                 <TabsList
                     className={cn(
-                      "grid w-full p-1 rounded-md bg-muted/50", 
-                      user.role === 'company' 
+                      "grid w-full p-1 rounded-md bg-muted/50",
+                      user.role === 'company'
                         ? "grid-cols-3 md:grid-cols-3 lg:grid-cols-6" // Company: 3 mobile, 6 lg
                         : "grid-cols-2" // Individual: 2 cols on all screens
                     )}
@@ -252,7 +268,7 @@ export default function ProfilePage() {
                         <p><strong className="text-muted-foreground">E-posta:</strong> {user.email}</p>
                     </CardContent>
                     <CardFooter>
-                        <Button onClick={() => setIsEditProfileModalOpen(true)}> 
+                        <Button onClick={() => setIsEditProfileModalOpen(true)}>
                             <Edit3 className="mr-2 h-4 w-4"/> Bilgileri Düzenle
                         </Button>
                     </CardFooter>
@@ -306,7 +322,7 @@ export default function ProfilePage() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <p className="text-sm">
-                            <strong className="text-muted-foreground">Mevcut Durum: </strong> 
+                            <strong className="text-muted-foreground">Mevcut Durum: </strong>
                             <Badge variant={companyUser.membershipStatus && companyUser.membershipStatus !== 'Yok' ? 'default' : 'outline'} className={companyUser.membershipStatus === 'Premium' ? 'bg-purple-500' : (companyUser.membershipStatus === 'Standart' ? 'bg-orange-500' : '') }>
                                 {companyUser.membershipStatus || 'Yok'}
                             </Badge>
