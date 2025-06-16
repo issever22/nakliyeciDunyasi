@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { Freight, FreightFilterOptions, FreightUpdateData, EmptyVehicleListing } from '@/types';
+import type { Freight, FreightFilterOptions, FreightCreationData, FreightUpdateData, EmptyVehicleListing } from '@/types';
 import {
   collection,
   addDoc,
@@ -33,16 +33,21 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   let loadingDateStr: string;
   if (data.loadingDate && data.loadingDate instanceof Timestamp) {
     loadingDateStr = data.loadingDate.toDate().toISOString();
+  } else if (data.loadingDate && typeof data.loadingDate === 'string' && isValid(parseISO(data.loadingDate))) {
+    // Handle cases where it might already be a string (e.g., from form data not yet saved)
+    loadingDateStr = data.loadingDate;
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is NOT a Timestamp or is missing. Original:`, data.loadingDate, "Fallback to today.");
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is not a Timestamp or valid ISO string. Original:`, data.loadingDate, "Fallback to today.");
     loadingDateStr = new Date().toISOString();
   }
 
   let postedAtStr: string;
   if (data.postedAt && data.postedAt instanceof Timestamp) {
     postedAtStr = data.postedAt.toDate().toISOString();
+  } else if (data.postedAt && typeof data.postedAt === 'string' && isValid(parseISO(data.postedAt))) {
+    postedAtStr = data.postedAt;
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is NOT a Timestamp or is missing. Original:`, data.postedAt, "Fallback to current time.");
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is not a Timestamp or valid ISO string. Original:`, data.postedAt, "Fallback to current time.");
     postedAtStr = new Date().toISOString();
   }
 
@@ -63,7 +68,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true,
+    isActive: data.isActive === true, // Ensure it's strictly boolean true
     description: data.description || '',
   };
 
@@ -107,7 +112,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   return { ...baseFreight, freightType: 'Ticari', cargoType: 'Diğer', vehicleNeeded: 'Araç Farketmez', loadingType: 'Komple', cargoForm: 'Diğer', cargoWeight: 0, cargoWeightUnit: 'Ton', isContinuousLoad: false, shipmentScope: 'Yurt İçi' } as Freight;
 };
 
-export const getListingsByUserId = async (userId: string): Promise<Freight[]> => {
+export const getListingsByUserId = async (userId: string): Promise<{ listings: Freight[]; error?: { message: string; indexCreationUrl?: string } }> => {
   console.log(`[listingsService - getListingsByUserId] Called for userId: ${userId}`);
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
@@ -116,10 +121,36 @@ export const getListingsByUserId = async (userId: string): Promise<Freight[]> =>
     console.log(`[listingsService - getListingsByUserId] Firestore query returned ${querySnapshot.docs.length} documents for userId: ${userId}`);
     const listings = querySnapshot.docs.map(doc => convertToFreight(doc));
     console.log(`[listingsService - getListingsByUserId] Processed ${listings.length} listings for userId: ${userId}`);
-    return listings;
-  } catch (error) {
+    return { listings };
+  } catch (error: any) {
     console.error("[listingsService - getListingsByUserId] Error fetching listings by user ID:", error);
-    return [];
+    let errorMessage = "Kullanıcı ilanları yüklenirken bilinmeyen bir hata oluştu.";
+    let indexCreationUrl: string | undefined = undefined;
+
+    if (error.code === 'failed-precondition') {
+        errorMessage = error.message || "Eksik Firestore dizini (kullanıcı ilanları). Lütfen sunucu konsolunu kontrol edin.";
+        console.error(`[listingsService - getListingsByUserId] FIRESTORE PRECONDITION FAILED: ${errorMessage}`);
+        
+        const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const match = errorMessage.match(urlRegex);
+        if (match && match[0]) {
+            indexCreationUrl = match[0];
+            console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            console.error("!!! MISSING FIRESTORE INDEX (getListingsByUserId) !!!");
+            console.error("!!! To fix this, create the composite index by visiting the following URL (copy and paste into your browser):");
+            console.error(`!!! ${indexCreationUrl}`);
+            console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        } else {
+            console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            console.error("!!! MISSING FIRESTORE INDEX (getListingsByUserId) !!!");
+            console.error("!!! Could not automatically extract the index creation URL. Please check Firebase console.");
+            console.error("!!! Likely involves fields: 'userId' (equals) and 'postedAt' (descending).");
+            console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        }
+    } else if (error.message) {
+        errorMessage = error.message;
+    }
+    return { listings: [], error: { message: errorMessage, indexCreationUrl } };
   }
 };
 
@@ -134,7 +165,7 @@ export const getListings = async (
   newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null; 
   error?: { message: string; indexCreationUrl?: string } 
 }> => {
-  const { lastVisibleDoc = null, pageSize = 5, filters = {} } = options;
+  const { lastVisibleDoc = null, pageSize = 6, filters = {} } = options; // PAGE_SIZE from page.tsx is 6
   console.log('[listingsService - getListings] Called with options:', { pageSize, filters, lastVisibleDocExists: !!lastVisibleDoc });
 
   try {
@@ -153,7 +184,6 @@ export const getListings = async (
       queryConstraints.push(where('freightType', '==', filters.freightType));
     }
     
-    // Only apply commercial-specific filters if freightType is 'Ticari' or no freightType is selected (meaning show all types)
     if (!filters?.freightType || filters.freightType === 'Ticari') {
         if (filters?.vehicleNeeded) {
           queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
@@ -192,12 +222,12 @@ export const getListings = async (
     const newLastDoc = querySnapshot.docs.length === pageSize ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
 
     if(freights.length > 0) {
-      console.log('[listingsService - getListings] First fetched listing (raw data from Firestore):', JSON.stringify(querySnapshot.docs[0].data(), null, 2));
-      console.log('[listingsService - getListings] First fetched listing (converted):', JSON.stringify(freights[0], null, 2));
+      // console.log('[listingsService - getListings] First fetched listing (raw data from Firestore):', JSON.stringify(querySnapshot.docs[0].data(), null, 2));
+      // console.log('[listingsService - getListings] First fetched listing (converted):', JSON.stringify(freights[0], null, 2));
     } else {
       console.log('[listingsService - getListings] No listings fetched or processed after conversion.');
     }
-     console.log(`[listingsService - getListings] Returning ${freights.length} listings. newLastVisibleDoc exists: ${!!newLastDoc}`);
+    console.log(`[listingsService - getListings] Returning ${freights.length} listings. newLastVisibleDoc exists: ${!!newLastDoc}`);
     return { freights, newLastVisibleDoc: newLastDoc };
   } catch (error: any) {
     console.error("[listingsService - getListings] Error fetching listings:", error);
@@ -213,13 +243,13 @@ export const getListings = async (
         if (match && match[0]) {
             indexCreationUrl = match[0];
             console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            console.error("!!! MISSING FIRESTORE INDEX !!!");
+            console.error("!!! MISSING FIRESTORE INDEX (getListings) !!!");
             console.error("!!! To fix this, create the composite index by visiting the following URL (copy and paste into your browser):");
             console.error(`!!! ${indexCreationUrl}`);
             console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         } else {
             console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            console.error("!!! MISSING FIRESTORE INDEX !!!");
+            console.error("!!! MISSING FIRESTORE INDEX (getListings) !!!");
             console.error("!!! Could not automatically extract the index creation URL from the error message.");
             console.error("!!! Please check the Firebase console for the exact error and the suggested index.");
             let involvedFields = "Fields likely involved: 'isActive', 'postedAt'";
@@ -324,10 +354,11 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
     if (dataToUpdate.hasOwnProperty('loadingDate')) {
       if (dataToUpdate.loadingDate && typeof dataToUpdate.loadingDate === 'string' && isValid(parseISO(dataToUpdate.loadingDate))) {
         dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate));
-      } else if (dataToUpdate.loadingDate === null || dataToUpdate.loadingDate === undefined) {
+      } else if (dataToUpdate.loadingDate === null || dataToUpdate.loadingDate === undefined || (typeof dataToUpdate.loadingDate === 'string' && dataToUpdate.loadingDate.trim() === '')) {
+        // Allow clearing the date by setting it to null
         dataToUpdate.loadingDate = null; 
       } else {
-        console.warn(`[listingsService - updateListing] Invalid loadingDate for ID ${id}: ${dataToUpdate.loadingDate}. Field not updated.`);
+        console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Field not updated.`);
         delete dataToUpdate.loadingDate;
       }
     }
@@ -357,3 +388,4 @@ export const deleteListing = async (id: string): Promise<boolean> => {
     return false;
   }
 };
+

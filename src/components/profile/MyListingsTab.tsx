@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Trash2, Package as PackageIcon, CalendarIcon, Truck, Home, Loader2, ListChecks, Repeat } from 'lucide-react';
+import { Edit, Trash2, Package as PackageIcon, CalendarIcon, Truck, Home, Loader2, ListChecks, Repeat, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
@@ -26,7 +26,6 @@ import {
   LOADING_TYPES, 
   CARGO_FORMS, 
   WEIGHT_UNITS,
-  // FREIGHT_TYPES, // Not used in dialog form type change, but good for reference
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS,
@@ -61,6 +60,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<Freight | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<Partial<Freight>>({});
   
@@ -94,12 +94,36 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
 
   const fetchUserListings = useCallback(async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
-      const listingsFromDb = await getListingsByUserId(userId);
-      setUserListings(listingsFromDb);
+      const result = await getListingsByUserId(userId);
+      if (result.error) {
+        console.error("[MyListingsTab] Error from getListingsByUserId service:", result.error.message);
+        setFetchError(result.error.message);
+        setUserListings([]);
+        if (result.error.indexCreationUrl) {
+          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          console.error("!!! TARAYICI KONSOLU - EKSİK FIRESTORE INDEX (Kullanıcı İlanları) !!!");
+          console.error("!!! Düzeltmek için, aşağıdaki bağlantıyı ziyaret ederek bileşik dizini oluşturun:");
+          console.error(`!!! ${result.error.indexCreationUrl}`);
+          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+           toast({
+            title: "Firestore Index Hatası (İlanlarım)",
+            description: `Eksik bir Firestore dizini var. Lütfen tarayıcı konsolundaki bağlantıyı kullanarak dizini oluşturun. Hata: ${result.error.message.substring(0,100)}...`,
+            variant: "destructive",
+            duration: 20000 // Keep it open longer
+          });
+        } else {
+           toast({ title: "Veri Yükleme Hatası", description: result.error.message, variant: "destructive" });
+        }
+      } else {
+        setUserListings(result.listings);
+      }
     } catch (error) {
-      console.error("Failed to fetch user listings:", error);
-      toast({ title: "Hata", description: "İlanlarınız yüklenirken bir sorun oluştu.", variant: "destructive" });
+      console.error("Failed to fetch user listings (unexpected):", error);
+      const errorMsg = "İlanlarınız yüklenirken beklenmedik bir sorun oluştu.";
+      setFetchError(errorMsg);
+      toast({ title: "Beklenmedik Hata", description: errorMsg, variant: "destructive" });
     }
     setIsLoading(false);
   }, [userId, toast]);
@@ -115,7 +139,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     }
   }, [editingListing, isEditDialogOpen]);
 
-  // Effect to update available origin districts when origin city/country changes
   useEffect(() => {
     let newDistricts: readonly string[] = [];
     if (currentFormData.originCountry === 'TR' && currentFormData.originCity && TURKISH_CITIES.includes(currentFormData.originCity as TurkishCity)) {
@@ -124,14 +147,12 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     setAvailableOriginDistricts(newDistricts);
   }, [currentFormData.originCity, currentFormData.originCountry]);
 
-  // Effect to reset origin district if it becomes invalid after city/country change
   useEffect(() => {
     if (currentFormData.originDistrict && !availableOriginDistricts.includes(currentFormData.originDistrict)) {
       setCurrentFormData(prev => ({ ...prev, originDistrict: '' }));
     }
   }, [availableOriginDistricts, currentFormData.originDistrict]);
 
-  // Effect to update available destination districts when destination city/country changes
   useEffect(() => {
     let newDistricts: readonly string[] = [];
     if (currentFormData.destinationCountry === 'TR' && currentFormData.destinationCity && TURKISH_CITIES.includes(currentFormData.destinationCity as TurkishCity)) {
@@ -140,7 +161,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     setAvailableDestinationDistricts(newDistricts);
   }, [currentFormData.destinationCity, currentFormData.destinationCountry]);
 
-  // Effect to reset destination district if it becomes invalid after city/country change
   useEffect(() => {
     if (currentFormData.destinationDistrict && !availableDestinationDistricts.includes(currentFormData.destinationDistrict)) {
       setCurrentFormData(prev => ({ ...prev, destinationDistrict: '' }));
@@ -176,7 +196,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
 
     for (const field of allRequiredFields) {
         let valueToCheck: any;
-        // Type-safe access based on freightType
         switch (currentFormData.freightType) {
             case 'Ticari': valueToCheck = (currentFormData as Partial<CommercialFreight>)[field as keyof CommercialFreight]; break;
             case 'Evden Eve': valueToCheck = (currentFormData as Partial<ResidentialFreight>)[field as keyof ResidentialFreight]; break;
@@ -186,7 +205,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
 
         let isMissing = valueToCheck === undefined || valueToCheck === null || (typeof valueToCheck === 'string' && !valueToCheck.trim());
         
-        // Special handling for numeric fields that can be 0
         if (field === 'cargoWeight' && (currentFormData as Partial<CommercialFreight>).cargoWeight === 0) isMissing = false;
         if (field === 'vehicleStatedCapacity' && (currentFormData as Partial<EmptyVehicleListing>).vehicleStatedCapacity === 0) isMissing = false;
 
@@ -202,9 +220,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
       loadingDate: currentFormData.loadingDate ? format(parseISO(currentFormData.loadingDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
     } as FreightUpdateData; 
 
-    // id, postedAt, userId should not be part of the update payload sent to the service for existing listings.
-    // The service's updateListing function should handle not trying to update these immutable fields.
-    // We can filter them out here for clarity if desired, but the service should be robust to it.
     const { id, postedAt, userId: listingUserId, ...updatePayloadForService } = dataPayload;
 
 
@@ -267,17 +282,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     return null;
   };
   
-  const handleFreightTypeChangeInDialog = (newType: FreightType) => {
-    // In edit mode, freight type should not be changed.
-    // This function is here for structural similarity with AdminListingsPage but is effectively a no-op for edits.
-    console.warn("Freight type cannot be changed during edit from MyListingsTab.");
-    // If we were to allow type change, we'd need to reset form fields similar to AdminListingsPage:
-    // setCurrentFormData(prev => ({
-    //   ...createEmptyFormData(newType, user?.id, user?.name), 
-    //   // Retain common fields if needed
-    // }));
-  };
-
   const isLoadingCombined = isLoading || optionsLoading;
 
   return (
@@ -287,11 +291,19 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
       <CardDescription>Mevcut ilanlarınızı görüntüleyebilir, düzenleyebilir veya silebilirsiniz.</CardDescription>
     </CardHeader>
     <CardContent>
-      {isLoadingCombined ? (
+      {isLoadingCombined && !fetchError ? (
           <div className="space-y-4">
             <Skeleton className="h-12 w-full rounded-md" />
             <Skeleton className="h-20 w-full rounded-md" />
             <Skeleton className="h-20 w-full rounded-md" />
+        </div>
+      ) : fetchError ? (
+        <div className="text-center py-10 bg-destructive/10 border border-destructive rounded-lg">
+          <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+          <h3 className="text-lg font-semibold text-destructive-foreground mb-2">İlanlar Yüklenemedi</h3>
+          <p className="text-sm text-destructive-foreground/80 px-4">{fetchError}</p>
+          <p className="text-xs text-destructive-foreground/70 mt-1 px-4">Eksik bir Firestore dizini olabilir. Lütfen tarayıcı konsolunu kontrol edin.</p>
+          <Button onClick={fetchUserListings} variant="destructive" className="mt-4">Tekrar Dene</Button>
         </div>
       ) : userListings.length === 0 ? (
         <p className="text-muted-foreground text-center py-8">Henüz yayınlanmış bir ilanınız bulunmamaktadır.</p>
