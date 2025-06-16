@@ -24,14 +24,20 @@ export default function HomePage() {
   const [hasMore, setHasMore] = useState(true);
   const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({ sortBy: 'newest' });
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
 
   const fetchFreights = useCallback(async (filters: FreightFilterOptions, reset: boolean = false) => {
+    console.log('[HomePage - fetchFreights] Called. Reset:', reset, 'Filters:', JSON.stringify(filters));
     if (reset) {
+      console.log('[HomePage - fetchFreights] Resetting: setIsLoading(true), clear freights, lastVisibleDoc, hasMore.');
       setIsLoading(true);
       setFreights([]);
       setLastVisibleDoc(null);
       setHasMore(true);
+      setFetchError(null);
     } else {
+      console.log('[HomePage - fetchFreights] Loading more: setIsLoadingMore(true).');
       setIsLoadingMore(true);
     }
 
@@ -42,33 +48,65 @@ export default function HomePage() {
         filters: filters,
       });
 
-      setFreights(prev => reset ? newFreights : [...prev, ...newFreights]);
+      console.log('[HomePage - fetchFreights] getListings returned. New freights count:', newFreights.length, 'Next doc exists:', !!nextDoc);
+      if (newFreights.length > 0) {
+        console.log('[HomePage - fetchFreights] First new freight data (converted):', JSON.stringify(newFreights[0], null, 2));
+      }
+
+
+      setFreights(prev => {
+        const updatedFreights = reset ? newFreights : [...prev, ...newFreights];
+        console.log('[HomePage - fetchFreights] Updated freights state. Total count:', updatedFreights.length);
+        return updatedFreights;
+      });
       setLastVisibleDoc(nextDoc);
       setHasMore(newFreights.length === PAGE_SIZE);
+      console.log('[HomePage - fetchFreights] Set hasMore to:', newFreights.length === PAGE_SIZE);
+
     } catch (error) {
-      console.error("Error fetching freights:", error);
-      // Optionally set an error state here to show in UI
+      console.error("[HomePage - fetchFreights] Error fetching freights:", error);
+      setFetchError("İlanlar yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
     } finally {
+      console.log('[HomePage - fetchFreights] Finally block. setIsLoading(false), setIsLoadingMore(false).');
       setIsLoading(false);
       setIsLoadingMore(false);
-      if (reset) setInitialLoadComplete(true);
+      if (reset) {
+        console.log('[HomePage - fetchFreights] Reset complete. setInitialLoadComplete(true).');
+        setInitialLoadComplete(true);
+      }
     }
-  }, [lastVisibleDoc]); // Only lastVisibleDoc is a dependency for the callback itself
+  }, [lastVisibleDoc]);
 
   useEffect(() => {
-    // Initial fetch based on default filters
+    console.log('[HomePage - useEffect[currentFilters]] Filters changed. Calling fetchFreights with reset.');
     fetchFreights(currentFilters, true);
-  }, [currentFilters]); // Re-fetch when filters change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters]); // fetchFreights is memoized, currentFilters is the trigger
 
   const handleFilterChange = (newFilters: FreightFilterOptions) => {
-    setCurrentFilters(newFilters); // This will trigger the useEffect above
+    console.log('[HomePage - handleFilterChange] New filters received:', JSON.stringify(newFilters));
+    setCurrentFilters(newFilters); 
   };
 
   const loadMoreFreights = () => {
+    console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore);
     if (hasMore && !isLoadingMore) {
-      fetchFreights(currentFilters, false); // Fetch next page with current filters
+      fetchFreights(currentFilters, false); 
     }
   };
+  
+  useEffect(() => {
+    console.log('[HomePage - useEffect[]] Component mounted/updated. Current state:');
+    console.log({
+      isLoading,
+      initialLoadComplete,
+      freightsCount: freights.length,
+      hasMore,
+      isLoadingMore,
+      fetchError
+    });
+  }, [isLoading, initialLoadComplete, freights, hasMore, isLoadingMore, fetchError]);
+
 
   const renderSkeletons = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
@@ -85,6 +123,21 @@ export default function HomePage() {
       ))}
     </div>
   );
+  
+  if (fetchError && !isLoading) { // Show error only if not actively loading
+    return (
+      <div className="text-center py-16 bg-destructive/10 border border-destructive rounded-lg shadow">
+        <AlertTriangle className="mx-auto h-20 w-20 text-destructive mb-6" />
+        <h2 className="text-2xl font-semibold mb-3 text-destructive-foreground">Hata</h2>
+        <p className="text-destructive-foreground/80 max-w-md mx-auto">
+          {fetchError}
+        </p>
+        <Button onClick={() => fetchFreights(currentFilters, true)} variant="destructive" className="mt-6">
+             Tekrar Dene
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10">
@@ -119,7 +172,7 @@ export default function HomePage() {
 
       <div className="pt-4">
         <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları</h2>
-        {isLoading && !initialLoadComplete ? renderSkeletons() : 
+        {isLoading && !initialLoadComplete && freights.length === 0 ? renderSkeletons() : 
           freights.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
@@ -127,34 +180,43 @@ export default function HomePage() {
                   <FreightCard key={freight.id} freight={freight} />
                 ))}
               </div>
-              {hasMore && (
+              {isLoadingMore && (
+                 <div className="mt-10 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-muted-foreground mt-2">Daha fazla ilan yükleniyor...</p>
+                 </div>
+              )}
+              {!isLoadingMore && hasMore && (
                 <div className="mt-10 text-center">
-                  <Button onClick={loadMoreFreights} disabled={isLoadingMore} variant="outline" size="lg">
-                    {isLoadingMore && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                  <Button onClick={loadMoreFreights} variant="outline" size="lg">
                     Daha Fazla Yükle
                   </Button>
                 </div>
               )}
-               {!hasMore && freights.length >= PAGE_SIZE && (
+               {!hasMore && initialLoadComplete && freights.length > 0 && (
                    <p className="text-center mt-10 text-muted-foreground italic">Tüm ilanlar yüklendi.</p>
               )}
             </>
           ) : (
-            <div className="text-center py-16 bg-card border border-dashed rounded-lg shadow">
-              <SearchX className="mx-auto h-20 w-20 text-muted-foreground mb-6" />
-              <h2 className="text-2xl font-semibold mb-3 text-foreground">İlan Bulunamadı</h2>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                Aradığınız kriterlere uygun aktif ilan bulunamadı. Filtrelerinizi değiştirmeyi veya daha sonra tekrar kontrol etmeyi deneyebilirsiniz.
-              </p>
-              <Button asChild variant="default" className="mt-6 bg-primary hover:bg-primary/90">
-                  <Link href="/yeni-ilan">
-                      <PlusCircle className="mr-2 h-5 w-5"/> İlk İlanı Sen Ver
-                  </Link>
-              </Button>
-            </div>
+             initialLoadComplete && freights.length === 0 && !isLoading && !fetchError && ( 
+                <div className="text-center py-16 bg-card border border-dashed rounded-lg shadow">
+                <SearchX className="mx-auto h-20 w-20 text-muted-foreground mb-6" />
+                <h2 className="text-2xl font-semibold mb-3 text-foreground">İlan Bulunamadı</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                    Aradığınız kriterlere uygun aktif ilan bulunamadı. Filtrelerinizi değiştirmeyi veya daha sonra tekrar kontrol etmeyi deneyebilirsiniz.
+                </p>
+                <Button asChild variant="default" className="mt-6 bg-primary hover:bg-primary/90">
+                    <Link href="/yeni-ilan">
+                        <PlusCircle className="mr-2 h-5 w-5"/> İlk İlanı Sen Ver
+                    </Link>
+                </Button>
+                </div>
+             )
           )
         }
       </div>
     </div>
   );
 }
+
+    
