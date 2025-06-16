@@ -4,10 +4,10 @@
 import { useEffect, useState } from 'react';
 import { useRequireAuth, useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // Removed AvatarImage for direct img usage for logos
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, User as UserIcon, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks } from 'lucide-react'; // Added ListChecks
+import { Mail, User as UserIcon, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import EditProfileModal from '@/components/profile/EditProfileModal';
@@ -15,8 +15,9 @@ import EditCompanyDetailsModal from '@/components/profile/EditCompanyDetailsModa
 import ManageCompanyVehiclesModal from '@/components/profile/ManageCompanyVehiclesModal';
 import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDocsModal';
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
-import MyListingsTab from '@/components/profile/MyListingsTab'; // New component
+import MyListingsTab from '@/components/profile/MyListingsTab';
 import { useRouter } from 'next/navigation';
+import { cn } from "@/lib/utils"; // Import cn utility
 
 import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -62,7 +63,7 @@ export default function ProfilePage() {
             getAllMemberships()
           ]);
           setVehicleTypes(vehicles.filter(v => v.isActive));
-          setAuthDocTypes(docs.filter(d => d.isActive));
+          setAuthDocTypes(docs.filter(d => d.isActive && (d.requiredFor === 'Firma' || d.requiredFor === 'Her İkisi de')));
           setMembershipPackages(memberships.filter(m => m.isActive));
         } catch (error) {
           console.error("Error fetching company settings:", error);
@@ -81,6 +82,9 @@ export default function ProfilePage() {
         if (updatedProfile.role === 'company') {
             setCompanyUser(updatedProfile as CompanyUserProfile);
         }
+        // Potentially update the main `user` state in AuthContext if basic info like name changes
+        // This might require a refresh function in AuthContext or refetching the user.
+        // For now, only local state `companyUser` is updated for company-specific fields.
     }
   };
 
@@ -89,18 +93,20 @@ export default function ProfilePage() {
     return (
       <div className="space-y-6 container mx-auto px-4 py-8">
         <Skeleton className="h-10 w-1/3 mb-6" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-1">
-            <CardHeader className="items-center">
-              <Skeleton className="h-32 w-32 rounded-md mb-4" />
-              <Skeleton className="h-8 w-48 mt-4" />
-              <Skeleton className="h-4 w-64 mt-2" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Skeleton className="h-8 w-full" /> <Skeleton className="h-8 w-full" />
-            </CardContent>
-          </Card>
-          <div className="md:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-4 xl:col-span-3">
+            <Card className="md:col-span-1">
+              <CardHeader className="items-center">
+                <Skeleton className="h-32 w-32 rounded-md mb-4" />
+                <Skeleton className="h-8 w-48 mt-4" />
+                <Skeleton className="h-4 w-64 mt-2" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Skeleton className="h-8 w-full" /> <Skeleton className="h-8 w-full" />
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-8 xl:col-span-9 space-y-6">
             <Skeleton className="h-12 w-full" /> 
             <Card><CardContent className="p-6 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-10 w-1/3" /></CardContent></Card>
             <Card><CardContent className="p-6 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-10 w-1/3" /></CardContent></Card>
@@ -130,8 +136,8 @@ export default function ProfilePage() {
     );
   };
 
-  const companyTabsCount = 5; // Details, Vehicles, AuthDocs, Membership, MyListings
-  const individualTabsCount = 2; // Details, MyListings
+  const companyTabsCount = 5;
+  const individualTabsCount = 2;
 
   return (
     <div className="container mx-auto px-2 sm:px-4 py-8">
@@ -152,7 +158,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <Avatar className="w-28 h-28 mb-4 border-4 border-primary/50 shadow-md">
-                  <AvatarImage src={(user.role === 'company' && companyUser?.logoUrl) || `https://placehold.co/120x120.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person company"/>
+                  {/* Removed AvatarImage, using img directly or fallback */}
                   <AvatarFallback className="text-4xl">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               )}
@@ -172,21 +178,31 @@ export default function ProfilePage() {
 
         <div className="lg:col-span-8 xl:col-span-9">
             <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList 
-                className={`grid w-full grid-cols-2 ${user.role === 'company' ? 'sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-' + companyTabsCount : 'sm:grid-cols-' + individualTabsCount} mb-6 bg-muted/50`}
-              >
-                <TabsTrigger value="details" className="text-xs sm:text-sm">
-                  {user.role === 'company' ? <><Building className="mr-1.5 h-4 w-4 hidden sm:inline"/>Firma Detayları</> : <><UserIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Profil Detayları</>}
-                </TabsTrigger>
-                 <TabsTrigger value="myListings" className="text-xs sm:text-sm"><ListChecks className="mr-1.5 h-4 w-4 hidden sm:inline"/>İlanlarım</TabsTrigger>
-                {user.role === 'company' && (
-                  <>
-                    <TabsTrigger value="vehicles" className="text-xs sm:text-sm"><Truck className="mr-1.5 h-4 w-4 hidden sm:inline"/>Araçlarım</TabsTrigger>
-                    <TabsTrigger value="authDocs" className="text-xs sm:text-sm"><FileTextIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Belgelerim</TabsTrigger>
-                    <TabsTrigger value="membership" className="text-xs sm:text-sm"><Star className="mr-1.5 h-4 w-4 hidden sm:inline"/>Üyeliğim</TabsTrigger>
-                  </>
-                )}
-              </TabsList>
+              <div className="mb-6">
+                <div className="overflow-x-auto md:overflow-visible pb-1"> {/* Added pb-1 for scrollbar space */}
+                  <TabsList 
+                    className={cn(
+                      "inline-flex w-auto p-1 rounded-md bg-muted/50", // Base for mobile: inline-flex and auto width
+                      "md:grid md:w-full", // md and up: switch to grid and full width
+                      user.role === 'company' 
+                        ? `md:grid-cols-3 lg:grid-cols-${companyTabsCount}` 
+                        : "md:grid-cols-2"
+                    )}
+                  >
+                    <TabsTrigger value="details" className="text-xs sm:text-sm">
+                      {user.role === 'company' ? <><Building className="mr-1.5 h-4 w-4 hidden sm:inline"/>Firma Detayları</> : <><UserIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Profil Detayları</>}
+                    </TabsTrigger>
+                    <TabsTrigger value="myListings" className="text-xs sm:text-sm"><ListChecks className="mr-1.5 h-4 w-4 hidden sm:inline"/>İlanlarım</TabsTrigger>
+                    {user.role === 'company' && (
+                      <>
+                        <TabsTrigger value="vehicles" className="text-xs sm:text-sm"><Truck className="mr-1.5 h-4 w-4 hidden sm:inline"/>Araçlarım</TabsTrigger>
+                        <TabsTrigger value="authDocs" className="text-xs sm:text-sm"><FileTextIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Belgelerim</TabsTrigger>
+                        <TabsTrigger value="membership" className="text-xs sm:text-sm"><Star className="mr-1.5 h-4 w-4 hidden sm:inline"/>Üyeliğim</TabsTrigger>
+                      </>
+                    )}
+                  </TabsList>
+                </div>
+              </div>
 
               <TabsContent value="details">
                 {user.role === 'company' && companyUser ? (
@@ -208,11 +224,11 @@ export default function ProfilePage() {
                         <div><strong className="text-muted-foreground">Açıklama:</strong> {companyUser.companyDescription || <span className="italic text-muted-foreground/70">Belirtilmemiş</span>}</div>
                         <div>
                             <strong className="text-muted-foreground block mb-1">Çalışma Yöntemleri:</strong>
-                            {renderItemBadges(companyUser.workingMethods.map(wm => WORKING_METHODS.find(m => m.id === wm)?.label || wm), "Çalışma yöntemi belirtilmemiş.")}
+                            {renderItemBadges(companyUser.workingMethods?.map(wm => WORKING_METHODS.find(m => m.id === wm)?.label || wm), "Çalışma yöntemi belirtilmemiş.")}
                         </div>
                         <div>
                             <strong className="text-muted-foreground block mb-1">Çalışma Rotaları:</strong>
-                            {renderItemBadges(companyUser.workingRoutes.map(wr => WORKING_ROUTES.find(r => r.id === wr)?.label || wr), "Çalışma rotası belirtilmemiş.")}
+                            {renderItemBadges(companyUser.workingRoutes?.map(wr => WORKING_ROUTES.find(r => r.id === wr)?.label || wr), "Çalışma rotası belirtilmemiş.")}
                         </div>
                         <div>
                             <strong className="text-muted-foreground block mb-1">Tercih Edilen Şehirler:</strong>
@@ -220,7 +236,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                             <strong className="text-muted-foreground block mb-1">Tercih Edilen Ülkeler:</strong>
-                            {renderItemBadges(companyUser.preferredCountries.map(cc => COUNTRIES.find(c => c.code === cc)?.name || cc ), "Tercih edilen ülke belirtilmemiş.")}
+                            {renderItemBadges(companyUser.preferredCountries?.map(cc => COUNTRIES.find(c => c.code === cc)?.name || cc ), "Tercih edilen ülke belirtilmemiş.")}
                         </div>
                     </CardContent>
                     <CardFooter>
@@ -238,8 +254,8 @@ export default function ProfilePage() {
                         <p><strong className="text-muted-foreground">E-posta:</strong> {user.email}</p>
                     </CardContent>
                     <CardFooter>
-                        <Button onClick={() => setIsEditProfileModalOpen(true)} disabled>
-                            <Edit3 className="mr-2 h-4 w-4"/> Bilgileri Düzenle (Yakında)
+                        <Button onClick={() => setIsEditProfileModalOpen(true)}> 
+                            <Edit3 className="mr-2 h-4 w-4"/> Bilgileri Düzenle
                         </Button>
                     </CardFooter>
                     </Card>
