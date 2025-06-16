@@ -106,6 +106,18 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   return { ...baseFreight, freightType: data.freightType || 'Ticari' } as Freight; // Default to Commercial if type is unknown
 };
 
+export const getListingsByUserId = async (userId: string): Promise<Freight[]> => {
+  try {
+    const listingsRef = collection(db, LISTINGS_COLLECTION);
+    const q = query(listingsRef, where('userId', '==', userId), orderBy('postedAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => convertToFreight(doc));
+  } catch (error) {
+    console.error("Error fetching listings by user ID:", error);
+    return [];
+  }
+};
+
 export const getListings = async (
   options: {
     lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;
@@ -207,7 +219,8 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
     
     delete dataToUpdate.id; 
     delete dataToUpdate.postedAt;
-    delete dataToUpdate.userId;
+    // userId should not be updated from client-side edit after creation
+    // delete dataToUpdate.userId; 
 
     await updateDoc(docRef, dataToUpdate);
     return true;
@@ -227,3 +240,4 @@ export const deleteListing = async (id: string): Promise<boolean> => {
     return false;
   }
 };
+
