@@ -219,11 +219,15 @@ export default function Header() {
           <h1 className="text-2xl font-bold text-primary font-headline">Nakliyeci Dünyası</h1>
         </Link>
         
-        <nav className="hidden md:flex items-center gap-2">
-          {/* Main site-wide navigation can go here if simple, or be part of the new menu below for homepage */}
-           <Button variant="ghost" asChild>
-            <Link href="/">Ana Sayfa</Link>
-          </Button>
+        <nav className="hidden md:flex items-center gap-x-3"> {/* Adjusted gap */}
+          <div className="flex items-center gap-1"> {/* Search Group */}
+            <Input placeholder="Firmalarda ara..." className="h-9 w-48 md:w-56 lg:w-64" />
+            <Button type="submit" size="sm" variant="outline" className="h-9 px-3">
+              <Search className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Ara</span>
+            </Button>
+          </div>
+          
           {isAuthenticated && (
             <Button variant="ghost" asChild>
               <Link href="/yeni-ilan" className="flex items-center gap-1">
@@ -297,9 +301,21 @@ export default function Header() {
                     </Link>
                 </SheetTitle>
               </SheetHeader>
+              <div className="p-4 border-b">
+                <div className="flex items-center gap-1">
+                  <Input placeholder="Firmalarda ara..." className="h-9 flex-grow text-sm" />
+                  <Button type="submit" size="icon" variant="outline" className="h-9 w-9 shrink-0">
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
               <nav className="flex-grow p-4 space-y-2">
+                {/* Ana Sayfa linki kaldırıldı */}
                 <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                  <Link href="/">Ana Sayfa</Link>
+                  <Link href="/hakkimizda">Hakkımızda</Link>
+                </Button>
+                 <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                  <Link href="/iletisim">İletişim</Link>
                 </Button>
                 {isAuthenticated && (
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
@@ -315,7 +331,6 @@ export default function Header() {
                         </Link>
                     </Button>
                 )}
-                 {/* Add more mobile links here based on the new nav if needed */}
               </nav>
               <div className="p-4 border-t mt-auto">
                 {isAuthenticated && user ? (
@@ -337,116 +352,109 @@ export default function Header() {
           </Sheet>
         </div>
       </div>
-      {pathname === '/' && (
-        <nav className="border-t bg-background/70 backdrop-blur-md hidden md:block">
-          <div className="container mx-auto px-4 flex items-center justify-between h-14">
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <Link href="/" legacyBehavior passHref>
-                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                      Anasayfa
-                    </NavigationMenuLink>
-                  </Link>
-                </NavigationMenuItem>
+      
+      <nav className="border-t bg-background/70 backdrop-blur-md hidden md:block">
+        <div className="container mx-auto px-4 flex items-center justify-center h-14"> {/* Changed to justify-center */}
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <Link href="/" legacyBehavior passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    Anasayfa
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
 
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Hakkımızda</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
-                      <ListItem href="/hakkimizda" title="Hakkımızda">
-                        Firmamız ve vizyonumuz hakkında daha fazla bilgi edinin.
-                      </ListItem>
-                      <ListItem href="/tasarladigimiz-afisler" title="Tasarladığımız Afişler">
-                        Referans afiş çalışmalarımız.
-                      </ListItem>
-                      <ListItem href="/tasarladigimiz-logolar" title="Tasarladığımız Logolar">
-                        Markanız için özgün logo tasarımları.
-                      </ListItem>
-                       <ListItem href="/tasarladigimiz-siteler" title="Tasarladığımız Siteler">
-                        Modern ve işlevsel web sitesi çözümleri.
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Hakkımızda</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+                    <ListItem href="/hakkimizda" title="Hakkımızda">
+                      Firmamız ve vizyonumuz hakkında daha fazla bilgi edinin.
+                    </ListItem>
+                    <ListItem href="/tasarladigimiz-afisler" title="Tasarladığımız Afişler">
+                      Referans afiş çalışmalarımız.
+                    </ListItem>
+                    <ListItem href="/tasarladigimiz-logolar" title="Tasarladığımız Logolar">
+                      Markanız için özgün logo tasarımları.
+                    </ListItem>
+                      <ListItem href="/tasarladigimiz-siteler" title="Tasarladığımız Siteler">
+                      Modern ve işlevsel web sitesi çözümleri.
+                    </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
 
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Lojistik Firmalar</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
-                      <ListItem href="/lojistik-firmalari/karayolu" title="Karayolu Lojistik Firmaları">
-                        Yurtiçi ve yurtdışı karayolu taşımacılığı.
-                      </ListItem>
-                      <ListItem href="/lojistik-firmalari/havayolu" title="Havayolu Lojistik Firmaları">
-                        Hızlı ve güvenli havayolu kargo çözümleri.
-                      </ListItem>
-                      <ListItem href="/lojistik-firmalari/demiryolu" title="Demiryolu Lojistik Firmaları">
-                        Çevreci ve ekonomik demiryolu taşımacılığı.
-                      </ListItem>
-                      <ListItem href="/lojistik-firmalari/denizyolu" title="Denizyolu Lojistik Firmaları">
-                        Uluslararası denizyolu konteyner ve yük taşımacılığı.
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Nakliye Fiyatları</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                     <ul className="grid w-[300px] gap-3 p-4 md:w-[400px] ">
-                       <ListItem href="/nakliye-fiyatlari/yurtici" title="Yurtiçi Nakliye Fiyatları">
-                        Şehirlerarası taşıma ücretleri ve teklifleri.
-                      </ListItem>
-                       <ListItem href="/nakliye-fiyatlari/yurtdisi" title="Yurtdışı Nakliye Fiyatları">
-                        Uluslararası taşıma maliyetleri ve çözümleri.
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Lojistik Firmalar</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                    <ListItem href="/lojistik-firmalari/karayolu" title="Karayolu Lojistik Firmaları">
+                      Yurtiçi ve yurtdışı karayolu taşımacılığı.
+                    </ListItem>
+                    <ListItem href="/lojistik-firmalari/havayolu" title="Havayolu Lojistik Firmaları">
+                      Hızlı ve güvenli havayolu kargo çözümleri.
+                    </ListItem>
+                    <ListItem href="/lojistik-firmalari/demiryolu" title="Demiryolu Lojistik Firmaları">
+                      Çevreci ve ekonomik demiryolu taşımacılığı.
+                    </ListItem>
+                    <ListItem href="/lojistik-firmalari/denizyolu" title="Denizyolu Lojistik Firmaları">
+                      Uluslararası denizyolu konteyner ve yük taşımacılığı.
+                    </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Nakliye Fiyatları</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                    <ul className="grid w-[300px] gap-3 p-4 md:w-[400px] ">
+                      <ListItem href="/nakliye-fiyatlari/yurtici" title="Yurtiçi Nakliye Fiyatları">
+                      Şehirlerarası taşıma ücretleri ve teklifleri.
+                    </ListItem>
+                      <ListItem href="/nakliye-fiyatlari/yurtdisi" title="Yurtdışı Nakliye Fiyatları">
+                      Uluslararası taşıma maliyetleri ve çözümleri.
+                    </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
 
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Nakliyeciler</NavigationMenuTrigger>
-                  <NavigationMenuContent>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Nakliyeciler</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid w-[300px] gap-3 p-4 md:w-[400px]">
+                      <ListItem href="/nakliyeciler/illere-gore" title="İllere Göre Nakliyeciler">
+                      Türkiye'nin her ilinden nakliye firmaları.
+                    </ListItem>
+                      <ListItem href="/nakliyeciler/ulkelere-gore" title="Ülkelere Göre Nakliyeciler">
+                      Farklı ülkelere hizmet veren nakliyeciler.
+                    </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Bize Ulaşın</NavigationMenuTrigger>
+                <NavigationMenuContent>
                     <ul className="grid w-[300px] gap-3 p-4 md:w-[400px]">
-                       <ListItem href="/nakliyeciler/illere-gore" title="İllere Göre Nakliyeciler">
-                        Türkiye'nin her ilinden nakliye firmaları.
-                      </ListItem>
-                       <ListItem href="/nakliyeciler/ulkelere-gore" title="Ülkelere Göre Nakliyeciler">
-                        Farklı ülkelere hizmet veren nakliyeciler.
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Bize Ulaşın</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                     <ul className="grid w-[300px] gap-3 p-4 md:w-[400px]">
-                       <ListItem href="/iletisim" title="İletişim">
-                        Soru ve önerileriniz için bize yazın.
-                      </ListItem>
-                       <ListItem href="/banka-hesap-no" title="Banka Hesap No">
-                        Ödeme ve hesap bilgilerimiz.
-                      </ListItem>
-                      <ListItem href="/indir" title="Uygulamamızı İndir">
+                      <ListItem href="/iletisim" title="İletişim">
+                      Soru ve önerileriniz için bize yazın.
+                    </ListItem>
+                      <ListItem href="/banka-hesap-no" title="Banka Hesap No">
+                      Ödeme ve hesap bilgilerimiz.
+                    </ListItem>
+                    <ListItem href="/indir" title="Uygulamamızı İndir">
                         Mobil uygulamalarımızla her yerden erişin.
                       </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
 
-              </NavigationMenuList>
-            </NavigationMenu>
-            <div className="flex items-center gap-2">
-              <Input placeholder="Firmalarda ara..." className="h-9 w-48 md:w-56 lg:w-64" />
-              <Button type="submit" size="sm" variant="outline" className="h-9">
-                <Search className="h-4 w-4 mr-2 sm:mr-0 md:mr-2" />
-                <span className="hidden md:inline">Ara</span>
-              </Button>
-            </div>
-          </div>
-        </nav>
-      )}
+            </NavigationMenuList>
+          </NavigationMenu>
+          {/* Search bar removed from here as it's moved to the top header */}
+        </div>
+      </nav>
     </header>
   );
 }
