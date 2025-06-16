@@ -13,6 +13,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card'
 import Image from 'next/image';
 import { getListings } from '@/services/listingsService'; 
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast'; // toast import edildi
 
 const PAGE_SIZE = 6;
 
@@ -25,6 +26,7 @@ export default function HomePage() {
   const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({ sortBy: 'newest' });
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const { toast } = useToast(); // toast hook'u kullanıldı
 
 
   const fetchFreights = useCallback(async (filters: FreightFilterOptions, reset: boolean = false) => {
@@ -43,7 +45,7 @@ export default function HomePage() {
 
     try {
       const { freights: newFreights, newLastVisibleDoc: nextDoc } = await getListings({
-        lastVisibleDoc: reset ? null : lastVisibleDoc,
+        lastVisibleDoc: reset ? null : lastVisibleDoc, // Reads current lastVisibleDoc state
         pageSize: PAGE_SIZE,
         filters: filters,
       });
@@ -66,6 +68,7 @@ export default function HomePage() {
     } catch (error) {
       console.error("[HomePage - fetchFreights] Error fetching freights:", error);
       setFetchError("İlanlar yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
+      toast({ title: "Veri Yükleme Hatası", description: "İlanlar çekilirken bir sorun oluştu.", variant: "destructive" });
     } finally {
       console.log('[HomePage - fetchFreights] Finally block. setIsLoading(false), setIsLoadingMore(false).');
       setIsLoading(false);
@@ -75,13 +78,21 @@ export default function HomePage() {
         setInitialLoadComplete(true);
       }
     }
-  }, [lastVisibleDoc]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [ 
+    // lastVisibleDoc'ı buraya eklemiyoruz çünkü sonsuz döngüye neden olabilir.
+    // fetchFreights çağrıldığında güncel lastVisibleDoc state'ini okuyacak.
+    // State güncelleyicileri (setFreights, setLastVisibleDoc vb.) React tarafından stabil garanti edilir.
+    // PAGE_SIZE gibi sabitler de sorun yaratmaz.
+    // toast'ı ekledik çünkü dış kapsamdan kullanılıyor.
+    toast 
+  ]);
 
   useEffect(() => {
     console.log('[HomePage - useEffect[currentFilters]] Filters changed. Calling fetchFreights with reset.');
     fetchFreights(currentFilters, true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters]); // fetchFreights is memoized, currentFilters is the trigger
+  }, [currentFilters, fetchFreights]); // fetchFreights artık stabil olmalı (useCallback bağımlılıkları sayesinde)
 
   const handleFilterChange = (newFilters: FreightFilterOptions) => {
     console.log('[HomePage - handleFilterChange] New filters received:', JSON.stringify(newFilters));
@@ -218,5 +229,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

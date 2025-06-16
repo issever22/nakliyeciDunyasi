@@ -115,27 +115,37 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     }
   }, [editingListing, isEditDialogOpen]);
 
- useEffect(() => {
+  // Effect to update available origin districts when origin city/country changes
+  useEffect(() => {
     let newDistricts: readonly string[] = [];
     if (currentFormData.originCountry === 'TR' && currentFormData.originCity && TURKISH_CITIES.includes(currentFormData.originCity as TurkishCity)) {
       newDistricts = DISTRICTS_BY_CITY_TR[currentFormData.originCity as TurkishCity] || [];
     }
     setAvailableOriginDistricts(newDistricts);
-    if (currentFormData.originDistrict && !newDistricts.includes(currentFormData.originDistrict)) {
-        setCurrentFormData(prev => ({...prev, originDistrict: ''}));
-    }
-  }, [currentFormData.originCity, currentFormData.originCountry, currentFormData.originDistrict]);
+  }, [currentFormData.originCity, currentFormData.originCountry]);
 
+  // Effect to reset origin district if it becomes invalid after city/country change
+  useEffect(() => {
+    if (currentFormData.originDistrict && !availableOriginDistricts.includes(currentFormData.originDistrict)) {
+      setCurrentFormData(prev => ({ ...prev, originDistrict: '' }));
+    }
+  }, [availableOriginDistricts, currentFormData.originDistrict, setCurrentFormData]);
+
+  // Effect to update available destination districts when destination city/country changes
   useEffect(() => {
     let newDistricts: readonly string[] = [];
     if (currentFormData.destinationCountry === 'TR' && currentFormData.destinationCity && TURKISH_CITIES.includes(currentFormData.destinationCity as TurkishCity)) {
       newDistricts = DISTRICTS_BY_CITY_TR[currentFormData.destinationCity as TurkishCity] || [];
     }
     setAvailableDestinationDistricts(newDistricts);
-     if (currentFormData.destinationDistrict && !newDistricts.includes(currentFormData.destinationDistrict)) {
-        setCurrentFormData(prev => ({...prev, destinationDistrict: ''}));
+  }, [currentFormData.destinationCity, currentFormData.destinationCountry]);
+
+  // Effect to reset destination district if it becomes invalid after city/country change
+  useEffect(() => {
+    if (currentFormData.destinationDistrict && !availableDestinationDistricts.includes(currentFormData.destinationDistrict)) {
+      setCurrentFormData(prev => ({ ...prev, destinationDistrict: '' }));
     }
-  }, [currentFormData.destinationCity, currentFormData.destinationCountry, currentFormData.destinationDistrict]);
+  }, [availableDestinationDistricts, currentFormData.destinationDistrict, setCurrentFormData]);
 
   const handleEdit = (listing: Freight) => {
     setEditingListing(listing);
@@ -622,4 +632,3 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
   </Card>
   );
 }
-
