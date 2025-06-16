@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, User as UserIcon, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks } from 'lucide-react';
+import { Mail, User as UserIcon, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks, Tag } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import EditProfileModal from '@/components/profile/EditProfileModal';
@@ -16,6 +16,7 @@ import ManageCompanyVehiclesModal from '@/components/profile/ManageCompanyVehicl
 import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDocsModal';
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
 import MyListingsTab from '@/components/profile/MyListingsTab';
+import MyTransportOffersTab from '@/components/profile/MyTransportOffersTab'; // New Tab Component
 import { useRouter } from 'next/navigation';
 import { cn } from "@/lib/utils"; 
 
@@ -89,7 +90,7 @@ export default function ProfilePage() {
   };
 
 
-  if (authLoading || (user?.role === 'company' && settingsLoading && activeTab !== 'myListings')) {
+  if (authLoading || (user?.role === 'company' && settingsLoading && !['myListings', 'myTransportOffers'].includes(activeTab) )) {
     return (
       <div className="space-y-6 container mx-auto px-4 py-8">
         <Skeleton className="h-10 w-1/3 mb-6" />
@@ -136,7 +137,7 @@ export default function ProfilePage() {
     );
   };
 
-  const companyTabsCount = 5;
+  const companyTabsCount = 6; // Increased for "Nakliye Fiyatlarım"
   const individualTabsCount = 2;
 
   return (
@@ -180,18 +181,19 @@ export default function ProfilePage() {
               <div className="mb-6">
                  <TabsList 
                     className={cn(
-                      "grid w-full p-1 rounded-md bg-muted/50", // Base styling for TabsList
+                      "grid w-full p-1 rounded-md bg-muted/50", 
                       user.role === 'company' 
-                        ? "grid-cols-3 md:grid-cols-3 lg:grid-cols-5" // Company: 3 cols mobile, 3 cols md, 5 cols lg
-                        : "grid-cols-2" // Individual: 2 cols on all screens (default and md)
+                        ? "grid-cols-3 md:grid-cols-3 lg:grid-cols-6" // Company: 3 mobile, 6 lg
+                        : "grid-cols-2" // Individual: 2 cols on all screens
                     )}
                   >
                     <TabsTrigger value="details" className="text-xs sm:text-sm">
                       {user.role === 'company' ? <><Building className="mr-1.5 h-4 w-4 hidden sm:inline"/>Firma Detayları</> : <><UserIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Profil Detayları</>}
                     </TabsTrigger>
-                    <TabsTrigger value="myListings" className="text-xs sm:text-sm"><ListChecks className="mr-1.5 h-4 w-4 hidden sm:inline"/>İlanlarım</TabsTrigger>
+                    <TabsTrigger value="myListings" className="text-xs sm:text-sm"><ListChecks className="mr-1.5 h-4 w-4 hidden sm:inline"/>Yük İlanlarım</TabsTrigger>
                     {user.role === 'company' && (
                       <>
+                        <TabsTrigger value="myTransportOffers" className="text-xs sm:text-sm"><Tag className="mr-1.5 h-4 w-4 hidden sm:inline"/>Fiyat Tekliflerim</TabsTrigger>
                         <TabsTrigger value="vehicles" className="text-xs sm:text-sm"><Truck className="mr-1.5 h-4 w-4 hidden sm:inline"/>Araçlarım</TabsTrigger>
                         <TabsTrigger value="authDocs" className="text-xs sm:text-sm"><FileTextIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Belgelerim</TabsTrigger>
                         <TabsTrigger value="membership" className="text-xs sm:text-sm"><Star className="mr-1.5 h-4 w-4 hidden sm:inline"/>Üyeliğim</TabsTrigger>
@@ -264,6 +266,9 @@ export default function ProfilePage() {
 
               {user.role === 'company' && companyUser && (
                 <>
+                    <TabsContent value="myTransportOffers">
+                        <MyTransportOffersTab userId={user.id} companyName={companyUser.name} />
+                    </TabsContent>
                     <TabsContent value="vehicles">
                         <Card className="shadow-md">
                         <CardHeader>

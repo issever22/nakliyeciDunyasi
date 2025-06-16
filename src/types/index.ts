@@ -51,8 +51,8 @@ interface BaseFreight {
   destinationCity: TurkishCity | string;
   destinationDistrict?: string;
 
-  loadingDate: string;
-  postedAt: string;
+  loadingDate: string; // ISO Date string
+  postedAt: string; // ISO Date string
   isActive: boolean;
   description: string;
 }
@@ -79,10 +79,10 @@ export interface ResidentialFreight extends BaseFreight {
 
 export interface EmptyVehicleListing extends BaseFreight {
   freightType: 'Boş Araç';
-  advertisedVehicleType?: string; // Made optional
-  serviceTypeForLoad?: EmptyVehicleServiceType; // Made optional
-  vehicleStatedCapacity?: number; // Made optional
-  vehicleStatedCapacityUnit?: WeightUnit; // Made optional
+  advertisedVehicleType?: string;
+  serviceTypeForLoad?: EmptyVehicleServiceType;
+  vehicleStatedCapacity?: number;
+  vehicleStatedCapacityUnit?: WeightUnit;
 }
 
 export type Freight = CommercialFreight | ResidentialFreight | EmptyVehicleListing;
@@ -106,7 +106,7 @@ interface BaseUserProfile {
   role: UserRole;
   name: string;
   isActive: boolean;
-  createdAt: string;
+  createdAt: string; // ISO Date string
 }
 
 export interface IndividualUserProfile extends BaseUserProfile {
@@ -133,7 +133,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
   membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string;
-  membershipEndDate?: string;
+  membershipEndDate?: string; // ISO Date string
   ownedVehicles: string[];
   authDocuments: string[];
 }
@@ -224,10 +224,10 @@ export interface AnnouncementSetting {
   title: string;
   content: string;
   targetAudience: TargetAudience;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string; // ISO Date string
+  endDate?: string; // ISO Date string
   isActive: boolean;
-  createdAt: string;
+  createdAt: string; // ISO Date string
 }
 
 export type NoteCategory = 'Yönetici' | 'Kullanıcı Geri Bildirimi' | 'Geliştirme' | 'Genel';
@@ -236,8 +236,8 @@ export interface AdminNoteSetting {
   title: string;
   content: string;
   category: NoteCategory;
-  createdDate: string;
-  lastModifiedDate: string;
+  createdDate: string; // ISO Date string
+  lastModifiedDate: string; // ISO Date string
   isImportant: boolean;
 }
 
@@ -248,11 +248,11 @@ export interface Sponsor {
   logoUrl?: string;
   linkUrl?: string;
   entityType: SponsorEntityType;
-  entityName: string;
-  startDate: string;
-  endDate?: string;
+  entityName: string; // Could be CountryCode or TurkishCity or string
+  startDate: string; // ISO Date string
+  endDate?: string; // ISO Date string
   isActive: boolean;
-  createdAt: string;
+  createdAt: string; // ISO Date string
 }
 
 export type FreightFilterOptions = {
@@ -264,3 +264,30 @@ export type FreightFilterOptions = {
   sortBy?: 'newest' | 'oldest';
 };
 
+// New Type for Transport Offers
+export interface TransportOffer {
+  id: string;
+  userId: string;
+  companyName: string; // Name of the company providing the offer
+  postedAt: string; // ISO Date string when the offer was created/updated
+  isActive: boolean;
+
+  originCountry: CountryCode | string;
+  originCity: TurkishCity | string;
+  originDistrict?: string;
+
+  destinationCountry: CountryCode | string;
+  destinationCity: TurkishCity | string;
+  destinationDistrict?: string;
+
+  vehicleType: string; // Name of the vehicle type from settingsVehicleTypes
+  distanceKm: number;
+
+  priceTRY?: number;
+  priceUSD?: number;
+  priceEUR?: number;
+  notes?: string; // Optional notes for the offer
+}
+
+export type TransportOfferCreationData = Omit<TransportOffer, 'id' | 'postedAt' | 'userId' | 'companyName'>;
+export type TransportOfferUpdateData = Partial<TransportOfferCreationData>;
