@@ -17,9 +17,12 @@ import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDo
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
 import MyListingsTab from '@/components/profile/MyListingsTab';
 import MyTransportOffersTab from '@/components/profile/MyTransportOffersTab';
+import FeedbackModal from '@/components/profile/FeedbackModal'; // Yeni import
 import { useRouter } from 'next/navigation';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { sendPasswordResetEmail } from 'firebase/auth'; // Firebase Auth importu
+import { auth } from '@/lib/firebase'; // Firebase config importu
 
 import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -51,6 +54,7 @@ export default function ProfilePage() {
   const [isManageVehiclesModalOpen, setIsManageVehiclesModalOpen] = useState(false);
   const [isManageAuthDocsModalOpen, setIsManageAuthDocsModalOpen] = useState(false);
   const [isViewMembershipsModalOpen, setIsViewMembershipsModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false); // Geri bildirim modal state'i
   const [activeTab, setActiveTab] = useState("details");
 
 
@@ -85,18 +89,33 @@ export default function ProfilePage() {
         if (updatedProfile.role === 'company') {
             setCompanyUser(updatedProfile as CompanyUserProfile);
         }
-        // Potentially update the main `user` state in AuthContext if basic info like name changes
-        // This might require a refresh function in AuthContext or refetching the user.
-        // For now, only local state `companyUser` is updated for company-specific fields.
     }
   };
 
-  const handlePlaceholderClick = (featureName: string) => {
-    toast({
-      title: "Geliştirme Aşamasında",
-      description: `${featureName} özelliği yakında eklenecektir.`,
-      variant: "default",
-    });
+  const handleSendPasswordReset = async () => {
+    if (!user || !user.email) {
+      toast({
+        title: "Hata",
+        description: "Şifre sıfırlama e-postası göndermek için e-posta adresiniz bulunamadı.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      toast({
+        title: "E-posta Gönderildi",
+        description: `${user.email} adresinize şifre sıfırlama bağlantısı gönderildi. Lütfen e-postanızı kontrol edin.`,
+        variant: "default",
+      });
+    } catch (error: any) {
+      console.error("Error sending password reset email:", error);
+      toast({
+        title: "Şifre Sıfırlama Hatası",
+        description: error.message || "Şifre sıfırlama e-postası gönderilirken bir hata oluştu.",
+        variant: "destructive",
+      });
+    }
   };
 
 
@@ -147,7 +166,7 @@ export default function ProfilePage() {
     );
   };
 
-  const companyTabsCount = 6; // Increased for "Nakliye Fiyatlarım"
+  const companyTabsCount = 6;
   const individualTabsCount = 2;
 
   return (
@@ -182,10 +201,10 @@ export default function ProfilePage() {
               <Button onClick={() => setIsEditProfileModalOpen(true)} variant="outline" className="w-full">
                 <Edit3 className="mr-2 h-4 w-4" /> Temel Bilgileri Düzenle
               </Button>
-              <Button onClick={() => handlePlaceholderClick("Şifre Değiştirme")} variant="outline" className="w-full">
+              <Button onClick={handleSendPasswordReset} variant="outline" className="w-full">
                 <KeyRound className="mr-2 h-4 w-4" /> Şifre Değiştir
               </Button>
-              <Button onClick={() => handlePlaceholderClick("Geri Bildirim")} variant="outline" className="w-full">
+              <Button onClick={() => setIsFeedbackModalOpen(true)} variant="outline" className="w-full">
                 <MessageSquareText className="mr-2 h-4 w-4" /> Geri Bildirim Gönder
               </Button>
             </CardContent>
@@ -199,8 +218,8 @@ export default function ProfilePage() {
                     className={cn(
                       "grid w-full p-1 rounded-md bg-muted/50",
                       user.role === 'company'
-                        ? "grid-cols-3 md:grid-cols-3 lg:grid-cols-6" // Company: 3 mobile, 6 lg
-                        : "grid-cols-2" // Individual: 2 cols on all screens
+                        ? "grid-cols-3 md:grid-cols-3 lg:grid-cols-6" 
+                        : "grid-cols-2" 
                     )}
                   >
                     <TabsTrigger value="details" className="text-xs sm:text-sm">
@@ -350,6 +369,14 @@ export default function ProfilePage() {
         user={user}
         onProfileUpdate={handleProfileUpdate}
       />
+      {user && isFeedbackModalOpen && ( // FeedbackModal'ı sadece user varsa render et
+          <FeedbackModal
+            isOpen={isFeedbackModalOpen}
+            onClose={() => setIsFeedbackModalOpen(false)}
+            userId={user.id} 
+            userName={user.name}
+          />
+      )}
       {companyUser && (
         <>
           <EditCompanyDetailsModal
@@ -383,3 +410,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
