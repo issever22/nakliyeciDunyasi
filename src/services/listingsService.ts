@@ -33,16 +33,23 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   let loadingDateStr: string;
   if (data.loadingDate && data.loadingDate instanceof Timestamp) {
     loadingDateStr = data.loadingDate.toDate().toISOString();
+  } else if (typeof data.loadingDate === 'string' && isValid(parseISO(data.loadingDate))) {
+    // Handle cases where date might be stored as ISO string already (less ideal but for robustness)
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is an ISO string, not a Timestamp. Original:`, data.loadingDate);
+    loadingDateStr = data.loadingDate;
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is not a Timestamp or is missing. Defaulting to today. Original:`, data.loadingDate);
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is invalid or missing. Defaulting to today. Original:`, data.loadingDate);
     loadingDateStr = new Date().toISOString();
   }
 
   let postedAtStr: string;
   if (data.postedAt && data.postedAt instanceof Timestamp) {
     postedAtStr = data.postedAt.toDate().toISOString();
+  } else if (typeof data.postedAt === 'string' && isValid(parseISO(data.postedAt))) {
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is an ISO string, not a Timestamp. Original:`, data.postedAt);
+    postedAtStr = data.postedAt;
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is not a Timestamp or is missing. Defaulting to current time. Original:`, data.postedAt);
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is invalid or missing. Defaulting to current time. Original:`, data.postedAt);
     postedAtStr = new Date().toISOString();
   }
 
@@ -63,7 +70,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true,
+    isActive: data.isActive === true, // Explicitly check for boolean true
     description: data.description || '',
   };
 
@@ -90,19 +97,17 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
       residentialFloorLevel: data.residentialFloorLevel || '',
     } as Freight;
   } else if (data.freightType === 'Boş Araç') {
-    // Handle potentially missing optional fields for EmptyVehicleListing
-    if (!data.advertisedVehicleType) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'advertisedVehicleType' is missing.`);
-    if (!data.serviceTypeForLoad) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'serviceTypeForLoad' is missing. Found in test data: ${data.serviceTypeForLoad}`);
-    if (data.vehicleStatedCapacity === undefined) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacity' is missing.`);
-    if (!data.vehicleStatedCapacityUnit) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacityUnit' is missing.`);
-
+    if (!data.advertisedVehicleType) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'advertisedVehicleType' is missing. Defaulting.`);
+    if (!data.serviceTypeForLoad) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'serviceTypeForLoad' is missing. Defaulting.`);
+    if (data.vehicleStatedCapacity === undefined) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacity' is missing. Defaulting.`);
+    if (!data.vehicleStatedCapacityUnit) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacityUnit' is missing. Defaulting.`);
     return {
       ...baseFreight,
       freightType: 'Boş Araç',
-      advertisedVehicleType: data.advertisedVehicleType || 'Belirtilmemiş', // Default if missing
-      serviceTypeForLoad: data.serviceTypeForLoad || 'Komple', // Default if missing, using test data as hint
-      vehicleStatedCapacity: data.vehicleStatedCapacity || 0, // Default if missing
-      vehicleStatedCapacityUnit: data.vehicleStatedCapacityUnit || 'Ton', // Default if missing
+      advertisedVehicleType: data.advertisedVehicleType || 'Belirtilmemiş',
+      serviceTypeForLoad: data.serviceTypeForLoad || 'Komple',
+      vehicleStatedCapacity: data.vehicleStatedCapacity === undefined ? 0 : data.vehicleStatedCapacity,
+      vehicleStatedCapacityUnit: data.vehicleStatedCapacityUnit || 'Ton',
     } as Freight;
   }
   console.warn(`[listingsService - convertToFreight] Listing ${docId}: Unknown freightType "${data.freightType}". Defaulting to 'Ticari'. Original data:`, data);
@@ -127,24 +132,30 @@ export const getListingsByUserId = async (userId: string): Promise<Freight[]> =>
 
 export const getListings = async (
   options: {
-    lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null; // Still keep for potential future re-enablement
-    pageSize?: number; // Still keep
-    filters?: FreightFilterOptions; // Still keep
+    lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;
+    pageSize?: number;
+    filters?: FreightFilterOptions;
   } = {}
 ): Promise<{ freights: Freight[]; newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null }> => {
-  const { pageSize = 5 } = options; // Fetch a small fixed number, no pagination for now
-  console.warn('[listingsService - getListings] DIAGNOSIS: Fetching basic list, most filters and ordering are TEMPORARILY REMOVED.');
+  const { lastVisibleDoc = null, pageSize = 5, filters = {} } = options;
+  console.log('[listingsService - getListings] Called with options:', { pageSize, filters, lastVisibleDocExists: !!lastVisibleDoc });
 
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
     const queryConstraints: QueryConstraint[] = [];
 
     queryConstraints.push(where('isActive', '==', true));
-    // No orderBy for now to simplify
-    // queryConstraints.push(orderBy('postedAt', 'desc'));
-    console.warn('[listingsService - getListings] DIAGNOSIS: orderBy("postedAt") is temporarily REMOVED.');
-
+    
+    // Re-enable ordering
+    const sortBy = filters.sortBy || 'newest'; // Default to newest if not specified
+    queryConstraints.push(orderBy('postedAt', sortBy === 'newest' ? 'desc' : 'asc'));
+    
+    // Re-enable pagination
+    if (lastVisibleDoc) {
+      queryConstraints.push(startAfter(lastVisibleDoc));
+    }
     queryConstraints.push(limit(pageSize));
+
 
     const constraintDescriptions = queryConstraints.map(c => {
         let desc = `Type: ${c.type}`;
@@ -152,10 +163,12 @@ export const getListings = async (
             if ((c as any)._fieldPath && (c as any)._fieldPath.segments) desc += `, Field: ${(c as any)._fieldPath.segments.join('.')}`;
             if ((c as any)._op) desc += `, Op: ${(c as any)._op}`;
             if ((c as any)._value) desc += `, Value: ${JSON.stringify((c as any)._value)}`;
+            if ((c as any)._direction) desc += `, Dir: ${(c as any)._direction}`;
         } catch (e) { /* ignore */ }
         return desc;
     });
-    console.log('[listingsService - getListings] Final query constraints (simplified):', JSON.stringify(constraintDescriptions, null, 2));
+    console.log('[listingsService - getListings] Final query constraints:', JSON.stringify(constraintDescriptions, null, 2));
+
 
     const q = query(listingsRef, ...queryConstraints);
     const querySnapshot = await getDocs(q);
@@ -163,8 +176,7 @@ export const getListings = async (
     console.log(`[listingsService - getListings] Firestore query returned ${querySnapshot.docs.length} documents.`);
 
     const freights = querySnapshot.docs.map(doc => convertToFreight(doc));
-    // No pagination, so newLastVisibleDoc is null
-    const newLastDoc = null;
+    const newLastDoc = querySnapshot.docs.length === pageSize ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
 
     if(freights.length > 0) {
       console.log('[listingsService - getListings] First fetched listing (raw data from Firestore):', JSON.stringify(querySnapshot.docs[0].data(), null, 2));
@@ -172,12 +184,12 @@ export const getListings = async (
     } else {
       console.log('[listingsService - getListings] No listings fetched or processed after conversion.');
     }
-
+     console.log(`[listingsService - getListings] Returning ${freights.length} listings. newLastVisibleDoc exists: ${!!newLastDoc}`);
     return { freights, newLastVisibleDoc: newLastDoc };
   } catch (error) {
     console.error("[listingsService - getListings] Error fetching listings:", error);
     if ((error as any).code === 'failed-precondition') {
-        console.error("[listingsService - getListings] Firestore Precondition Failed: This often means you're missing a composite index. Check the Firestore console for index creation links in the error details if available, or review your query and ensure indexes match.");
+        console.error("[listingsService - getListings] Firestore Precondition Failed: This often means you're missing a composite index. Check the Firestore console for index creation links in the error details if available, or review your query and ensure indexes match (e.g., for 'isActive' and 'postedAt').");
     }
     return { freights: [], newLastVisibleDoc: null };
   }
@@ -257,16 +269,23 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
       if (isValid(parseISO(dataToUpdate.loadingDate))) {
         dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate));
       } else {
-        console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Setting to null.`);
-        dataToUpdate.loadingDate = null;
+        // Keep existing or set to null if invalid? For now, let's assume if provided it should be valid or cleared.
+        console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Setting to null if it was intended to be cleared, or keeping existing if not changed.`);
+        // If the intention is to clear it, it should be explicitly set to null or undefined in listingUpdateData
+        // For now, if it's an invalid string, we might let Firestore error out or skip update for this field
+        // To be safe, let's only update if it's a valid parseable string, otherwise it might not be updated.
+        // OR, if it's meant to be cleared, the client should send null/undefined.
+        // If it's an invalid string, deleting it from updateData ensures it's not touched.
+        delete dataToUpdate.loadingDate;
       }
     } else if (dataToUpdate.hasOwnProperty('loadingDate') && (dataToUpdate.loadingDate === null || dataToUpdate.loadingDate === undefined)) {
-        dataToUpdate.loadingDate = null;
+        dataToUpdate.loadingDate = null; // Allow clearing the date
     }
 
-    delete dataToUpdate.id;
-    delete dataToUpdate.postedAt;
-    delete dataToUpdate.userId;
+
+    delete dataToUpdate.id; // Should not update ID
+    delete dataToUpdate.postedAt; // Should not update postedAt
+    delete dataToUpdate.userId; // Should not update userId
 
     await updateDoc(docRef, dataToUpdate);
     console.log(`[listingsService - updateListing] Successfully updated listing with ID: ${id}`);

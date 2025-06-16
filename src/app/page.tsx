@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
-// import FreightFilters from '@/components/freight/FreightFilters'; // Temporarily removed
+// import FreightFilters from '@/components/freight/FreightFilters'; // Still temporarily removed
 import type { Freight, FreightFilterOptions } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -15,71 +15,87 @@ import { getListings } from '@/services/listingsService';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-const SIMPLIFIED_PAGE_SIZE = 5; // Fetch a small number for testing
+const PAGE_SIZE = 6; // Number of listings per page
 
 export default function HomePage() {
   const [freights, setFreights] = useState<Freight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // const [isLoadingMore, setIsLoadingMore] = useState(false); // Temporarily removed
-  // const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null); // Temporarily removed
-  // const [hasMore, setHasMore] = useState(true); // Temporarily removed
-  // const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({}); // Temporarily removed
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  // const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({}); // Filters still removed
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchFreightsSimple = useCallback(async () => {
-    console.log('[HomePage - fetchFreightsSimple] Called.');
-    setIsLoading(true);
-    setFreights([]);
-    setFetchError(null);
+  const fetchFreights = useCallback(async (startAfterDoc: QueryDocumentSnapshot<DocumentData> | null = null) => {
+    const isLoadMore = !!startAfterDoc;
+    console.log(`[HomePage - fetchFreights] Called. IsLoadMore: ${isLoadMore}, StartAfterDoc exists: ${!!startAfterDoc}`);
+    
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+      setFreights([]); // Clear previous listings for a fresh fetch/filter
+      setFetchError(null);
+      setLastVisibleDoc(null); // Reset pagination cursor for new initial fetch
+      setHasMore(true); // Assume there might be more data
+    }
 
     try {
-      const result = await getListings({ pageSize: SIMPLIFIED_PAGE_SIZE }); // No filters, no pagination
+      const result = await getListings({ 
+        lastVisibleDoc: startAfterDoc, 
+        pageSize: PAGE_SIZE,
+        filters: { sortBy: 'newest' } // Basic sorting, actual filters still commented out
+      });
       const newFreights = result.freights;
-
-      console.log('[HomePage - fetchFreightsSimple] getListings returned. New freights count:', newFreights.length);
+      
+      console.log(`[HomePage - fetchFreights] getListings returned. New freights count: ${newFreights.length}. Next doc exists: ${!!result.newLastVisibleDoc}`);
+      
       if (newFreights.length > 0) {
-        console.log('[HomePage - fetchFreightsSimple] First new freight data (converted):', JSON.stringify(newFreights[0], null, 2));
+        console.log('[HomePage - fetchFreights] First new freight data (converted):', JSON.stringify(newFreights[0], null, 2));
       }
 
-      setFreights(newFreights);
-      // Since we are not paginating for this test, hasMore can be considered false after first load
-      // setHasMore(false); // Temporarily removed
+      setFreights(prev => isLoadMore ? [...prev, ...newFreights] : newFreights);
+      setLastVisibleDoc(result.newLastVisibleDoc);
+      setHasMore(!!result.newLastVisibleDoc && newFreights.length === PAGE_SIZE);
+
     } catch (error) {
-      console.error("[HomePage - fetchFreightsSimple] Error fetching freights:", error);
+      console.error("[HomePage - fetchFreights] Error fetching freights:", error);
       setFetchError("İlanlar yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
       toast({ title: "Veri Yükleme Hatası", description: "İlanlar çekilirken bir sorun oluştu.", variant: "destructive" });
     } finally {
-      console.log('[HomePage - fetchFreightsSimple] Finally block. setIsLoading(false).');
-      setIsLoading(false);
-      setInitialLoadComplete(true);
+      console.log('[HomePage - fetchFreights] Finally block.');
+      if (isLoadMore) {
+        setIsLoadingMore(false);
+      } else {
+        setIsLoading(false);
+        setInitialLoadComplete(true);
+      }
     }
-  // Dependencies for useCallback: ensure stable references if any external vars were used
-  // For this simplified version, only toast is a dependency.
-  }, [toast]);
+  }, [toast]); // Dependencies: stable setters and toast
 
   useEffect(() => {
-    console.log('[HomePage - useEffect[]] Component mounted. Calling fetchFreightsSimple.');
-    fetchFreightsSimple();
+    console.log('[HomePage - useEffect[]] Component mounted. Calling fetchFreights(null) for initial load.');
+    fetchFreights(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchFreightsSimple]); // fetchFreightsSimple is stable due to useCallback
+  }, [fetchFreights]); // fetchFreights is stable due to useCallback
 
-  // const handleFilterChange = (newFilters: FreightFilterOptions) => { // Temporarily removed
-  //   console.log('[HomePage - handleFilterChange] New filters received:', JSON.stringify(newFilters));
-  //   setCurrentFilters(newFilters);
-  // };
-
-  // const loadMoreFreights = () => { // Temporarily removed
-  //   console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore);
-  //   if (hasMore && !isLoadingMore) {
-  //     fetchFreights(currentFilters, false);
-  //   }
-  // };
+  const loadMoreFreights = () => {
+    console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore, 'LastVisibleDoc:', !!lastVisibleDoc);
+    if (hasMore && !isLoadingMore && lastVisibleDoc) {
+      fetchFreights(lastVisibleDoc);
+    } else if (!lastVisibleDoc && hasMore && !isLoadingMore) {
+        // This case might happen if initial load fetched less than PAGE_SIZE but there are more.
+        // Or if hasMore was true but lastVisibleDoc became null somehow.
+        console.warn("[HomePage - loadMoreFreights] Attempting to load more, but lastVisibleDoc is null. Fetching from beginning.");
+        fetchFreights(null); 
+    }
+  };
 
   const renderSkeletons = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
-      {Array.from({ length: SIMPLIFIED_PAGE_SIZE }).map((_, i) => (
+      {Array.from({ length: PAGE_SIZE }).map((_, i) => (
         <Card key={i} className="w-full shadow-md animate-pulse">
           <CardHeader className="p-4"><Skeleton className="h-8 w-3/4 rounded" /></CardHeader>
           <CardContent className="p-4 space-y-3">
@@ -93,7 +109,7 @@ export default function HomePage() {
     </div>
   );
 
-  if (fetchError && !isLoading) {
+  if (fetchError && !isLoading && !isLoadingMore && freights.length === 0) {
     return (
       <div className="text-center py-16 bg-destructive/10 border border-destructive rounded-lg shadow">
         <AlertTriangle className="mx-auto h-20 w-20 text-destructive mb-6" />
@@ -101,7 +117,7 @@ export default function HomePage() {
         <p className="text-destructive-foreground/80 max-w-md mx-auto">
           {fetchError}
         </p>
-        <Button onClick={() => fetchFreightsSimple()} variant="destructive" className="mt-6">
+        <Button onClick={() => fetchFreights(null)} variant="destructive" className="mt-6">
              Tekrar Dene
         </Button>
       </div>
@@ -137,29 +153,35 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* <FreightFilters onFilterChange={handleFilterChange} isLoading={isLoading || isLoadingMore} /> */} {/* Temporarily removed */}
+      {/* <FreightFilters onFilterChange={handleFilterChange} isLoading={isLoading || isLoadingMore} /> */}
 
       <div className="pt-4">
-        <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları (Basitleştirilmiş Liste)</h2>
-        {isLoading && !initialLoadComplete ? renderSkeletons() :
+        <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları</h2>
+        {isLoading && !initialLoadComplete && !isLoadingMore ? renderSkeletons() :
           freights.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
                 {freights.map((freight) => (
                   <FreightCard key={freight.id} freight={freight} />
-                  // For initial testing, you might want to render something even simpler:
-                  // <div key={freight.id} className="p-4 border rounded-md">
-                  //   <p>ID: {freight.id}</p>
-                  //   <p>Desc: {freight.description}</p>
-                  //   <p>Type: {freight.freightType}</p>
-                  //   {(freight.freightType === 'Boş Araç') && <p>Service: {(freight as EmptyVehicleListing).serviceTypeForLoad}</p>}
-                  // </div>
                 ))}
               </div>
-              {/* Pagination buttons temporarily removed */}
+              <div className="mt-10 text-center">
+                {isLoadingMore ? (
+                  <Button disabled size="lg" className="bg-primary/80">
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Daha Fazla Yükleniyor...
+                  </Button>
+                ) : hasMore && lastVisibleDoc ? (
+                  <Button onClick={loadMoreFreights} size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/5 hover:text-primary">
+                    Daha Fazla İlan Yükle
+                  </Button>
+                ) : initialLoadComplete && !hasMore && freights.length > 0 && (
+                  <p className="text-muted-foreground">Tüm ilanlar yüklendi.</p>
+                )}
+              </div>
             </>
           ) : (
-             initialLoadComplete && freights.length === 0 && !isLoading && !fetchError && (
+             initialLoadComplete && freights.length === 0 && !isLoading && !isLoadingMore && !fetchError && (
                 <div className="text-center py-16 bg-card border border-dashed rounded-lg shadow">
                 <SearchX className="mx-auto h-20 w-20 text-muted-foreground mb-6" />
                 <h2 className="text-2xl font-semibold mb-3 text-foreground">İlan Bulunamadı</h2>
