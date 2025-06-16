@@ -26,7 +26,7 @@ export default function HomePage() {
   const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({ sortBy: 'newest' });
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const { toast } = useToast(); // toast hook'u kullanıldı
+  const { toast } = useToast(); 
 
 
   const fetchFreights = useCallback(async (filters: FreightFilterOptions, reset: boolean = false) => {
@@ -45,7 +45,7 @@ export default function HomePage() {
 
     try {
       const { freights: newFreights, newLastVisibleDoc: nextDoc } = await getListings({
-        lastVisibleDoc: reset ? null : lastVisibleDoc, // Reads current lastVisibleDoc state
+        lastVisibleDoc: reset ? null : lastVisibleDoc, 
         pageSize: PAGE_SIZE,
         filters: filters,
       });
@@ -78,21 +78,25 @@ export default function HomePage() {
         setInitialLoadComplete(true);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [ 
-    // lastVisibleDoc'ı buraya eklemiyoruz çünkü sonsuz döngüye neden olabilir.
-    // fetchFreights çağrıldığında güncel lastVisibleDoc state'ini okuyacak.
-    // State güncelleyicileri (setFreights, setLastVisibleDoc vb.) React tarafından stabil garanti edilir.
-    // PAGE_SIZE gibi sabitler de sorun yaratmaz.
-    // toast'ı ekledik çünkü dış kapsamdan kullanılıyor.
-    toast 
+  }, [
+    setFreights, 
+    setLastVisibleDoc, 
+    setHasMore, 
+    setFetchError, 
+    setIsLoading, 
+    setIsLoadingMore, 
+    setInitialLoadComplete, 
+    toast
+    // `lastVisibleDoc` is intentionally omitted here as it's read from state within the function.
+    // `PAGE_SIZE` is a constant defined outside, so it doesn't need to be in dependencies.
+    // `getListings` is a stable server action import.
   ]);
 
   useEffect(() => {
     console.log('[HomePage - useEffect[currentFilters]] Filters changed. Calling fetchFreights with reset.');
     fetchFreights(currentFilters, true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters, fetchFreights]); // fetchFreights artık stabil olmalı (useCallback bağımlılıkları sayesinde)
+  }, [currentFilters, fetchFreights]); 
 
   const handleFilterChange = (newFilters: FreightFilterOptions) => {
     console.log('[HomePage - handleFilterChange] New filters received:', JSON.stringify(newFilters));
@@ -135,7 +139,7 @@ export default function HomePage() {
     </div>
   );
   
-  if (fetchError && !isLoading) { // Show error only if not actively loading
+  if (fetchError && !isLoading) { 
     return (
       <div className="text-center py-16 bg-destructive/10 border border-destructive rounded-lg shadow">
         <AlertTriangle className="mx-auto h-20 w-20 text-destructive mb-6" />
