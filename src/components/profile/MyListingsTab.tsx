@@ -26,7 +26,7 @@ import {
   LOADING_TYPES, 
   CARGO_FORMS, 
   WEIGHT_UNITS,
-  FREIGHT_TYPES, // Not used in dialog form type change, but good for reference
+  // FREIGHT_TYPES, // Not used in dialog form type change, but good for reference
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS,
@@ -129,7 +129,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     if (currentFormData.originDistrict && !availableOriginDistricts.includes(currentFormData.originDistrict)) {
       setCurrentFormData(prev => ({ ...prev, originDistrict: '' }));
     }
-  }, [availableOriginDistricts, currentFormData.originDistrict, setCurrentFormData]);
+  }, [availableOriginDistricts, currentFormData.originDistrict]);
 
   // Effect to update available destination districts when destination city/country changes
   useEffect(() => {
@@ -145,7 +145,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     if (currentFormData.destinationDistrict && !availableDestinationDistricts.includes(currentFormData.destinationDistrict)) {
       setCurrentFormData(prev => ({ ...prev, destinationDistrict: '' }));
     }
-  }, [availableDestinationDistricts, currentFormData.destinationDistrict, setCurrentFormData]);
+  }, [availableDestinationDistricts, currentFormData.destinationDistrict]);
 
   const handleEdit = (listing: Freight) => {
     setEditingListing(listing);
@@ -202,7 +202,11 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
       loadingDate: currentFormData.loadingDate ? format(parseISO(currentFormData.loadingDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
     } as FreightUpdateData; 
 
+    // id, postedAt, userId should not be part of the update payload sent to the service for existing listings.
+    // The service's updateListing function should handle not trying to update these immutable fields.
+    // We can filter them out here for clarity if desired, but the service should be robust to it.
     const { id, postedAt, userId: listingUserId, ...updatePayloadForService } = dataPayload;
+
 
     try {
       const success = await updateListing(editingListing.id, updatePayloadForService as FreightUpdateData);
@@ -264,7 +268,14 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
   };
   
   const handleFreightTypeChangeInDialog = (newType: FreightType) => {
-    console.warn("Freight type cannot be changed during edit.");
+    // In edit mode, freight type should not be changed.
+    // This function is here for structural similarity with AdminListingsPage but is effectively a no-op for edits.
+    console.warn("Freight type cannot be changed during edit from MyListingsTab.");
+    // If we were to allow type change, we'd need to reset form fields similar to AdminListingsPage:
+    // setCurrentFormData(prev => ({
+    //   ...createEmptyFormData(newType, user?.id, user?.name), 
+    //   // Retain common fields if needed
+    // }));
   };
 
   const isLoadingCombined = isLoading || optionsLoading;
@@ -632,3 +643,5 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
   </Card>
   );
 }
+
+    
