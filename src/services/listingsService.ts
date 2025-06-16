@@ -34,16 +34,16 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   if (data.loadingDate && data.loadingDate instanceof Timestamp) {
     loadingDateStr = data.loadingDate.toDate().toISOString().split('T')[0];
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is not a Firestore Timestamp or is missing. Defaulting to today. Original:`, data.loadingDate);
-    loadingDateStr = new Date().toISOString().split('T')[0];
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is not a Firestore Timestamp. Defaulting to today. Original:`, data.loadingDate);
+    loadingDateStr = new Date().toISOString().split('T')[0]; // Fallback to today's date as string
   }
 
   let postedAtStr: string;
   if (data.postedAt && data.postedAt instanceof Timestamp) {
     postedAtStr = data.postedAt.toDate().toISOString();
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is not a Firestore Timestamp or is missing. Defaulting to current time. Original:`, data.postedAt);
-    postedAtStr = new Date().toISOString();
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is not a Firestore Timestamp. Defaulting to current time. Original:`, data.postedAt);
+    postedAtStr = new Date().toISOString(); // Fallback to current time as ISO string
   }
   
   const baseFreight = {
@@ -63,7 +63,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true, // Ensure boolean true
+    isActive: data.isActive === true,
     description: data.description || '',
   };
 
@@ -127,7 +127,7 @@ export const getListings = async (
   } = {}
 ): Promise<{ freights: Freight[]; newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null }> => {
   const { lastVisibleDoc = null, pageSize = 6, filters = {} } = options;
-  // console.log('[listingsService - getListings] Called with options:', JSON.stringify({ pageSize, filters }, null, 2));
+  console.log('[listingsService - getListings] Called with options:', JSON.stringify({ pageSize, filters }, null, 2));
   
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
@@ -135,6 +135,7 @@ export const getListings = async (
     
     queryConstraints.push(where('isActive', '==', true));
     
+    // --- TEMPORARILY COMMENTED OUT FOR DIAGNOSIS ---
     // if (filters.freightType) {
     //   queryConstraints.push(where('freightType', '==', filters.freightType));
     //   if (filters.freightType === 'Ticari') {
@@ -148,7 +149,12 @@ export const getListings = async (
     // if (filters.destinationCity) {
     //    queryConstraints.push(where('destinationCity', '==', filters.destinationCity));
     // }
-    queryConstraints.push(orderBy('postedAt', filters.sortBy === 'oldest' ? 'asc' : 'desc'));
+    // --- END OF TEMPORARILY COMMENTED OUT SECTION ---
+
+    // --- TEMPORARILY REMOVED ORDERBY FOR DIAGNOSIS ---
+    // queryConstraints.push(orderBy('postedAt', filters.sortBy === 'oldest' ? 'asc' : 'desc'));
+    console.warn('[listingsService - getListings] DIAGNOSIS: orderBy("postedAt") is temporarily REMOVED.');
+    // --- END OF TEMPORARILY REMOVED ORDERBY ---
     
 
     if (lastVisibleDoc) {
@@ -158,9 +164,8 @@ export const getListings = async (
 
     const constraintDescriptions = queryConstraints.map(c => {
         let desc = `Type: ${c.type}`;
-        // Attempt to access internal properties for logging - might break with Firestore updates
         try {
-            if ((c as any)._fiel_) desc += `, Field: ${(c as any)._fiel_.segments.join('.')}`;
+            if ((c as any)._fiel_) desc += `, Field: ${(c as any)._fiel_.path.segments.join('.')}`; // Updated to access path segments
             if ((c as any)._op) desc += `, Op: ${(c as any)._op}`;
             if ((c as any)._valu_) desc += `, Value: ${JSON.stringify((c as any)._valu_)}`;
         } catch (e) { /* ignore errors from accessing internal props */ }
@@ -176,13 +181,12 @@ export const getListings = async (
     const freights = querySnapshot.docs.map(doc => convertToFreight(doc));
     const newLastDoc = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
     
-    // console.log(`[listingsService - getListings] Processed ${freights.length} listings. Has more: ${!!newLastDoc && querySnapshot.docs.length === pageSize}`);
-    // if(freights.length > 0) {
-    //   console.log('[listingsService - getListings] First fetched listing (raw data from Firestore):', JSON.stringify(querySnapshot.docs[0].data(), null, 2));
-    //   console.log('[listingsService - getListings] First fetched listing (converted):', JSON.stringify(freights[0], null, 2));
-    // } else {
-    //   console.log('[listingsService - getListings] No listings fetched or processed.');
-    // }
+    if(freights.length > 0) {
+      console.log('[listingsService - getListings] First fetched listing (raw data from Firestore):', JSON.stringify(querySnapshot.docs[0].data(), null, 2));
+      console.log('[listingsService - getListings] First fetched listing (converted):', JSON.stringify(freights[0], null, 2));
+    } else {
+      console.log('[listingsService - getListings] No listings fetched or processed after conversion.');
+    }
 
     return { freights, newLastVisibleDoc: newLastDoc };
   } catch (error) {
@@ -231,7 +235,7 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
   console.log('[listingsService - addListing] called for userId:', userId);
   try {
     let loadingDateTimestamp: Timestamp;
-    if (listingData.loadingDate && isValid(parseISO(listingData.loadingDate))) {
+    if (listingData.loadingDate && typeof listingData.loadingDate === 'string' && isValid(parseISO(listingData.loadingDate))) {
       loadingDateTimestamp = Timestamp.fromDate(parseISO(listingData.loadingDate));
     } else {
       console.warn(`[listingsService - addListing] Invalid or missing loadingDate string for new listing. Defaulting to today. Original:`, listingData.loadingDate);
@@ -245,7 +249,7 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
       companyName: listingData.companyName || 'Bilinmiyor',
       contactPerson: listingData.contactPerson || 'Bilinmiyor',
       mobilePhone: listingData.mobilePhone || 'Belirtilmedi',
-      postedAt: Timestamp.fromDate(new Date()), // Always a new Timestamp
+      postedAt: Timestamp.fromDate(new Date()),
       loadingDate: loadingDateTimestamp, 
       isActive: typeof listingData.isActive === 'boolean' ? listingData.isActive : true,
     };
@@ -268,16 +272,18 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
       if (isValid(parseISO(dataToUpdate.loadingDate))) {
         dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate));
       } else {
-        console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Skipping date update for this field.`);
-        delete dataToUpdate.loadingDate; 
+        console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Keeping existing or removing if explicitly null.`);
+        // If we want to remove it if it's explicitly set to an invalid string, we could do:
+        // delete dataToUpdate.loadingDate; 
+        // Or ensure it's set to null if that's the desired behavior on invalid input during update
+        dataToUpdate.loadingDate = null; // Or handle as per business logic
       }
-    } else if (dataToUpdate.hasOwnProperty('loadingDate') && dataToUpdate.loadingDate === null) {
-        console.warn(`[listingsService - updateListing] loadingDate explicitly set to null for ID ${id}. Removing field from update.`);
-        delete dataToUpdate.loadingDate;
+    } else if (dataToUpdate.hasOwnProperty('loadingDate') && (dataToUpdate.loadingDate === null || dataToUpdate.loadingDate === undefined)) {
+        dataToUpdate.loadingDate = null; // Ensure null is passed to Firestore if explicitly cleared
     }
     
     delete dataToUpdate.id; 
-    delete dataToUpdate.postedAt; // Should not update postedAt during an edit
+    delete dataToUpdate.postedAt;
 
     await updateDoc(docRef, dataToUpdate);
     console.log(`[listingsService - updateListing] Successfully updated listing with ID: ${id}`);
@@ -301,3 +307,4 @@ export const deleteListing = async (id: string): Promise<boolean> => {
   }
 };
     
+
