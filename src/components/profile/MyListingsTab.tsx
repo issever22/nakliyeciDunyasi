@@ -26,7 +26,7 @@ import {
   LOADING_TYPES, 
   CARGO_FORMS, 
   WEIGHT_UNITS,
-  FREIGHT_TYPES,
+  FREIGHT_TYPES, // Not used in dialog form type change, but good for reference
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS,
@@ -152,32 +152,35 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
         return;
     }
     
-    // Basic validation
-    const requiredFields: (keyof Freight)[] = ['freightType', 'companyName', 'contactPerson', 'mobilePhone', 'originCity', 'destinationCity', 'loadingDate', 'description'];
+    const requiredFieldsBase: (keyof Freight)[] = ['freightType', 'companyName', 'contactPerson', 'mobilePhone', 'originCity', 'destinationCity', 'loadingDate', 'description'];
+    let specificRequiredFields: (keyof Freight)[] = [];
+
     if (currentFormData.freightType === 'Ticari') {
-        requiredFields.push('cargoType', 'vehicleNeeded', 'loadingType', 'cargoForm', 'cargoWeight');
+        specificRequiredFields = ['cargoType', 'vehicleNeeded', 'loadingType', 'cargoForm', 'cargoWeight'];
     } else if (currentFormData.freightType === 'Evden Eve') {
-        requiredFields.push('residentialTransportType', 'residentialPlaceType', 'residentialElevatorStatus', 'residentialFloorLevel');
+        specificRequiredFields = ['residentialTransportType', 'residentialPlaceType', 'residentialElevatorStatus', 'residentialFloorLevel'];
     } else if (currentFormData.freightType === 'Boş Araç') {
-        requiredFields.push('advertisedVehicleType', 'serviceTypeForLoad', 'vehicleStatedCapacity');
+        specificRequiredFields = ['advertisedVehicleType', 'serviceTypeForLoad', 'vehicleStatedCapacity'];
     }
+    const allRequiredFields = [...requiredFieldsBase, ...specificRequiredFields];
 
-
-    for (const field of requiredFields) {
-        const commercialField = field as keyof CommercialFreight;
-        const residentialField = field as keyof ResidentialFreight;
-        const emptyVehicleField = field as keyof EmptyVehicleListing;
-
+    for (const field of allRequiredFields) {
         let valueToCheck: any;
-        if (currentFormData.freightType === 'Ticari') valueToCheck = (currentFormData as Partial<CommercialFreight>)[commercialField];
-        else if (currentFormData.freightType === 'Evden Eve') valueToCheck = (currentFormData as Partial<ResidentialFreight>)[residentialField];
-        else if (currentFormData.freightType === 'Boş Araç') valueToCheck = (currentFormData as Partial<EmptyVehicleListing>)[emptyVehicleField];
-        else valueToCheck = (currentFormData as any)[field];
+        // Type-safe access based on freightType
+        switch (currentFormData.freightType) {
+            case 'Ticari': valueToCheck = (currentFormData as Partial<CommercialFreight>)[field as keyof CommercialFreight]; break;
+            case 'Evden Eve': valueToCheck = (currentFormData as Partial<ResidentialFreight>)[field as keyof ResidentialFreight]; break;
+            case 'Boş Araç': valueToCheck = (currentFormData as Partial<EmptyVehicleListing>)[field as keyof EmptyVehicleListing]; break;
+            default: valueToCheck = (currentFormData as any)[field];
+        }
 
-        if (valueToCheck === undefined || valueToCheck === null || (typeof valueToCheck === 'string' && !valueToCheck.trim())) {
-            if (field === 'cargoWeight' && (currentFormData as Partial<CommercialFreight>).cargoWeight === 0) continue;
-            if (field === 'vehicleStatedCapacity' && (currentFormData as Partial<EmptyVehicleListing>).vehicleStatedCapacity === 0) continue;
+        let isMissing = valueToCheck === undefined || valueToCheck === null || (typeof valueToCheck === 'string' && !valueToCheck.trim());
+        
+        // Special handling for numeric fields that can be 0
+        if (field === 'cargoWeight' && (currentFormData as Partial<CommercialFreight>).cargoWeight === 0) isMissing = false;
+        if (field === 'vehicleStatedCapacity' && (currentFormData as Partial<EmptyVehicleListing>).vehicleStatedCapacity === 0) isMissing = false;
 
+        if (isMissing) {
             toast({ title: "Eksik Bilgi", description: `Lütfen "${field}" alanını doldurun.`, variant: "destructive" });
             setFormSubmitting(false);
             return;
@@ -251,8 +254,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
   };
   
   const handleFreightTypeChangeInDialog = (newType: FreightType) => {
-    // This should not happen in edit mode, as freight type is fixed.
-    // If it were for creating new listings, this would re-initialize the form.
     console.warn("Freight type cannot be changed during edit.");
   };
 
@@ -618,7 +619,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
         </form>
       </DialogContent>
     </Dialog>
-  </div>
+  </Card>
   );
 }
 
