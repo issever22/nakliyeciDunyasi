@@ -35,9 +35,10 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     if (data.loadingDate instanceof Timestamp) {
       loadingDateStr = data.loadingDate.toDate().toISOString().split('T')[0];
     } else if (typeof data.loadingDate === 'string' && isValid(parseISO(data.loadingDate))) {
+      console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is a string, should be Timestamp. Converting for client. Original:`, data.loadingDate);
       loadingDateStr = parseISO(data.loadingDate).toISOString().split('T')[0];
     } else {
-      console.warn(`[listingsService - convertToFreight] Listing ${docId}: Invalid or missing loadingDate. Defaulting to today. Original value:`, data.loadingDate);
+      console.warn(`[listingsService - convertToFreight] Listing ${docId}: Invalid or unhandled loadingDate format. Defaulting to today. Original:`, data.loadingDate);
       loadingDateStr = new Date().toISOString().split('T')[0];
     }
   } else {
@@ -50,9 +51,10 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     if (data.postedAt instanceof Timestamp) {
       postedAtStr = data.postedAt.toDate().toISOString();
     } else if (typeof data.postedAt === 'string' && isValid(parseISO(data.postedAt))) {
+      console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is a string, should be Timestamp. Converting for client. Original:`, data.postedAt);
       postedAtStr = parseISO(data.postedAt).toISOString();
     } else {
-      console.warn(`[listingsService - convertToFreight] Listing ${docId}: Invalid or missing postedAt. Defaulting to current time. Original value:`, data.postedAt);
+      console.warn(`[listingsService - convertToFreight] Listing ${docId}: Invalid or unhandled postedAt format. Defaulting to current time. Original:`, data.postedAt);
       postedAtStr = new Date().toISOString();
     }
   } else {
@@ -77,7 +79,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true, // Explicitly check for true
+    isActive: data.isActive === true,
     description: data.description || '',
   };
 
@@ -114,7 +116,6 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     } as Freight;
   }
   console.warn(`[listingsService - convertToFreight] Listing ${docId}: Unknown freightType "${data.freightType}". Defaulting to 'Ticari'. Original data:`, data);
-  // Fallback might be problematic, but ensures some structure.
   return { ...baseFreight, freightType: 'Ticari', cargoType: 'Diğer', vehicleNeeded: 'Araç Farketmez', loadingType: 'Komple', cargoForm: 'Diğer', cargoWeight: 0, cargoWeightUnit: 'Ton', isContinuousLoad: false, shipmentScope: 'Yurt İçi' } as Freight;
 };
 
@@ -148,55 +149,40 @@ export const getListings = async (
     const listingsRef = collection(db, LISTINGS_COLLECTION);
     const queryConstraints: QueryConstraint[] = [];
     
-    // ***** DEBUGGING: Start with a very simple query *****
     queryConstraints.push(where('isActive', '==', true));
-    // Add orderBy postedAt *after* all other where clauses if they are not range/inequality on postedAt
-    // For initial debugging, keep it simple. If postedAt is problematic, this might fail.
-    queryConstraints.push(orderBy('postedAt', filters.sortBy === 'oldest' ? 'asc' : 'desc'));
-    // ***** END DEBUGGING: Simple Query *****
-
-    // Original filter logic (KEEP COMMENTED OUT FOR NOW for initial debugging)
-    /*
-    queryConstraints.push(where('isActive', '==', true));
+    
     if (filters.freightType) {
       queryConstraints.push(where('freightType', '==', filters.freightType));
-      // Specific filters for 'Ticari' type
       if (filters.freightType === 'Ticari') {
         if (filters.vehicleNeeded) queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
         if (filters.shipmentScope) queryConstraints.push(where('shipmentScope', '==', filters.shipmentScope));
       }
     }
+    // Firestore requires the first orderBy to be on the field used in inequality filters.
+    // If city filters become range queries (e.g., for startsWith), this needs adjustment.
+    // For simple equality, order of `where` vs `orderBy('postedAt')` is less strict.
     if (filters.originCity) {
-       // Using range queries for partial matches on city names. Requires Firestore indexing.
-       queryConstraints.push(where('originCity', '>=', filters.originCity));
-       queryConstraints.push(where('originCity', '<=', filters.originCity + '\uf8ff'));
+       queryConstraints.push(where('originCity', '==', filters.originCity));
     }
     if (filters.destinationCity) {
-       queryConstraints.push(where('destinationCity', '>=', filters.destinationCity));
-       queryConstraints.push(where('destinationCity', '<=', filters.destinationCity + '\uf8ff'));
+       queryConstraints.push(where('destinationCity', '==', filters.destinationCity));
     }
-    // IMPORTANT: If you have inequality filters (like >=, <= on city names), 
-    // your first orderBy must be on the same field.
-    // If not using city range filters, then orderBy('postedAt') is fine.
-    // For now, assuming postedAt is the primary sort after filtering.
     queryConstraints.push(orderBy('postedAt', filters.sortBy === 'oldest' ? 'asc' : 'desc'));
-    */
+    
 
     if (lastVisibleDoc) {
       queryConstraints.push(startAfter(lastVisibleDoc));
     }
     queryConstraints.push(limit(pageSize));
 
-    // Log the constructed query constraints
     const constraintDescriptions = queryConstraints.map(c => {
         let desc = `Type: ${c.type}`;
-        if ((c as any)._field) desc += `, Field: ${(c as any)._field.segments.join('.')}`;
-        if ((c as any)._op) desc += `, Op: ${(c as any)._op}`;
-        if ((c as any)._value !== undefined) desc += `, Value: ${JSON.stringify((c as any)._value)}`;
+        if ('_fiel_') desc += `, Field: ${(c as any)._fiel_.segments.join('.')}`; // Using internal property for logging
+        if ('_op') desc += `, Op: ${(c as any)._op}`;
+        if ('_valu_') desc += `, Value: ${JSON.stringify((c as any)._valu_)}`;
         return desc;
     });
     console.log('[listingsService - getListings] Final query constraints:', JSON.stringify(constraintDescriptions, null, 2));
-
 
     const q = query(listingsRef, ...queryConstraints);
     const querySnapshot = await getDocs(q);
@@ -217,14 +203,12 @@ export const getListings = async (
     return { freights, newLastVisibleDoc: newLastDoc };
   } catch (error) {
     console.error("[listingsService - getListings] Error fetching listings:", error);
-    // Check for Firestore specific errors
     if ((error as any).code === 'failed-precondition') {
         console.error("[listingsService - getListings] Firestore Precondition Failed: This often means you're missing a composite index. Check the Firestore console for index creation links in the error details if available, or review your query and ensure indexes match.");
     }
     return { freights: [], newLastVisibleDoc: null };
   }
 };
-
 
 export const getAllListingsForAdmin = async (): Promise<Freight[]> => {
   console.log('[listingsService - getAllListingsForAdmin] called');
@@ -249,7 +233,6 @@ export const getListingById = async (id: string): Promise<Freight | null> => {
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const listing = convertToFreight(docSnap.data() as DocumentData, docSnap.id);
-      // console.log(`[listingsService - getListingById] Found listing for id ${id}:`, JSON.stringify(listing, null, 2));
       return listing;
     }
     console.log(`[listingsService - getListingById] No listing found for id ${id}`);
@@ -262,8 +245,15 @@ export const getListingById = async (id: string): Promise<Freight | null> => {
 
 export const addListing = async (userId: string, listingData: FreightCreationData): Promise<string | null> => {
   console.log('[listingsService - addListing] called for userId:', userId);
-  // console.log('[listingsService - addListing] with data:', JSON.stringify(listingData, null, 2)); // Potentially large
   try {
+    let loadingDateTimestamp: Timestamp;
+    if (listingData.loadingDate && isValid(parseISO(listingData.loadingDate))) {
+      loadingDateTimestamp = Timestamp.fromDate(parseISO(listingData.loadingDate));
+    } else {
+      console.warn(`[listingsService - addListing] Invalid or missing loadingDate string. Defaulting to today. Original:`, listingData.loadingDate);
+      loadingDateTimestamp = Timestamp.fromDate(new Date());
+    }
+
     const dataToSave = {
       ...listingData,
       userId,
@@ -272,7 +262,7 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
       contactPerson: listingData.contactPerson || 'Bilinmiyor',
       mobilePhone: listingData.mobilePhone || 'Belirtilmedi',
       postedAt: Timestamp.fromDate(new Date()),
-      loadingDate: Timestamp.fromDate(parseISO(listingData.loadingDate)), 
+      loadingDate: loadingDateTimestamp, 
       isActive: typeof listingData.isActive === 'boolean' ? listingData.isActive : true,
     };
     const docRef = await addDoc(collection(db, LISTINGS_COLLECTION), dataToSave);
@@ -286,7 +276,6 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
 
 export const updateListing = async (id: string, listingUpdateData: FreightUpdateData): Promise<boolean> => {
   console.log(`[listingsService - updateListing] called for id: ${id}`);
-  // console.log(`[listingsService - updateListing] with data:`, JSON.stringify(listingUpdateData, null, 2)); // Potentially large
   try {
     const docRef = doc(db, LISTINGS_COLLECTION, id);
     const dataToUpdate: any = { ...listingUpdateData };
@@ -298,10 +287,14 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
         console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Skipping date update for this field.`);
         delete dataToUpdate.loadingDate; 
       }
+    } else if (dataToUpdate.hasOwnProperty('loadingDate') && dataToUpdate.loadingDate === null) {
+        // If explicitly set to null, perhaps remove or handle as error
+        console.warn(`[listingsService - updateListing] loadingDate explicitly set to null for ID ${id}. Consider behavior.`);
+        delete dataToUpdate.loadingDate;
     }
     
     delete dataToUpdate.id; 
-    delete dataToUpdate.postedAt;
+    delete dataToUpdate.postedAt; // Should not update postedAt during an edit
 
     await updateDoc(docRef, dataToUpdate);
     console.log(`[listingsService - updateListing] Successfully updated listing with ID: ${id}`);

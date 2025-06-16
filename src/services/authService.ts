@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db } from '@/lib/firebase'; // auth is not needed here for server actions
+import { db } from '@/lib/firebase'; 
 import type { UserProfile, IndividualUserProfile, CompanyUserProfile, RegisterData, IndividualRegisterData, CompanyRegisterData, UserRole } from '@/types';
 import {
   collection,
@@ -16,26 +16,27 @@ import {
   DocumentData,
   getDocs
 } from 'firebase/firestore';
-import { parseISO } from 'date-fns';
+import { parseISO, isValid } from 'date-fns';
 
 const USERS_COLLECTION = 'users';
 
-// Helper to convert Firestore data to UserProfile - internal to this module
 const convertToUserProfile = (docData: DocumentData, id: string): UserProfile => {
   const data = { ...docData };
 
-  if (data.createdAt && data.createdAt.toDate) {
+  if (data.createdAt && data.createdAt instanceof Timestamp) {
     data.createdAt = data.createdAt.toDate().toISOString();
-  } else if (typeof data.createdAt === 'string') {
-    // already string
+  } else if (data.createdAt && typeof data.createdAt === 'string' && isValid(parseISO(data.createdAt))) {
+    // Already ISO string
   } else {
     data.createdAt = new Date().toISOString(); // fallback
   }
 
-  if (data.membershipEndDate && data.membershipEndDate.toDate) {
+  if (data.membershipEndDate && data.membershipEndDate instanceof Timestamp) {
     data.membershipEndDate = data.membershipEndDate.toDate().toISOString();
-  } else if (typeof data.membershipEndDate === 'string') {
-    // already string
+  } else if (data.membershipEndDate && typeof data.membershipEndDate === 'string' && isValid(parseISO(data.membershipEndDate))) {
+    // Already ISO string
+  } else {
+    data.membershipEndDate = undefined;
   }
 
   data.isActive = data.isActive === undefined ? true : data.isActive;
@@ -45,12 +46,12 @@ const convertToUserProfile = (docData: DocumentData, id: string): UserProfile =>
       id,
       email: data.email,
       role: 'company',
-      name: data.name, // This is companyTitle
+      name: data.name, 
       isActive: data.isActive,
       createdAt: data.createdAt,
       username: data.username || '',
       logoUrl: data.logoUrl || undefined,
-      companyTitle: data.name,
+      companyTitle: data.name, // companyTitle is the same as name for company profiles
       contactFullName: data.contactFullName || '',
       workPhone: data.workPhone || undefined,
       mobilePhone: data.mobilePhone || '',
@@ -101,11 +102,11 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 
 export async function createUserProfile(uid: string, registrationData: RegisterData): Promise<{ profile: UserProfile | null; error?: string }> {
   try {
-    const { password, ...profileDataFromForm } = registrationData; // Exclude password
+    const { password, ...profileDataFromForm } = registrationData; 
 
     const commonProfileData = {
       email: profileDataFromForm.email,
-      name: profileDataFromForm.name, // This is fullName for individual, companyTitle for company
+      name: profileDataFromForm.name, 
       role: profileDataFromForm.role,
       isActive: true,
       createdAt: Timestamp.fromDate(new Date()),
@@ -146,7 +147,7 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
         return { profile: null, error: "Company full address is missing or invalid." };
       }
 
-      const companyProfileBase: Omit<CompanyUserProfile, 'id'> = {
+      const companyProfileBase: Omit<CompanyUserProfile, 'id' | 'membershipEndDate'> & { membershipEndDate?: Timestamp | null } = {
         ...commonProfileData,
         role: 'company',
         username: companyData.username,
@@ -167,14 +168,16 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
         preferredCities: Array.isArray(companyData.preferredCities) ? companyData.preferredCities.filter(c => c) : [],
         preferredCountries: Array.isArray(companyData.preferredCountries) ? companyData.preferredCountries.filter(c => c) : [],
         membershipStatus: 'Yok',
-        ownedVehicles: [], // Initialize as empty array
-        authDocuments: [], // Initialize as empty array
+        ownedVehicles: [], 
+        authDocuments: [], 
       };
 
-      if (companyData.membershipEndDate) {
-        (companyProfileBase as CompanyUserProfile).membershipEndDate = companyData.membershipEndDate;
+      if (companyData.membershipEndDate && typeof companyData.membershipEndDate === 'string' && isValid(parseISO(companyData.membershipEndDate))) {
+        companyProfileBase.membershipEndDate = Timestamp.fromDate(parseISO(companyData.membershipEndDate));
+      } else {
+        companyProfileBase.membershipEndDate = null;
       }
-      finalProfileDataForFirestore = companyProfileBase;
+      finalProfileDataForFirestore = companyProfileBase as Omit<CompanyUserProfile, 'id'>;
 
     } else {
       return { profile: null, error: "Invalid user role specified for profile creation." };
@@ -189,20 +192,10 @@ export async function createUserProfile(uid: string, registrationData: RegisterD
     return { profile: null, error: "Profile verification failed after creation." };
 
   } catch (error: any) {
-    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    console.error("[authService.ts] CRITICAL: Error during Firestore profile creation (setDoc or getDoc). CHECK SERVER LOGS FOR THIS ERROR.");
-    console.error("[authService.ts] Error details:", error);
-    console.error(`[authService.ts] Failed UID: ${uid}`);
-    const safeRegistrationData = { ...registrationData };
-    delete safeRegistrationData.password;
-    console.error("[authService.ts] Data that was attempted to be written (excluding password):", JSON.stringify(safeRegistrationData, null, 2));
-    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.error("[authService.ts] Error during Firestore profile creation:", error);
     let errorMessage = "An unknown error occurred during profile creation.";
-    if (error.message) {
-        errorMessage = error.message;
-    } else if (typeof error === 'string') {
-        errorMessage = error;
-    }
+    if (error.message) errorMessage = error.message;
+    else if (typeof error === 'string') errorMessage = error;
     return { profile: null, error: `Firestore operation failed: ${errorMessage}` };
   }
 }
@@ -229,21 +222,15 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
     delete updateData.role;
     delete updateData.createdAt;
 
-    if (updateData.membershipEndDate && typeof updateData.membershipEndDate === 'string') {
-      updateData.membershipEndDate = Timestamp.fromDate(parseISO(updateData.membershipEndDate));
-    } else if (updateData.hasOwnProperty('membershipEndDate') && (updateData.membershipEndDate === null || updateData.membershipEndDate === undefined)) {
-      if (updateData.membershipEndDate === undefined) {
-        // To truly remove a field, you would use deleteField() from 'firebase/firestore',
-        // but for simplicity, we'll set to null or let Firestore handle undefined if it's not explicitly set.
-        // Let's ensure it's not sent if undefined, or sent as null if explicitly null.
-        // The below logic will pass 'null' if it was 'null', or omit if 'undefined'.
-        if (data.membershipEndDate === undefined) delete updateData.membershipEndDate;
-        else updateData.membershipEndDate = null;
+    if (updateData.hasOwnProperty('membershipEndDate')) {
+      if (updateData.membershipEndDate && typeof updateData.membershipEndDate === 'string' && isValid(parseISO(updateData.membershipEndDate))) {
+        updateData.membershipEndDate = Timestamp.fromDate(parseISO(updateData.membershipEndDate));
       } else {
-         updateData.membershipEndDate = null;
+         // If it's explicitly null, undefined, or an invalid string, set to null in Firestore
+        updateData.membershipEndDate = null;
       }
     }
-
+    
     await updateDoc(docRef, updateData);
     return true;
   } catch (error) {

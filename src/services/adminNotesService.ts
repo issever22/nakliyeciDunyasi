@@ -14,19 +14,24 @@ import {
   Timestamp,
   DocumentData
 } from 'firebase/firestore';
-import { parseISO } from 'date-fns';
+import { parseISO, isValid } from 'date-fns';
 
 const ADMIN_NOTES_COLLECTION = 'settingsAdminNotes';
 
 const convertToAdminNoteSetting = (docData: DocumentData, id: string): AdminNoteSetting => {
   const data = { ...docData };
-  if (data.createdDate && data.createdDate.toDate) {
+  if (data.createdDate && data.createdDate instanceof Timestamp) {
     data.createdDate = data.createdDate.toDate().toISOString();
+  } else if (data.createdDate && typeof data.createdDate === 'string' && isValid(parseISO(data.createdDate))) {
+    // Already ISO string
   } else {
     data.createdDate = new Date().toISOString(); // Fallback
   }
-  if (data.lastModifiedDate && data.lastModifiedDate.toDate) {
+
+  if (data.lastModifiedDate && data.lastModifiedDate instanceof Timestamp) {
     data.lastModifiedDate = data.lastModifiedDate.toDate().toISOString();
+  } else if (data.lastModifiedDate && typeof data.lastModifiedDate === 'string' && isValid(parseISO(data.lastModifiedDate))) {
+    // Already ISO string
   } else {
     data.lastModifiedDate = new Date().toISOString(); // Fallback
   }
@@ -76,7 +81,7 @@ export const updateAdminNote = async (id: string, data: Partial<Omit<AdminNoteSe
         ...data,
         lastModifiedDate: Timestamp.fromDate(new Date()),
     };
-    delete (dataToUpdate as any).createdDate; // Ensure createdDate is not overwritten
+    delete (dataToUpdate as any).createdDate; 
     
     await updateDoc(docRef, dataToUpdate);
     return true;
