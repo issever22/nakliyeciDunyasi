@@ -32,26 +32,20 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
 
   let loadingDateStr: string;
   if (data.loadingDate && data.loadingDate instanceof Timestamp) {
-    loadingDateStr = data.loadingDate.toDate().toISOString().split('T')[0];
-  } else if (data.loadingDate && typeof data.loadingDate === 'string' && isValid(parseISO(data.loadingDate))) {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is a string. Converting. Original:`, data.loadingDate);
-    loadingDateStr = data.loadingDate;
+    loadingDateStr = data.loadingDate.toDate().toISOString();
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is invalid or missing. Defaulting to today. Original:`, data.loadingDate);
-    loadingDateStr = new Date().toISOString().split('T')[0];
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is not a Timestamp or is missing. Defaulting to today. Original:`, data.loadingDate);
+    loadingDateStr = new Date().toISOString();
   }
 
   let postedAtStr: string;
   if (data.postedAt && data.postedAt instanceof Timestamp) {
     postedAtStr = data.postedAt.toDate().toISOString();
-  } else if (data.postedAt && typeof data.postedAt === 'string' && isValid(parseISO(data.postedAt))) {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is a string. Converting. Original:`, data.postedAt);
-    postedAtStr = data.postedAt;
   } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is invalid or missing. Defaulting to current time. Original:`, data.postedAt);
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is not a Timestamp or is missing. Defaulting to current time. Original:`, data.postedAt);
     postedAtStr = new Date().toISOString();
   }
-  
+
   const baseFreight = {
     id: docId,
     userId: data.userId || '',
@@ -69,7 +63,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true, // Ensure isActive is explicitly true
+    isActive: data.isActive === true,
     description: data.description || '',
   };
 
@@ -96,13 +90,19 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
       residentialFloorLevel: data.residentialFloorLevel || '',
     } as Freight;
   } else if (data.freightType === 'Boş Araç') {
+    // Handle potentially missing optional fields for EmptyVehicleListing
+    if (!data.advertisedVehicleType) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'advertisedVehicleType' is missing.`);
+    if (!data.serviceTypeForLoad) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'serviceTypeForLoad' is missing. Found in test data: ${data.serviceTypeForLoad}`);
+    if (data.vehicleStatedCapacity === undefined) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacity' is missing.`);
+    if (!data.vehicleStatedCapacityUnit) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacityUnit' is missing.`);
+
     return {
       ...baseFreight,
       freightType: 'Boş Araç',
-      advertisedVehicleType: data.advertisedVehicleType || '',
-      serviceTypeForLoad: data.serviceTypeForLoad || '',
-      vehicleStatedCapacity: data.vehicleStatedCapacity || 0,
-      vehicleStatedCapacityUnit: data.vehicleStatedCapacityUnit || 'Ton',
+      advertisedVehicleType: data.advertisedVehicleType || 'Belirtilmemiş', // Default if missing
+      serviceTypeForLoad: data.serviceTypeForLoad || 'Komple', // Default if missing, using test data as hint
+      vehicleStatedCapacity: data.vehicleStatedCapacity || 0, // Default if missing
+      vehicleStatedCapacityUnit: data.vehicleStatedCapacityUnit || 'Ton', // Default if missing
     } as Freight;
   }
   console.warn(`[listingsService - convertToFreight] Listing ${docId}: Unknown freightType "${data.freightType}". Defaulting to 'Ticari'. Original data:`, data);
@@ -127,41 +127,23 @@ export const getListingsByUserId = async (userId: string): Promise<Freight[]> =>
 
 export const getListings = async (
   options: {
-    lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;
-    pageSize?: number;
-    filters?: FreightFilterOptions;
+    lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null; // Still keep for potential future re-enablement
+    pageSize?: number; // Still keep
+    filters?: FreightFilterOptions; // Still keep
   } = {}
 ): Promise<{ freights: Freight[]; newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null }> => {
-  const { lastVisibleDoc = null, pageSize = 6, filters = {} } = options;
-  console.log('[listingsService - getListings] Called with options:', JSON.stringify({ pageSize, filters }, null, 2));
-  
+  const { pageSize = 5 } = options; // Fetch a small fixed number, no pagination for now
+  console.warn('[listingsService - getListings] DIAGNOSIS: Fetching basic list, most filters and ordering are TEMPORARILY REMOVED.');
+
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
     const queryConstraints: QueryConstraint[] = [];
-    
-    queryConstraints.push(where('isActive', '==', true));
-    
-    // --- TEMPORARILY COMMENTED OUT ALL FILTERS AND ORDERING FOR DIAGNOSIS ---
-    console.warn('[listingsService - getListings] DIAGNOSIS: ALL FILTERS AND ORDERING ARE TEMPORARILY REMOVED.');
-    // if (filters.freightType) {
-    //   queryConstraints.push(where('freightType', '==', filters.freightType));
-    //   if (filters.freightType === 'Ticari') {
-    //     if (filters.vehicleNeeded) queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
-    //     if (filters.shipmentScope) queryConstraints.push(where('shipmentScope', '==', filters.shipmentScope));
-    //   }
-    // }
-    // if (filters.originCity) {
-    //    queryConstraints.push(where('originCity', '==', filters.originCity));
-    // }
-    // if (filters.destinationCity) {
-    //    queryConstraints.push(where('destinationCity', '==', filters.destinationCity));
-    // }
-    // queryConstraints.push(orderBy('postedAt', filters.sortBy === 'oldest' ? 'asc' : 'desc'));
-    // --- END OF TEMPORARILY COMMENTED OUT SECTION ---
 
-    if (lastVisibleDoc) {
-      queryConstraints.push(startAfter(lastVisibleDoc));
-    }
+    queryConstraints.push(where('isActive', '==', true));
+    // No orderBy for now to simplify
+    // queryConstraints.push(orderBy('postedAt', 'desc'));
+    console.warn('[listingsService - getListings] DIAGNOSIS: orderBy("postedAt") is temporarily REMOVED.');
+
     queryConstraints.push(limit(pageSize));
 
     const constraintDescriptions = queryConstraints.map(c => {
@@ -170,10 +152,10 @@ export const getListings = async (
             if ((c as any)._fieldPath && (c as any)._fieldPath.segments) desc += `, Field: ${(c as any)._fieldPath.segments.join('.')}`;
             if ((c as any)._op) desc += `, Op: ${(c as any)._op}`;
             if ((c as any)._value) desc += `, Value: ${JSON.stringify((c as any)._value)}`;
-        } catch (e) { /* ignore errors from accessing internal props */ }
+        } catch (e) { /* ignore */ }
         return desc;
     });
-    console.log('[listingsService - getListings] Final query constraints:', JSON.stringify(constraintDescriptions, null, 2));
+    console.log('[listingsService - getListings] Final query constraints (simplified):', JSON.stringify(constraintDescriptions, null, 2));
 
     const q = query(listingsRef, ...queryConstraints);
     const querySnapshot = await getDocs(q);
@@ -181,8 +163,9 @@ export const getListings = async (
     console.log(`[listingsService - getListings] Firestore query returned ${querySnapshot.docs.length} documents.`);
 
     const freights = querySnapshot.docs.map(doc => convertToFreight(doc));
-    const newLastDoc = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
-    
+    // No pagination, so newLastVisibleDoc is null
+    const newLastDoc = null;
+
     if(freights.length > 0) {
       console.log('[listingsService - getListings] First fetched listing (raw data from Firestore):', JSON.stringify(querySnapshot.docs[0].data(), null, 2));
       console.log('[listingsService - getListings] First fetched listing (converted):', JSON.stringify(freights[0], null, 2));
@@ -252,7 +235,7 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
       contactPerson: listingData.contactPerson || 'Bilinmiyor',
       mobilePhone: listingData.mobilePhone || 'Belirtilmedi',
       postedAt: Timestamp.fromDate(new Date()),
-      loadingDate: loadingDateTimestamp, 
+      loadingDate: loadingDateTimestamp,
       isActive: typeof listingData.isActive === 'boolean' ? listingData.isActive : true,
     };
     const docRef = await addDoc(collection(db, LISTINGS_COLLECTION), dataToSave);
@@ -275,16 +258,15 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
         dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate));
       } else {
         console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Setting to null.`);
-        dataToUpdate.loadingDate = null; 
+        dataToUpdate.loadingDate = null;
       }
     } else if (dataToUpdate.hasOwnProperty('loadingDate') && (dataToUpdate.loadingDate === null || dataToUpdate.loadingDate === undefined)) {
         dataToUpdate.loadingDate = null;
     }
-    
-    delete dataToUpdate.id; 
+
+    delete dataToUpdate.id;
     delete dataToUpdate.postedAt;
     delete dataToUpdate.userId;
-
 
     await updateDoc(docRef, dataToUpdate);
     console.log(`[listingsService - updateListing] Successfully updated listing with ID: ${id}`);
@@ -307,4 +289,4 @@ export const deleteListing = async (id: string): Promise<boolean> => {
     return false;
   }
 };
-    
+

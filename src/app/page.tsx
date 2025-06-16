@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
-import FreightFilters from '@/components/freight/FreightFilters';
+// import FreightFilters from '@/components/freight/FreightFilters'; // Temporarily removed
 import type { Freight, FreightFilterOptions } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -11,121 +11,75 @@ import { PlusCircle, AlertTriangle, Loader2, SearchX } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import Image from 'next/image';
-import { getListings } from '@/services/listingsService'; 
+import { getListings } from '@/services/listingsService';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast'; 
+import { useToast } from '@/hooks/use-toast';
 
-const PAGE_SIZE = 6;
+const SIMPLIFIED_PAGE_SIZE = 5; // Fetch a small number for testing
 
 export default function HomePage() {
   const [freights, setFreights] = useState<Freight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  // Initialize with a minimal filter object as the service now ignores most properties for diagnosis
-  const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({}); 
+  // const [isLoadingMore, setIsLoadingMore] = useState(false); // Temporarily removed
+  // const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null); // Temporarily removed
+  // const [hasMore, setHasMore] = useState(true); // Temporarily removed
+  // const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({}); // Temporarily removed
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const { toast } = useToast(); 
+  const { toast } = useToast();
 
-
-  const fetchFreights = useCallback(async (filters: FreightFilterOptions, reset: boolean = false) => {
-    console.log('[HomePage - fetchFreights] Called. Reset:', reset, 'Filters:', JSON.stringify(filters));
-    if (reset) {
-      console.log('[HomePage - fetchFreights] Resetting: setIsLoading(true), clear freights, lastVisibleDoc, hasMore.');
-      setIsLoading(true);
-      setFreights([]);
-      setLastVisibleDoc(null);
-      setHasMore(true);
-      setFetchError(null);
-    } else {
-      console.log('[HomePage - fetchFreights] Loading more: setIsLoadingMore(true).');
-      setIsLoadingMore(true);
-    }
+  const fetchFreightsSimple = useCallback(async () => {
+    console.log('[HomePage - fetchFreightsSimple] Called.');
+    setIsLoading(true);
+    setFreights([]);
+    setFetchError(null);
 
     try {
-      // Pass a minimal filter object for now as the service is ignoring most filters
-      const result = await getListings({
-        lastVisibleDoc: reset ? null : lastVisibleDoc, 
-        pageSize: PAGE_SIZE,
-        filters: {}, // Send empty or minimal filters
-      });
+      const result = await getListings({ pageSize: SIMPLIFIED_PAGE_SIZE }); // No filters, no pagination
       const newFreights = result.freights;
-      const nextDoc = result.newLastVisibleDoc;
 
-
-      console.log('[HomePage - fetchFreights] getListings returned. New freights count:', newFreights.length, 'Next doc exists:', !!nextDoc);
+      console.log('[HomePage - fetchFreightsSimple] getListings returned. New freights count:', newFreights.length);
       if (newFreights.length > 0) {
-        console.log('[HomePage - fetchFreights] First new freight data (converted):', JSON.stringify(newFreights[0], null, 2));
+        console.log('[HomePage - fetchFreightsSimple] First new freight data (converted):', JSON.stringify(newFreights[0], null, 2));
       }
 
-
-      setFreights(prev => {
-        const updatedFreights = reset ? newFreights : [...prev, ...newFreights];
-        console.log('[HomePage - fetchFreights] Updated freights state. Total count:', updatedFreights.length);
-        return updatedFreights;
-      });
-      setLastVisibleDoc(nextDoc);
-      setHasMore(newFreights.length === PAGE_SIZE);
-      console.log('[HomePage - fetchFreights] Set hasMore to:', newFreights.length === PAGE_SIZE);
-
+      setFreights(newFreights);
+      // Since we are not paginating for this test, hasMore can be considered false after first load
+      // setHasMore(false); // Temporarily removed
     } catch (error) {
-      console.error("[HomePage - fetchFreights] Error fetching freights:", error);
+      console.error("[HomePage - fetchFreightsSimple] Error fetching freights:", error);
       setFetchError("İlanlar yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
       toast({ title: "Veri Yükleme Hatası", description: "İlanlar çekilirken bir sorun oluştu.", variant: "destructive" });
     } finally {
-      console.log('[HomePage - fetchFreights] Finally block. setIsLoading(false), setIsLoadingMore(false).');
+      console.log('[HomePage - fetchFreightsSimple] Finally block. setIsLoading(false).');
       setIsLoading(false);
-      setIsLoadingMore(false);
-      if (reset) {
-        console.log('[HomePage - fetchFreights] Reset complete. setInitialLoadComplete(true).');
-        setInitialLoadComplete(true);
-      }
+      setInitialLoadComplete(true);
     }
-  }, [
-    lastVisibleDoc, // Keep lastVisibleDoc as it's used for pagination
-    toast,
-    // Removed other state setters that might cause re-creation if not stable.
-    // PAGE_SIZE is stable. getListings is a stable import.
-  ]);
+  // Dependencies for useCallback: ensure stable references if any external vars were used
+  // For this simplified version, only toast is a dependency.
+  }, [toast]);
 
   useEffect(() => {
-    console.log('[HomePage - useEffect[currentFilters]] Filters changed (or initial load). Calling fetchFreights with reset.');
-    // currentFilters will be passed but mostly ignored by the service for now.
-    fetchFreights(currentFilters, true);
+    console.log('[HomePage - useEffect[]] Component mounted. Calling fetchFreightsSimple.');
+    fetchFreightsSimple();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters, fetchFreights]); // fetchFreights added as dependency
+  }, [fetchFreightsSimple]); // fetchFreightsSimple is stable due to useCallback
 
-  const handleFilterChange = (newFilters: FreightFilterOptions) => {
-    console.log('[HomePage - handleFilterChange] New filters received (will be mostly ignored by service for now):', JSON.stringify(newFilters));
-    setCurrentFilters(newFilters); 
-  };
+  // const handleFilterChange = (newFilters: FreightFilterOptions) => { // Temporarily removed
+  //   console.log('[HomePage - handleFilterChange] New filters received:', JSON.stringify(newFilters));
+  //   setCurrentFilters(newFilters);
+  // };
 
-  const loadMoreFreights = () => {
-    console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore);
-    if (hasMore && !isLoadingMore) {
-      // currentFilters will be passed but mostly ignored by the service for now.
-      fetchFreights(currentFilters, false); 
-    }
-  };
-  
-  useEffect(() => {
-    console.log('[HomePage - useEffect[]] Component mounted/updated. Current state:');
-    console.log({
-      isLoading,
-      initialLoadComplete,
-      freightsCount: freights.length,
-      hasMore,
-      isLoadingMore,
-      fetchError
-    });
-  }, [isLoading, initialLoadComplete, freights, hasMore, isLoadingMore, fetchError]);
-
+  // const loadMoreFreights = () => { // Temporarily removed
+  //   console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore);
+  //   if (hasMore && !isLoadingMore) {
+  //     fetchFreights(currentFilters, false);
+  //   }
+  // };
 
   const renderSkeletons = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
-      {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+      {Array.from({ length: SIMPLIFIED_PAGE_SIZE }).map((_, i) => (
         <Card key={i} className="w-full shadow-md animate-pulse">
           <CardHeader className="p-4"><Skeleton className="h-8 w-3/4 rounded" /></CardHeader>
           <CardContent className="p-4 space-y-3">
@@ -138,8 +92,8 @@ export default function HomePage() {
       ))}
     </div>
   );
-  
-  if (fetchError && !isLoading) { 
+
+  if (fetchError && !isLoading) {
     return (
       <div className="text-center py-16 bg-destructive/10 border border-destructive rounded-lg shadow">
         <AlertTriangle className="mx-auto h-20 w-20 text-destructive mb-6" />
@@ -147,7 +101,7 @@ export default function HomePage() {
         <p className="text-destructive-foreground/80 max-w-md mx-auto">
           {fetchError}
         </p>
-        <Button onClick={() => fetchFreights(currentFilters, true)} variant="destructive" className="mt-6">
+        <Button onClick={() => fetchFreightsSimple()} variant="destructive" className="mt-6">
              Tekrar Dene
         </Button>
       </div>
@@ -183,42 +137,34 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FreightFilters onFilterChange={handleFilterChange} isLoading={isLoading || isLoadingMore} />
+      {/* <FreightFilters onFilterChange={handleFilterChange} isLoading={isLoading || isLoadingMore} /> */} {/* Temporarily removed */}
 
       <div className="pt-4">
-        <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları</h2>
-        {isLoading && !initialLoadComplete && freights.length === 0 ? renderSkeletons() : 
+        <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları (Basitleştirilmiş Liste)</h2>
+        {isLoading && !initialLoadComplete ? renderSkeletons() :
           freights.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
                 {freights.map((freight) => (
                   <FreightCard key={freight.id} freight={freight} />
+                  // For initial testing, you might want to render something even simpler:
+                  // <div key={freight.id} className="p-4 border rounded-md">
+                  //   <p>ID: {freight.id}</p>
+                  //   <p>Desc: {freight.description}</p>
+                  //   <p>Type: {freight.freightType}</p>
+                  //   {(freight.freightType === 'Boş Araç') && <p>Service: {(freight as EmptyVehicleListing).serviceTypeForLoad}</p>}
+                  // </div>
                 ))}
               </div>
-              {isLoadingMore && (
-                 <div className="mt-10 text-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-muted-foreground mt-2">Daha fazla ilan yükleniyor...</p>
-                 </div>
-              )}
-              {!isLoadingMore && hasMore && (
-                <div className="mt-10 text-center">
-                  <Button onClick={loadMoreFreights} variant="outline" size="lg">
-                    Daha Fazla Yükle
-                  </Button>
-                </div>
-              )}
-               {!hasMore && initialLoadComplete && freights.length > 0 && (
-                   <p className="text-center mt-10 text-muted-foreground italic">Tüm ilanlar yüklendi.</p>
-              )}
+              {/* Pagination buttons temporarily removed */}
             </>
           ) : (
-             initialLoadComplete && freights.length === 0 && !isLoading && !fetchError && ( 
+             initialLoadComplete && freights.length === 0 && !isLoading && !fetchError && (
                 <div className="text-center py-16 bg-card border border-dashed rounded-lg shadow">
                 <SearchX className="mx-auto h-20 w-20 text-muted-foreground mb-6" />
                 <h2 className="text-2xl font-semibold mb-3 text-foreground">İlan Bulunamadı</h2>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                    Aradığınız kriterlere uygun aktif ilan bulunamadı. Filtrelerinizi değiştirmeyi veya daha sonra tekrar kontrol etmeyi deneyebilirsiniz.
+                    Sistemde aktif ilan bulunamadı veya bir sorun oluştu.
                 </p>
                 <Button asChild variant="default" className="mt-6 bg-primary hover:bg-primary/90">
                     <Link href="/yeni-ilan">
@@ -233,4 +179,3 @@ export default function HomePage() {
     </div>
   );
 }
-

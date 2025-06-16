@@ -35,9 +35,9 @@ export type EmptyVehicleServiceType = typeof EMPTY_VEHICLE_SERVICE_TYPES[number]
 
 interface BaseFreight {
   id: string;
-  userId: string; 
-  postedBy: string; 
-  companyName: string; 
+  userId: string;
+  postedBy: string;
+  companyName: string;
   contactPerson: string;
   contactEmail?: string;
   workPhone?: string;
@@ -51,8 +51,8 @@ interface BaseFreight {
   destinationCity: TurkishCity | string;
   destinationDistrict?: string;
 
-  loadingDate: string; 
-  postedAt: string; 
+  loadingDate: string;
+  postedAt: string;
   isActive: boolean;
   description: string;
 }
@@ -79,16 +79,16 @@ export interface ResidentialFreight extends BaseFreight {
 
 export interface EmptyVehicleListing extends BaseFreight {
   freightType: 'Boş Araç';
-  advertisedVehicleType: string; 
-  serviceTypeForLoad: EmptyVehicleServiceType;
-  vehicleStatedCapacity: number;
-  vehicleStatedCapacityUnit: WeightUnit;
+  advertisedVehicleType?: string; // Made optional
+  serviceTypeForLoad?: EmptyVehicleServiceType; // Made optional
+  vehicleStatedCapacity?: number; // Made optional
+  vehicleStatedCapacityUnit?: WeightUnit; // Made optional
 }
 
 export type Freight = CommercialFreight | ResidentialFreight | EmptyVehicleListing;
 
-export type FreightCreationData = 
-  | Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'> 
+export type FreightCreationData =
+  | Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'>
   | Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>
   | Omit<EmptyVehicleListing, 'id' | 'postedAt' | 'userId'>;
 
@@ -101,12 +101,12 @@ export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
 export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
 
 interface BaseUserProfile {
-  id: string; 
+  id: string;
   email: string;
   role: UserRole;
-  name: string; 
+  name: string;
   isActive: boolean;
-  createdAt: string; 
+  createdAt: string;
 }
 
 export interface IndividualUserProfile extends BaseUserProfile {
@@ -133,9 +133,9 @@ export interface CompanyUserProfile extends BaseUserProfile {
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
   membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string;
-  membershipEndDate?: string; 
-  ownedVehicles: string[]; 
-  authDocuments: string[]; 
+  membershipEndDate?: string;
+  ownedVehicles: string[];
+  authDocuments: string[];
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
@@ -224,10 +224,10 @@ export interface AnnouncementSetting {
   title: string;
   content: string;
   targetAudience: TargetAudience;
-  startDate?: string; 
-  endDate?: string; 
+  startDate?: string;
+  endDate?: string;
   isActive: boolean;
-  createdAt: string; 
+  createdAt: string;
 }
 
 export type NoteCategory = 'Yönetici' | 'Kullanıcı Geri Bildirimi' | 'Geliştirme' | 'Genel';
@@ -236,8 +236,8 @@ export interface AdminNoteSetting {
   title: string;
   content: string;
   category: NoteCategory;
-  createdDate: string; 
-  lastModifiedDate: string; 
+  createdDate: string;
+  lastModifiedDate: string;
   isImportant: boolean;
 }
 
@@ -249,10 +249,10 @@ export interface Sponsor {
   linkUrl?: string;
   entityType: SponsorEntityType;
   entityName: string;
-  startDate: string; 
-  endDate?: string; 
+  startDate: string;
+  endDate?: string;
   isActive: boolean;
-  createdAt: string; 
+  createdAt: string;
 }
 
 export type FreightFilterOptions = {
@@ -263,3 +263,4 @@ export type FreightFilterOptions = {
   freightType?: FreightType;
   sortBy?: 'newest' | 'oldest';
 };
+
