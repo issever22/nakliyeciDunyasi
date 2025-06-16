@@ -13,7 +13,8 @@ import type {
   RESIDENTIAL_FLOOR_LEVELS,
   COMPANY_TYPES,
   WORKING_METHODS,
-  WORKING_ROUTES
+  WORKING_ROUTES,
+  EMPTY_VEHICLE_SERVICE_TYPES
 } from '@/lib/constants';
 import type { CountryCode, TurkishCity } from '@/lib/locationData';
 
@@ -29,12 +30,14 @@ export type ResidentialTransportType = typeof RESIDENTIAL_TRANSPORT_TYPES[number
 export type ResidentialPlaceType = typeof RESIDENTIAL_PLACE_TYPES[number];
 export type ResidentialElevatorStatus = typeof RESIDENTIAL_ELEVATOR_STATUSES[number];
 export type ResidentialFloorLevel = typeof RESIDENTIAL_FLOOR_LEVELS[number];
+export type EmptyVehicleServiceType = typeof EMPTY_VEHICLE_SERVICE_TYPES[number];
+
 
 interface BaseFreight {
   id: string;
-  userId: string; // Firebase UID of the user who posted
-  postedBy: string; // Name of the person/company posting (can be user.name or form input)
-  companyName: string; // Typically the company name or individual's name if not a company
+  userId: string; 
+  postedBy: string; 
+  companyName: string; 
   contactPerson: string;
   contactEmail?: string;
   workPhone?: string;
@@ -48,8 +51,8 @@ interface BaseFreight {
   destinationCity: TurkishCity | string;
   destinationDistrict?: string;
 
-  loadingDate: string; // ISO string (YYYY-MM-DD)
-  postedAt: string; // ISO string (Timestamp from Firestore)
+  loadingDate: string; 
+  postedAt: string; 
   isActive: boolean;
   description: string;
 }
@@ -74,26 +77,36 @@ export interface ResidentialFreight extends BaseFreight {
   residentialFloorLevel: ResidentialFloorLevel;
 }
 
-export type Freight = CommercialFreight | ResidentialFreight;
+export interface EmptyVehicleListing extends BaseFreight {
+  freightType: 'Boş Araç';
+  advertisedVehicleType: string; 
+  serviceTypeForLoad: EmptyVehicleServiceType;
+  vehicleStatedCapacity: number;
+  vehicleStatedCapacityUnit: WeightUnit;
+}
 
-// For creating/updating listings, ID and postedAt are handled by the backend.
-export type FreightCreationData = Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'> | Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>;
+export type Freight = CommercialFreight | ResidentialFreight | EmptyVehicleListing;
+
+export type FreightCreationData = 
+  | Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'> 
+  | Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>
+  | Omit<EmptyVehicleListing, 'id' | 'postedAt' | 'userId'>;
+
 export type FreightUpdateData = Partial<FreightCreationData>;
 
 
-// User Profile and Auth Types
 export type UserRole = 'individual' | 'company';
 export type CompanyUserType = typeof COMPANY_TYPES[number]['value'];
 export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
 export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
 
 interface BaseUserProfile {
-  id: string; // Firebase UID
+  id: string; 
   email: string;
   role: UserRole;
-  name: string; // Full name for individual, Company Title for company
+  name: string; 
   isActive: boolean;
-  createdAt: string; // ISO string
+  createdAt: string; 
 }
 
 export interface IndividualUserProfile extends BaseUserProfile {
@@ -120,9 +133,9 @@ export interface CompanyUserProfile extends BaseUserProfile {
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
   membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string;
-  membershipEndDate?: string; // ISO string YYYY-MM-DD
-  ownedVehicles: string[]; // Array of vehicle type names
-  authDocuments: string[]; // Array of auth document names
+  membershipEndDate?: string; 
+  ownedVehicles: string[]; 
+  authDocuments: string[]; 
 }
 
 export type UserProfile = IndividualUserProfile | CompanyUserProfile;
@@ -156,13 +169,11 @@ export interface CompanyRegisterData extends BaseRegisterData {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
-  // ownedVehicles and authDocuments will be initialized as empty by the backend
 }
 
 export type RegisterData = IndividualRegisterData | CompanyRegisterData;
 
 
-// Types for Settings Pages
 export interface VehicleTypeSetting {
   id: string;
   name: string;
@@ -213,10 +224,10 @@ export interface AnnouncementSetting {
   title: string;
   content: string;
   targetAudience: TargetAudience;
-  startDate?: string; // ISO string YYYY-MM-DD
-  endDate?: string; // ISO string YYYY-MM-DD
+  startDate?: string; 
+  endDate?: string; 
   isActive: boolean;
-  createdAt: string; // ISO string
+  createdAt: string; 
 }
 
 export type NoteCategory = 'Yönetici' | 'Kullanıcı Geri Bildirimi' | 'Geliştirme' | 'Genel';
@@ -225,8 +236,8 @@ export interface AdminNoteSetting {
   title: string;
   content: string;
   category: NoteCategory;
-  createdDate: string; // ISO string
-  lastModifiedDate: string; // ISO string
+  createdDate: string; 
+  lastModifiedDate: string; 
   isImportant: boolean;
 }
 
@@ -238,13 +249,12 @@ export interface Sponsor {
   linkUrl?: string;
   entityType: SponsorEntityType;
   entityName: string;
-  startDate: string; // ISO string YYYY-MM-DD
-  endDate?: string; // ISO string YYYY-MM-DD
+  startDate: string; 
+  endDate?: string; 
   isActive: boolean;
-  createdAt: string; // ISO string
+  createdAt: string; 
 }
 
-// Type for Freight Filters
 export type FreightFilterOptions = {
   originCity?: string;
   destinationCity?: string;

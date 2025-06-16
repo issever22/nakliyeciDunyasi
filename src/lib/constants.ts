@@ -41,7 +41,7 @@ export const VEHICLES_NEEDED = [
   'Minivan',
   'Oto Taşıma',
   'Panelvan',
-  'Proje Yükü', // Added based on previous request, ensuring it's here
+  'Proje Yükü', 
   'Römork Tır',
   'Sal Kasa Dorse',
   'Tanker',
@@ -66,11 +66,11 @@ export const CARGO_FORMS = [
   'Diğer',
 ] as const;
 
-export const WEIGHT_UNITS = ['Ton', 'Kg', 'M³ (metreküp)'] as const;
+export const WEIGHT_UNITS = ['Ton', 'Kg', 'm³ (metreküp)'] as const;
 
 export const SHIPMENT_SCOPES = ['Yurt İçi', 'Yurt Dışı'] as const;
 
-export const FREIGHT_TYPES = ['Ticari', 'Evden Eve'] as const;
+export const FREIGHT_TYPES = ['Ticari', 'Evden Eve', 'Boş Araç'] as const;
 
 export const RESIDENTIAL_TRANSPORT_TYPES = [
   'Uluslararası Taşımacılık',
@@ -103,7 +103,6 @@ export const RESIDENTIAL_FLOOR_LEVELS = [
   '5’nci Kat ve Üzeri',
 ] as const;
 
-// New constants for Company Registration
 export const COMPANY_TYPES = [
   { value: 'local', label: 'Yerel Firma' },
   { value: 'foreign', label: 'Yabancı Firma' },
@@ -121,3 +120,5 @@ export const WORKING_ROUTES = [
   { id: 'sea', label: 'Denizyolu' },
   { id: 'rail', label: 'Demiryolu' },
 ] as const;
+
+export const EMPTY_VEHICLE_SERVICE_TYPES = ['Komple', 'Parsiyel', 'Tonajlı'] as const;

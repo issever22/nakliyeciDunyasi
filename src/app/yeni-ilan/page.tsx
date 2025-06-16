@@ -4,22 +4,23 @@
 import { useState, useCallback } from 'react';
 import CommercialFreightForm from '@/components/freight/FreightForm'; 
 import ResidentialFreightForm from '@/components/freight/ResidentialFreightForm';
+import EmptyVehicleForm from '@/components/freight/EmptyVehicleForm'; // New form for empty vehicles
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRequireAuth } from '@/hooks/useAuth'; // Ensures user is logged in
+import { useRequireAuth } from '@/hooks/useAuth'; 
 import { useRouter } from 'next/navigation';
-import type { CommercialFreight, ResidentialFreight, FreightCreationData } from '@/types'; 
+import type { FreightCreationData, CommercialFreight, ResidentialFreight, EmptyVehicleListing } from '@/types'; 
 import { Skeleton } from '@/components/ui/skeleton';
-import { Truck, Home, Loader2, AlertTriangle } from 'lucide-react';
+import { Truck, Home, PackagePlus, Loader2, AlertTriangle } from 'lucide-react'; // Added PackagePlus for Empty Vehicle
 import { addListing } from '@/services/listingsService';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function NewFreightPage() {
-  const { user, loading: authLoading, isAuthenticated } = useRequireAuth(); // useRequireAuth handles redirection
+  const { user, loading: authLoading, isAuthenticated } = useRequireAuth(); 
   const router = useRouter();
   const { toast } = useToast();
-  const [selectedFreightType, setSelectedFreightType] = useState<'Ticari' | 'Evden Eve'>('Ticari');
+  const [selectedFreightType, setSelectedFreightType] = useState<'Ticari' | 'Evden Eve' | 'Boş Araç'>('Ticari');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFormSubmit = useCallback(async (newFreightData: FreightCreationData) => {
@@ -30,11 +31,20 @@ export default function NewFreightPage() {
     }
     setIsSubmitting(true);
     try {
-      const newListingId = await addListing(user.id, newFreightData);
+      // Ensure correct user details are passed to the listing service
+      const dataWithUserDetails = {
+        ...newFreightData,
+        postedBy: user.name, // Always use the authenticated user's name as postedBy
+        companyName: newFreightData.companyName || user.name, // Use form's companyName or fallback to user's name
+        contactPerson: newFreightData.freightType === 'Boş Araç' ? user.name : (newFreightData.contactPerson || user.name),
+        mobilePhone: (newFreightData.freightType === 'Boş Araç' && (user as any).mobilePhone) ? (user as any).mobilePhone : (newFreightData.mobilePhone || (user as any).mobilePhone || 'Belirtilmedi'),
+      };
+      
+      const newListingId = await addListing(user.id, dataWithUserDetails);
       if (newListingId) {
         toast({
           title: "İlan Başarıyla Oluşturuldu!",
-          description: `${newFreightData.originCity} - ${newFreightData.destinationCity} arası ilanınız yayında.`,
+          description: `${dataWithUserDetails.originCity} - ${dataWithUserDetails.destinationCity} arası ilanınız yayında.`,
           className: "bg-green-500 text-white",
         });
         router.push('/'); 
@@ -68,7 +78,6 @@ export default function NewFreightPage() {
   }
 
   if (!isAuthenticated && !authLoading) {
-    // This should ideally not be seen as useRequireAuth redirects, but as a fallback:
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center">
         <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
@@ -88,13 +97,16 @@ export default function NewFreightPage() {
         <p className="text-muted-foreground mt-2">Lütfen ilan türünü seçin ve detayları girin.</p>
       </div>
 
-      <Tabs value={selectedFreightType} onValueChange={(value) => setSelectedFreightType(value as 'Ticari' | 'Evden Eve')} className="w-full mb-8">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs value={selectedFreightType} onValueChange={(value) => setSelectedFreightType(value as 'Ticari' | 'Evden Eve' | 'Boş Araç')} className="w-full mb-8">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="Ticari" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
             <Truck size={18}/> Ticari Yük
           </TabsTrigger>
           <TabsTrigger value="Evden Eve" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
             <Home size={18}/> Evden Eve Nakliyat
+          </TabsTrigger>
+          <TabsTrigger value="Boş Araç" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
+            <PackagePlus size={18}/> Boş Araç İlanı
           </TabsTrigger>
         </TabsList>
         <TabsContent value="Ticari">
@@ -105,6 +117,11 @@ export default function NewFreightPage() {
         <TabsContent value="Evden Eve">
           <ResidentialFreightForm 
             onSubmitSuccess={handleFormSubmit as (data: Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>) => Promise<void>} 
+          />
+        </TabsContent>
+        <TabsContent value="Boş Araç">
+          <EmptyVehicleForm 
+            onSubmitSuccess={handleFormSubmit as (data: Omit<EmptyVehicleListing, 'id' | 'postedAt' | 'userId'>) => Promise<void>} 
           />
         </TabsContent>
       </Tabs>

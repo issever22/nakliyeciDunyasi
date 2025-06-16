@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { Freight, FreightCreationData, FreightFilterOptions, FreightUpdateData } from '@/types';
+import type { Freight, FreightCreationData, FreightFilterOptions, FreightUpdateData, EmptyVehicleListing } from '@/types';
 import {
   collection,
   addDoc,
@@ -49,7 +49,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     }
   }
   
-  return {
+  const baseFreight = {
     id: docId,
     userId: data.userId || '',
     postedBy: data.postedBy || '',
@@ -64,13 +64,16 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationCountry: data.destinationCountry || 'TR',
     destinationCity: data.destinationCity || '',
     destinationDistrict: data.destinationDistrict,
-    loadingDate: loadingDateStr,
+    loadingDate: loadingDateStr, // For EmptyVehicle this is availabilityDate
     postedAt: postedAtStr,
     isActive: typeof data.isActive === 'boolean' ? data.isActive : true,
     description: data.description || '',
-    freightType: data.freightType || 'Ticari',
-    // Commercial specific
-    ...(data.freightType === 'Ticari' && {
+  };
+
+  if (data.freightType === 'Ticari') {
+    return {
+      ...baseFreight,
+      freightType: 'Ticari',
       cargoType: data.cargoType || '',
       vehicleNeeded: data.vehicleNeeded || '',
       loadingType: data.loadingType || '',
@@ -79,18 +82,30 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
       cargoWeightUnit: data.cargoWeightUnit || 'Ton',
       isContinuousLoad: typeof data.isContinuousLoad === 'boolean' ? data.isContinuousLoad : false,
       shipmentScope: data.shipmentScope || 'Yurt İçi',
-    }),
-    // Residential specific
-    ...(data.freightType === 'Evden Eve' && {
+    } as Freight;
+  } else if (data.freightType === 'Evden Eve') {
+     return {
+      ...baseFreight,
+      freightType: 'Evden Eve',
       residentialTransportType: data.residentialTransportType || '',
       residentialPlaceType: data.residentialPlaceType || '',
       residentialElevatorStatus: data.residentialElevatorStatus || '',
       residentialFloorLevel: data.residentialFloorLevel || '',
-    }),
-  } as Freight;
+    } as Freight;
+  } else if (data.freightType === 'Boş Araç') {
+    return {
+      ...baseFreight,
+      freightType: 'Boş Araç',
+      advertisedVehicleType: data.advertisedVehicleType || '',
+      serviceTypeForLoad: data.serviceTypeForLoad || '',
+      vehicleStatedCapacity: data.vehicleStatedCapacity || 0,
+      vehicleStatedCapacityUnit: data.vehicleStatedCapacityUnit || 'Ton',
+    } as Freight;
+  }
+  // Fallback or handle unknown type
+  return { ...baseFreight, freightType: data.freightType || 'Ticari' } as Freight; // Default to Commercial if type is unknown
 };
 
-// Get listings with pagination and filtering for public display (only active)
 export const getListings = async (
   options: {
     lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;
@@ -109,6 +124,7 @@ export const getListings = async (
         if (filters.vehicleNeeded) queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
         if (filters.shipmentScope) queryConstraints.push(where('shipmentScope', '==', filters.shipmentScope));
       }
+      // Add specific filters for 'Boş Araç' if needed in the future
     }
     if (filters.originCity) queryConstraints.push(where('originCity', '>=', filters.originCity), where('originCity', '<=', filters.originCity + '\uf8ff'));
     if (filters.destinationCity) queryConstraints.push(where('destinationCity', '>=', filters.destinationCity), where('destinationCity', '<=', filters.destinationCity + '\uf8ff'));
@@ -133,7 +149,6 @@ export const getListings = async (
   }
 };
 
-// Get all listings for admin panel (active and inactive)
 export const getAllListingsForAdmin = async (): Promise<Freight[]> => {
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
@@ -146,7 +161,6 @@ export const getAllListingsForAdmin = async (): Promise<Freight[]> => {
   }
 };
 
-// Get a single listing by ID
 export const getListingById = async (id: string): Promise<Freight | null> => {
   try {
     const docRef = doc(db, LISTINGS_COLLECTION, id);
@@ -161,14 +175,17 @@ export const getListingById = async (id: string): Promise<Freight | null> => {
   }
 };
 
-// Add a new listing
 export const addListing = async (userId: string, listingData: FreightCreationData): Promise<string | null> => {
   try {
     const dataToSave = {
       ...listingData,
       userId,
+      postedBy: listingData.postedBy || 'Bilinmiyor',
+      companyName: listingData.companyName || 'Bilinmiyor',
+      contactPerson: listingData.contactPerson || 'Bilinmiyor',
+      mobilePhone: listingData.mobilePhone || 'Belirtilmedi',
       postedAt: Timestamp.fromDate(new Date()),
-      loadingDate: Timestamp.fromDate(parseISO(listingData.loadingDate)), // Ensure loadingDate is a Timestamp
+      loadingDate: Timestamp.fromDate(parseISO(listingData.loadingDate)), 
       isActive: typeof listingData.isActive === 'boolean' ? listingData.isActive : true,
     };
     const docRef = await addDoc(collection(db, LISTINGS_COLLECTION), dataToSave);
@@ -179,17 +196,15 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
   }
 };
 
-// Update an existing listing
 export const updateListing = async (id: string, listingUpdateData: FreightUpdateData): Promise<boolean> => {
   try {
     const docRef = doc(db, LISTINGS_COLLECTION, id);
     const dataToUpdate: any = { ...listingUpdateData };
 
-    // Ensure loadingDate is converted to Timestamp if provided
     if (dataToUpdate.loadingDate && typeof dataToUpdate.loadingDate === 'string') {
       dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate));
     }
-    // Remove fields that shouldn't be part of a direct update payload
+    
     delete dataToUpdate.id; 
     delete dataToUpdate.postedAt;
     delete dataToUpdate.userId;
@@ -202,7 +217,6 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
   }
 };
 
-// Delete a listing
 export const deleteListing = async (id: string): Promise<boolean> => {
   try {
     const docRef = doc(db, LISTINGS_COLLECTION, id);
