@@ -143,13 +143,11 @@ export default function ProfilePage() {
             <CardHeader className="items-center text-center">
               {user.role === 'company' && companyUser?.logoUrl ? (
                 <div className="w-36 h-36 md:w-40 md:h-40 mb-4 relative border border-muted rounded-lg overflow-hidden shadow-md bg-card flex items-center justify-center p-2">
-                  <Image
+                  <img
                     src={companyUser.logoUrl}
                     alt={`${user.name} logo`}
-                    fill
-                    style={{objectFit:"contain"}}
+                    className="max-w-full max-h-full object-contain"
                     data-ai-hint="company logo"
-                    priority
                   />
                 </div>
               ) : (
