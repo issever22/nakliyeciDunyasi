@@ -33,16 +33,24 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   let loadingDateStr: string;
   if (data.loadingDate && data.loadingDate instanceof Timestamp) {
     loadingDateStr = data.loadingDate.toDate().toISOString();
-  } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is NOT a Timestamp or is missing. Original:`, data.loadingDate, "Fallback to today.");
+  } else if (data.loadingDate && typeof data.loadingDate === 'string' && isValid(parseISO(data.loadingDate))) {
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is a string. Converting. Original:`, data.loadingDate);
+    loadingDateStr = parseISO(data.loadingDate).toISOString();
+  }
+  else {
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is NOT a Timestamp or valid string, or is missing. Original:`, data.loadingDate, "Fallback to today.");
     loadingDateStr = new Date().toISOString();
   }
 
   let postedAtStr: string;
   if (data.postedAt && data.postedAt instanceof Timestamp) {
     postedAtStr = data.postedAt.toDate().toISOString();
-  } else {
-    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is NOT a Timestamp or is missing. Original:`, data.postedAt, "Fallback to current time.");
+  } else if (data.postedAt && typeof data.postedAt === 'string' && isValid(parseISO(data.postedAt))) {
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is a string. Converting. Original:`, data.postedAt);
+    postedAtStr = parseISO(data.postedAt).toISOString();
+  }
+   else {
+    console.warn(`[listingsService - convertToFreight] Listing ${docId}: postedAt is NOT a Timestamp or valid string, or is missing. Original:`, data.postedAt, "Fallback to current time.");
     postedAtStr = new Date().toISOString();
   }
 
@@ -63,7 +71,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true,
+    isActive: data.isActive === true, // Treat undefined/false as inactive
     description: data.description || '',
   };
 
@@ -90,10 +98,10 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
       residentialFloorLevel: data.residentialFloorLevel || '',
     } as Freight;
   } else if (data.freightType === 'Boş Araç') {
-    if (!data.advertisedVehicleType) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'advertisedVehicleType' is missing. Defaulting.`);
-    if (!data.serviceTypeForLoad) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'serviceTypeForLoad' is missing. Defaulting.`);
+    if (data.advertisedVehicleType === undefined) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'advertisedVehicleType' is missing. Defaulting.`);
+    if (data.serviceTypeForLoad === undefined) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'serviceTypeForLoad' is missing. Defaulting.`);
     if (data.vehicleStatedCapacity === undefined) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacity' is missing. Defaulting.`);
-    if (!data.vehicleStatedCapacityUnit) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacityUnit' is missing. Defaulting.`);
+    if (data.vehicleStatedCapacityUnit === undefined) console.warn(`[listingsService - convertToFreight] Listing ${docId} (Boş Araç): 'vehicleStatedCapacityUnit' is missing. Defaulting.`);
     return {
       ...baseFreight,
       freightType: 'Boş Araç',
@@ -139,9 +147,26 @@ export const getListings = async (
 
     queryConstraints.push(where('isActive', '==', true));
     
-    // Restore orderBy for postedAt
+    // Apply filters from options.filters if they exist
+    if (filters?.originCity) {
+      queryConstraints.push(where('originCity', '==', filters.originCity));
+    }
+    if (filters?.destinationCity) {
+      queryConstraints.push(where('destinationCity', '==', filters.destinationCity));
+    }
+    if (filters?.freightType) {
+      queryConstraints.push(where('freightType', '==', filters.freightType));
+    }
+    if (filters?.freightType === 'Ticari' || !filters?.freightType) { // Only apply these if Ticari or no type selected
+        if (filters?.vehicleNeeded) {
+          queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
+        }
+        if (filters?.shipmentScope) {
+          queryConstraints.push(where('shipmentScope', '==', filters.shipmentScope));
+        }
+    }
+    
     const sortBy = filters?.sortBy || 'newest'; 
-    console.log(`[listingsService - getListings] DIAGNOSIS: orderBy('postedAt', '${sortBy === 'newest' ? 'desc' : 'asc'}') IS NOW ACTIVE.`);
     queryConstraints.push(orderBy('postedAt', sortBy === 'newest' ? 'desc' : 'asc'));
     
     if (lastVisibleDoc) {
@@ -183,7 +208,6 @@ export const getListings = async (
         const errorMessage = error.message || "Missing or insufficient permissions. This often means a composite index is required.";
         console.error(`[listingsService - getListings] FIRESTORE PRECONDITION FAILED: ${errorMessage}`);
         
-        // Attempt to extract the index creation URL
         const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
@@ -194,10 +218,11 @@ export const getListings = async (
             console.error(`!!! ${indexCreationUrl}`);
             console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         } else {
+            console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             console.error("!!! MISSING FIRESTORE INDEX !!!");
             console.error("!!! Could not automatically extract the index creation URL from the error message.");
             console.error("!!! Please check the Firebase console for the exact error and the suggested index.");
-            console.error("!!! The query likely involves 'isActive' and 'postedAt'.");
+            console.error("!!! The query likely involves 'isActive' and 'postedAt', and potentially other filtered fields.");
             console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }
     }
@@ -292,13 +317,16 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
       if (dataToUpdate.loadingDate && typeof dataToUpdate.loadingDate === 'string' && isValid(parseISO(dataToUpdate.loadingDate))) {
         dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate));
       } else if (dataToUpdate.loadingDate === null || dataToUpdate.loadingDate === undefined) {
+        // If explicitly set to null/undefined, respect it for Firestore
         dataToUpdate.loadingDate = null; 
       } else {
+        // If it's an invalid date string, log and don't update this field to avoid errors.
         console.warn(`[listingsService - updateListing] Invalid loadingDate for ID ${id}: ${dataToUpdate.loadingDate}. Field not updated.`);
         delete dataToUpdate.loadingDate;
       }
     }
 
+    // Prevent accidental update of immutable fields
     delete dataToUpdate.id; 
     delete dataToUpdate.postedAt; 
     delete dataToUpdate.userId; 

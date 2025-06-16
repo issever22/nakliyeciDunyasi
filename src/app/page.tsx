@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
-// import FreightFilters from '@/components/freight/FreightFilters'; // Still temporarily removed
+import FreightFilters from '@/components/freight/FreightFilters'; // Restored
 import type { Freight, FreightFilterOptions } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -15,7 +15,7 @@ import { getListings } from '@/services/listingsService';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-const PAGE_SIZE = 6; // Number of listings per page
+const PAGE_SIZE = 6; 
 
 export default function HomePage() {
   const [freights, setFreights] = useState<Freight[]>([]);
@@ -23,30 +23,30 @@ export default function HomePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  // const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({}); // Filters still removed
+  const [currentFilters, setCurrentFilters] = useState<FreightFilterOptions>({ sortBy: 'newest' }); // Restored filters state
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchFreights = useCallback(async (startAfterDoc: QueryDocumentSnapshot<DocumentData> | null = null) => {
+  const fetchFreights = useCallback(async (startAfterDoc: QueryDocumentSnapshot<DocumentData> | null = null, appliedFilters: FreightFilterOptions) => {
     const isLoadMore = !!startAfterDoc;
-    console.log(`[HomePage - fetchFreights] Called. IsLoadMore: ${isLoadMore}, StartAfterDoc exists: ${!!startAfterDoc}`);
+    console.log(`[HomePage - fetchFreights] Called. IsLoadMore: ${isLoadMore}, StartAfterDoc exists: ${!!startAfterDoc}, Filters:`, appliedFilters);
     
     if (isLoadMore) {
       setIsLoadingMore(true);
     } else {
       setIsLoading(true);
-      setFreights([]); // Clear previous listings for a fresh fetch/filter
+      setFreights([]); 
       setFetchError(null);
-      setLastVisibleDoc(null); // Reset pagination cursor for new initial fetch
-      setHasMore(true); // Assume there might be more data
+      setLastVisibleDoc(null); 
+      setHasMore(true); 
     }
 
     try {
       const result = await getListings({ 
         lastVisibleDoc: startAfterDoc, 
         pageSize: PAGE_SIZE,
-        filters: { sortBy: 'newest' } // Basic sorting, actual filters still commented out
+        filters: appliedFilters 
       });
       const newFreights = result.freights;
       
@@ -73,26 +73,34 @@ export default function HomePage() {
         setInitialLoadComplete(true);
       }
     }
-  }, [toast]); // Dependencies: stable setters and toast
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]); // Removed currentFilters, setFreights, setLastVisibleDoc, setHasMore, setIsLoading, setIsLoadingMore, setFetchError, setInitialLoadComplete
 
   useEffect(() => {
-    console.log('[HomePage - useEffect[]] Component mounted. Calling fetchFreights(null) for initial load.');
-    fetchFreights(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchFreights]); // fetchFreights is stable due to useCallback
+    console.log('[HomePage - useEffect[currentFilters]] Filters changed or initial load. Calling fetchFreights(null, currentFilters). Current Filters:', currentFilters);
+    fetchFreights(null, currentFilters);
+  }, [currentFilters, fetchFreights]);
+
+
+  const handleFilterChange = useCallback((newFilters: FreightFilterOptions) => {
+    console.log('[HomePage - handleFilterChange] New filters received:', newFilters);
+    setCurrentFilters(newFilters);
+    // Reset pagination for new filter
+    setLastVisibleDoc(null);
+    setHasMore(true);
+    setInitialLoadComplete(false); // Force loading state for new filter
+  }, []); // setCurrentFilters, setLastVisibleDoc, setHasMore, setInitialLoadComplete are stable
 
   const loadMoreFreights = () => {
     console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore, 'LastVisibleDoc:', !!lastVisibleDoc);
     if (hasMore && !isLoadingMore && lastVisibleDoc) {
-      fetchFreights(lastVisibleDoc);
+      fetchFreights(lastVisibleDoc, currentFilters);
     } else if (!lastVisibleDoc && hasMore && !isLoadingMore) {
-        // This case might happen if initial load fetched less than PAGE_SIZE but there are more.
-        // Or if hasMore was true but lastVisibleDoc became null somehow.
-        console.warn("[HomePage - loadMoreFreights] Attempting to load more, but lastVisibleDoc is null. Fetching from beginning.");
-        fetchFreights(null); 
+        console.warn("[HomePage - loadMoreFreights] Attempting to load more, but lastVisibleDoc is null. Fetching from beginning with current filters.");
+        fetchFreights(null, currentFilters); 
     }
   };
-
+  
   const renderSkeletons = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
       {Array.from({ length: PAGE_SIZE }).map((_, i) => (
@@ -117,7 +125,7 @@ export default function HomePage() {
         <p className="text-destructive-foreground/80 max-w-md mx-auto">
           {fetchError}
         </p>
-        <Button onClick={() => fetchFreights(null)} variant="destructive" className="mt-6">
+        <Button onClick={() => fetchFreights(null, currentFilters)} variant="destructive" className="mt-6">
              Tekrar Dene
         </Button>
       </div>
@@ -153,7 +161,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* <FreightFilters onFilterChange={handleFilterChange} isLoading={isLoading || isLoadingMore} /> */}
+      <FreightFilters onFilterChange={handleFilterChange} isLoading={isLoading || isLoadingMore} />
 
       <div className="pt-4">
         <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları</h2>
@@ -186,7 +194,7 @@ export default function HomePage() {
                 <SearchX className="mx-auto h-20 w-20 text-muted-foreground mb-6" />
                 <h2 className="text-2xl font-semibold mb-3 text-foreground">İlan Bulunamadı</h2>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                    Sistemde aktif ilan bulunamadı veya bir sorun oluştu.
+                    Seçili filtrelere uygun aktif ilan bulunamadı veya bir sorun oluştu.
                 </p>
                 <Button asChild variant="default" className="mt-6 bg-primary hover:bg-primary/90">
                     <Link href="/yeni-ilan">
