@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import type { AnnouncementSetting, UserProfile } from '@/types';
 import { getAllAnnouncements } from '@/services/announcementsService';
-import { useEffect, useState, useMemo, forwardRef, useCallback, useRef } from 'react'; // Added useCallback, useRef
+import { useEffect, useState, useMemo, forwardRef, useCallback, useRef } from 'react';
 import { format, parseISO, isValid, isAfter, isBefore, isEqual } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import React from 'react';
@@ -72,31 +72,31 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const [showNavbar, setShowNavbar] = useState(true);
+  const [showSecondaryNav, setShowSecondaryNav] = useState(true);
   const lastScrollY = useRef(0);
-  const scrollThreshold = 100; // Show/hide after scrolling 100px
+  const scrollThreshold = 50; // Daha hassas bir eşik değeri
 
-  const controlNavbar = useCallback(() => {
+  const controlSecondaryNavVisibility = useCallback(() => {
     if (typeof window !== 'undefined') {
       const currentScrollY = window.scrollY;
       if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
-        setShowNavbar(false);
+        setShowSecondaryNav(false);
       } else {
-        setShowNavbar(true);
+        setShowSecondaryNav(true);
       }
       lastScrollY.current = currentScrollY;
     }
-  }, []); // Empty dependency array as lastScrollY is a ref
+  }, [scrollThreshold]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      lastScrollY.current = window.scrollY; // Initialize on mount
-      window.addEventListener('scroll', controlNavbar);
+      lastScrollY.current = window.scrollY;
+      window.addEventListener('scroll', controlSecondaryNavVisibility);
       return () => {
-        window.removeEventListener('scroll', controlNavbar);
+        window.removeEventListener('scroll', controlSecondaryNavVisibility);
       };
     }
-  }, [controlNavbar]);
+  }, [controlSecondaryNavVisibility]);
 
 
   useEffect(() => {
@@ -239,153 +239,161 @@ export default function Header() {
   );
 
   return (
-    <header
-      className={cn(
-        "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg",
-        "transition-transform duration-300 ease-in-out",
-        showNavbar ? "translate-y-0" : "-translate-y-full"
-      )}
-    >
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <AppIcon className="h-8 w-8 text-primary" data-ai-hint="truck logistics" />
-          <h1 className="text-2xl font-bold text-primary font-headline">Nakliyeci Dünyası</h1>
-        </Link>
-        
-        <nav className="hidden md:flex items-center gap-x-3">
-          <div className="flex items-center gap-1">
-            <Input placeholder="Firmalarda ara..." className="h-9 w-48 md:w-56 lg:w-64" />
-            <Button type="submit" size="sm" variant="outline" className="h-9 px-3">
-              <Search className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Ara</span>
-            </Button>
-          </div>
+    <>
+      <header
+        className={cn(
+          "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg"
+          // Scroll-based transform removed from main header
+        )}
+      >
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <AppIcon className="h-8 w-8 text-primary" data-ai-hint="truck logistics" />
+            <h1 className="text-2xl font-bold text-primary font-headline">Nakliyeci Dünyası</h1>
+          </Link>
           
-          {isAuthenticated && (
-            <Button variant="ghost" asChild>
-              <Link href="/yeni-ilan" className="flex items-center gap-1">
-                <PlusCircle size={18} /> İlan Ver
-              </Link>
-            </Button>
-          )}
-          
-          <AnnouncementBell />
+          <nav className="hidden md:flex items-center gap-x-3">
+            <div className="flex items-center gap-1">
+              <Input placeholder="Firmalarda ara..." className="h-9 w-48 md:w-56 lg:w-64" />
+              <Button type="submit" size="sm" variant="outline" className="h-9 px-3">
+                <Search className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Ara</span>
+              </Button>
+            </div>
+            
+            {isAuthenticated && (
+              <Button variant="ghost" asChild>
+                <Link href="/yeni-ilan" className="flex items-center gap-1">
+                  <PlusCircle size={18} /> İlan Ver
+                </Link>
+              </Button>
+            )}
+            
+            <AnnouncementBell />
 
-          {isAuthenticated && user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={(user as any).logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person avatar"/>
-                    <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profil" className="flex items-center">
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    Profil
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-red-600 hover:!text-red-600 focus:text-red-600 cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Çıkış Yap
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <>
-              <Button variant="outline" asChild>
-                <Link href="/auth/giris">Giriş Yap</Link>
-              </Button>
-              <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href="/auth/kayit">Kayıt Ol</Link>
-              </Button>
-            </>
-          )}
-        </nav>
-
-        <div className="flex items-center gap-2 md:hidden">
-           <MobileAnnouncementBell />
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Menüyü Aç</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0 flex flex-col">
-              <SheetHeader className="p-4 border-b">
-                <SheetTitle>
-                    <Link href="/" className="flex items-center gap-2" onClick={closeMobileMenu}>
-                        <AppIcon className="h-7 w-7 text-primary" />
-                        <span className="text-xl font-bold text-primary font-headline">Nakliyeci Dünyası</span>
-                    </Link>
-                </SheetTitle>
-              </SheetHeader>
-              <div className="p-4 border-b">
-                <div className="flex items-center gap-1">
-                  <Input placeholder="Firmalarda ara..." className="h-9 flex-grow text-sm" />
-                  <Button type="submit" size="icon" variant="outline" className="h-9 w-9 shrink-0">
-                    <Search className="h-4 w-4" />
+            {isAuthenticated && user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={(user as any).logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person avatar"/>
+                      <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
                   </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.name}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profil" className="flex items-center">
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      Profil
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout} className="text-red-600 hover:!text-red-600 focus:text-red-600 cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Çıkış Yap
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button variant="outline" asChild>
+                  <Link href="/auth/giris">Giriş Yap</Link>
+                </Button>
+                <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <Link href="/auth/kayit">Kayıt Ol</Link>
+                </Button>
+              </>
+            )}
+          </nav>
+
+          <div className="flex items-center gap-2 md:hidden">
+            <MobileAnnouncementBell />
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Menüyü Aç</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0 flex flex-col">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle>
+                      <Link href="/" className="flex items-center gap-2" onClick={closeMobileMenu}>
+                          <AppIcon className="h-7 w-7 text-primary" />
+                          <span className="text-xl font-bold text-primary font-headline">Nakliyeci Dünyası</span>
+                      </Link>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="p-4 border-b">
+                  <div className="flex items-center gap-1">
+                    <Input placeholder="Firmalarda ara..." className="h-9 flex-grow text-sm" />
+                    <Button type="submit" size="icon" variant="outline" className="h-9 w-9 shrink-0">
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <nav className="flex-grow p-4 space-y-2">
-                <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                  <Link href="/hakkimizda">Hakkımızda</Link>
-                </Button>
-                 <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                  <Link href="/iletisim">İletişim</Link>
-                </Button>
-                {isAuthenticated && (
+                <nav className="flex-grow p-4 space-y-2">
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                    <Link href="/yeni-ilan" className="flex items-center gap-1">
-                      <PlusCircle size={20} /> İlan Ver
-                    </Link>
+                    <Link href="/hakkimizda">Hakkımızda</Link>
                   </Button>
-                )}
-                {isAuthenticated && user && (
+                  <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/iletisim">İletişim</Link>
+                  </Button>
+                  {/* Add more mobile navigation links as needed, matching secondary nav */}
+                  {isAuthenticated && (
                     <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                        <Link href="/profil" className="flex items-center gap-1">
-                            <UserCircle size={20} /> Profilim
-                        </Link>
+                      <Link href="/yeni-ilan" className="flex items-center gap-1">
+                        <PlusCircle size={20} /> İlan Ver
+                      </Link>
                     </Button>
-                )}
-              </nav>
-              <div className="p-4 border-t mt-auto">
-                {isAuthenticated && user ? (
-                    <Button variant="destructive" className="w-full text-base" onClick={() => { logout(); closeMobileMenu(); }}>
-                        <LogOut className="mr-2 h-5 w-5" /> Çıkış Yap
-                    </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <Button variant="outline" asChild className="w-full text-base" onClick={closeMobileMenu}>
-                      <Link href="/auth/giris">Giriş Yap</Link>
-                    </Button>
-                    <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base" onClick={closeMobileMenu}>
-                      <Link href="/auth/kayit">Kayıt Ol</Link>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+                  )}
+                  {isAuthenticated && user && (
+                      <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                          <Link href="/profil" className="flex items-center gap-1">
+                              <UserCircle size={20} /> Profilim
+                          </Link>
+                      </Button>
+                  )}
+                </nav>
+                <div className="p-4 border-t mt-auto">
+                  {isAuthenticated && user ? (
+                      <Button variant="destructive" className="w-full text-base" onClick={() => { logout(); closeMobileMenu(); }}>
+                          <LogOut className="mr-2 h-5 w-5" /> Çıkış Yap
+                      </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button variant="outline" asChild className="w-full text-base" onClick={closeMobileMenu}>
+                        <Link href="/auth/giris">Giriş Yap</Link>
+                      </Button>
+                      <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base" onClick={closeMobileMenu}>
+                        <Link href="/auth/kayit">Kayıt Ol</Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
-      </div>
+      </header>
       
-      <nav className="border-t bg-background/70 backdrop-blur-md hidden md:block">
+      <nav
+        className={cn(
+          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-16 z-40", // Main header is h-16
+          "transition-transform duration-300 ease-in-out",
+          showSecondaryNav ? "translate-y-0" : "-translate-y-full"
+        )}
+      >
         <div className="container mx-auto px-4 flex items-center justify-center h-14">
           <NavigationMenu>
             <NavigationMenuList>
@@ -486,6 +494,6 @@ export default function Header() {
           </NavigationMenu>
         </div>
       </nav>
-    </header>
+    </>
   );
 }
