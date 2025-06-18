@@ -29,7 +29,7 @@ export default function FreightCard({ freight }: FreightCardProps) {
   const originDisplay = `${getCountryName(freight.originCountry)}${freight.originCity ? `, ${freight.originCity}` : ''}${freight.originDistrict ? `, ${freight.originDistrict}` : ''}`;
   const destinationDisplay = `${getCountryName(freight.destinationCountry)}${freight.destinationCity ? `, ${freight.destinationCity}` : ''}${freight.destinationDistrict ? `, ${freight.destinationDistrict}` : ''}`;
 
-  const FreightTypeIcon = freight.freightType === 'Evden Eve' ? Home : Truck;
+  const FreightTypeIcon = freight.freightType === 'Evden Eve' ? Home : (freight.freightType === 'Boş Araç' ? PackagePlus : Truck);
 
   return (
     <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full bg-card text-card-foreground">
@@ -39,7 +39,7 @@ export default function FreightCard({ freight }: FreightCardProps) {
             <MapPin size={20} className="mt-1 flex-shrink-0 text-primary" /> 
             <span className="leading-tight">{originDisplay} <br className="hidden sm:inline"/>&rarr; {destinationDisplay}</span>
           </CardTitle>
-           <Badge variant={freight.freightType === 'Evden Eve' ? "secondary" : "default"} className="whitespace-nowrap flex-shrink-0 text-xs py-1 px-2 flex items-center gap-1">
+           <Badge variant={freight.freightType === 'Evden Eve' ? "secondary" : (freight.freightType === 'Yük' ? "default" : "outline")} className="whitespace-nowrap flex-shrink-0 text-xs py-1 px-2 flex items-center gap-1"> {/* Changed 'Ticari' to 'Yük' */}
             <FreightTypeIcon size={14} /> {freight.freightType}
           </Badge>
         </div>
@@ -52,7 +52,7 @@ export default function FreightCard({ freight }: FreightCardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 space-y-2 text-sm flex-grow">
-        {freight.freightType === 'Ticari' && (
+        {freight.freightType === 'Yük' && ( // Changed from 'Ticari'
           <>
             {(freight as CommercialFreight).shipmentScope && 
               <div className="flex items-center gap-2">
@@ -143,3 +143,4 @@ export default function FreightCard({ freight }: FreightCardProps) {
     </Card>
   );
 }
+

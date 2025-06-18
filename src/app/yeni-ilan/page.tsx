@@ -20,7 +20,7 @@ export default function NewFreightPage() {
   const { user, loading: authLoading, isAuthenticated } = useRequireAuth(); 
   const router = useRouter();
   const { toast } = useToast();
-  const [selectedFreightType, setSelectedFreightType] = useState<'Ticari' | 'Evden Eve' | 'Boş Araç'>('Ticari');
+  const [selectedFreightType, setSelectedFreightType] = useState<'Yük' | 'Evden Eve' | 'Boş Araç'>('Yük'); // Changed 'Ticari' to 'Yük'
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFormSubmit = useCallback(async (newFreightData: FreightCreationData) => {
@@ -97,10 +97,10 @@ export default function NewFreightPage() {
         <p className="text-muted-foreground mt-2">Lütfen ilan türünü seçin ve detayları girin.</p>
       </div>
 
-      <Tabs value={selectedFreightType} onValueChange={(value) => setSelectedFreightType(value as 'Ticari' | 'Evden Eve' | 'Boş Araç')} className="w-full mb-8">
+      <Tabs value={selectedFreightType} onValueChange={(value) => setSelectedFreightType(value as 'Yük' | 'Evden Eve' | 'Boş Araç')} className="w-full mb-8"> {/* Changed 'Ticari' to 'Yük' */}
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="Ticari" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
-            <Truck size={18}/> Ticari Yük
+          <TabsTrigger value="Yük" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner"> {/* Changed 'Ticari' to 'Yük' */}
+            <Truck size={18}/> Yük İlanı {/* Changed text */}
           </TabsTrigger>
           <TabsTrigger value="Evden Eve" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
             <Home size={18}/> Evden Eve Nakliyat
@@ -109,7 +109,7 @@ export default function NewFreightPage() {
             <PackagePlus size={18}/> Boş Araç İlanı
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="Ticari">
+        <TabsContent value="Yük"> {/* Changed 'Ticari' to 'Yük' */}
           <CommercialFreightForm 
             onSubmitSuccess={handleFormSubmit as (data: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'>) => Promise<void>} 
           />
@@ -133,3 +133,4 @@ export default function NewFreightPage() {
     </div>
   );
 }
+

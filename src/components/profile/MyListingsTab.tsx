@@ -29,7 +29,8 @@ import {
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS,
-  EMPTY_VEHICLE_SERVICE_TYPES
+  EMPTY_VEHICLE_SERVICE_TYPES,
+  FREIGHT_TYPES // Added to get updated freight types for dialog select if needed
 } from '@/lib/constants'; 
 import { getListingsByUserId, updateListing, deleteListing } from '@/services/listingsService';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -102,16 +103,16 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
         setFetchError(result.error.message);
         setUserListings([]);
         if (result.error.indexCreationUrl) {
-          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-          console.error("!!! TARAYICI KONSOLU - EKSİK FIRESTORE INDEX (Kullanıcı İlanları) !!!");
-          console.error("!!! Düzeltmek için, aşağıdaki bağlantıyı ziyaret ederek bileşik dizini oluşturun:");
-          console.error(`!!! ${result.error.indexCreationUrl}`);
-          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-           toast({
+          console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          console.warn("!!! EKSİK FIRESTORE INDEX (İlanlarım Sekmesi) !!!");
+          console.warn("!!! Düzeltmek için, aşağıdaki bağlantıyı ziyaret ederek bileşik dizini oluşturun:");
+          console.warn(`!!! ${result.error.indexCreationUrl}`);
+          console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          toast({
             title: "Firestore Index Hatası (İlanlarım)",
-            description: `Eksik bir Firestore dizini var. Lütfen tarayıcı konsolundaki bağlantıyı kullanarak dizini oluşturun. Hata: ${result.error.message.substring(0,100)}...`,
+            description: `Eksik bir Firestore dizini var. Tarayıcı konsolunu kontrol edin. URL: ${result.error.indexCreationUrl}`,
             variant: "destructive",
-            duration: 20000 // Keep it open longer
+            duration: 20000 
           });
         } else {
            toast({ title: "Veri Yükleme Hatası", description: result.error.message, variant: "destructive" });
@@ -185,7 +186,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     const requiredFieldsBase: (keyof Freight)[] = ['freightType', 'companyName', 'contactPerson', 'mobilePhone', 'originCity', 'destinationCity', 'loadingDate', 'description'];
     let specificRequiredFields: (keyof Freight)[] = [];
 
-    if (currentFormData.freightType === 'Ticari') {
+    if (currentFormData.freightType === 'Yük') { // Changed 'Ticari'
         specificRequiredFields = ['cargoType', 'vehicleNeeded', 'loadingType', 'cargoForm', 'cargoWeight'];
     } else if (currentFormData.freightType === 'Evden Eve') {
         specificRequiredFields = ['residentialTransportType', 'residentialPlaceType', 'residentialElevatorStatus', 'residentialFloorLevel'];
@@ -197,7 +198,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     for (const field of allRequiredFields) {
         let valueToCheck: any;
         switch (currentFormData.freightType) {
-            case 'Ticari': valueToCheck = (currentFormData as Partial<CommercialFreight>)[field as keyof CommercialFreight]; break;
+            case 'Yük': valueToCheck = (currentFormData as Partial<CommercialFreight>)[field as keyof CommercialFreight]; break; // Changed 'Ticari'
             case 'Evden Eve': valueToCheck = (currentFormData as Partial<ResidentialFreight>)[field as keyof ResidentialFreight]; break;
             case 'Boş Araç': valueToCheck = (currentFormData as Partial<EmptyVehicleListing>)[field as keyof EmptyVehicleListing]; break;
             default: valueToCheck = (currentFormData as any)[field];
@@ -323,8 +324,8 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
             {userListings.map((listing) => (
               <TableRow key={listing.id} className="hover:bg-muted/50">
                 <TableCell>
-                  <Badge variant={listing.freightType === 'Ticari' ? 'default' : (listing.freightType === 'Evden Eve' ? 'secondary' : 'outline')} className="text-xs">
-                    {listing.freightType === 'Ticari' ? <Truck size={14} className="mr-1.5"/> : (listing.freightType === 'Evden Eve' ? <Home size={14} className="mr-1.5"/> : <PackageIcon size={14} className="mr-1.5" />)}
+                  <Badge variant={listing.freightType === 'Yük' ? 'default' : (listing.freightType === 'Evden Eve' ? 'secondary' : 'outline')} className="text-xs"> {/* Changed 'Ticari' to 'Yük' */}
+                    {listing.freightType === 'Yük' ? <Truck size={14} className="mr-1.5"/> : (listing.freightType === 'Evden Eve' ? <Home size={14} className="mr-1.5"/> : <PackageIcon size={14} className="mr-1.5" />)} {/* Changed 'Ticari' to 'Yük' */}
                     {listing.freightType}
                   </Badge>
                 </TableCell>
@@ -424,9 +425,9 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
               </CardContent>
             </Card>
 
-            {currentFormData.freightType === 'Ticari' && (
+            {currentFormData.freightType === 'Yük' && ( // Changed 'Ticari'
               <Card className="border shadow-sm">
-                  <CardHeader className="bg-muted/30"><CardTitle className="text-base">Ticari Yük Detayları</CardTitle></CardHeader>
+                  <CardHeader className="bg-muted/30"><CardTitle className="text-base">Yük Detayları</CardTitle></CardHeader> {/* Changed */}
                   <CardContent className="pt-6 space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-1.5">

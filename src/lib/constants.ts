@@ -70,7 +70,7 @@ export const WEIGHT_UNITS = ['Ton', 'Kg', 'm³ (metreküp)'] as const;
 
 export const SHIPMENT_SCOPES = ['Yurt İçi', 'Yurt Dışı'] as const;
 
-export const FREIGHT_TYPES = ['Ticari', 'Evden Eve', 'Boş Araç'] as const;
+export const FREIGHT_TYPES = ['Yük', 'Evden Eve', 'Boş Araç'] as const;
 
 export const RESIDENTIAL_TRANSPORT_TYPES = [
   'Uluslararası Taşımacılık',
@@ -122,3 +122,4 @@ export const WORKING_ROUTES = [
 ] as const;
 
 export const EMPTY_VEHICLE_SERVICE_TYPES = ['Komple', 'Parsiyel', 'Tonajlı'] as const;
+

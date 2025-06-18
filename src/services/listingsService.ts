@@ -72,10 +72,10 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     description: data.description || '',
   };
 
-  if (data.freightType === 'Ticari') {
+  if (data.freightType === 'Yük') { // Changed from 'Ticari'
     return {
       ...baseFreight,
-      freightType: 'Ticari',
+      freightType: 'Yük', // Changed from 'Ticari'
       cargoType: data.cargoType || '',
       vehicleNeeded: data.vehicleNeeded || '',
       loadingType: data.loadingType || '',
@@ -108,8 +108,8 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
       vehicleStatedCapacityUnit: data.vehicleStatedCapacityUnit || 'Ton',
     } as Freight;
   }
-  console.warn(`[listingsService - convertToFreight] Listing ${docId}: Unknown freightType "${data.freightType}". Defaulting to 'Ticari'. Original data:`, data);
-  return { ...baseFreight, freightType: 'Ticari', cargoType: 'Diğer', vehicleNeeded: 'Araç Farketmez', loadingType: 'Komple', cargoForm: 'Diğer', cargoWeight: 0, cargoWeightUnit: 'Ton', isContinuousLoad: false, shipmentScope: 'Yurt İçi' } as Freight;
+  console.warn(`[listingsService - convertToFreight] Listing ${docId}: Unknown freightType "${data.freightType}". Defaulting to 'Yük'. Original data:`, data);
+  return { ...baseFreight, freightType: 'Yük', cargoType: 'Diğer', vehicleNeeded: 'Araç Farketmez', loadingType: 'Komple', cargoForm: 'Diğer', cargoWeight: 0, cargoWeightUnit: 'Ton', isContinuousLoad: false, shipmentScope: 'Yurt İçi' } as Freight;
 };
 
 export const getListingsByUserId = async (userId: string): Promise<{ listings: Freight[]; error?: { message: string; indexCreationUrl?: string } }> => {
@@ -165,7 +165,7 @@ export const getListings = async (
   newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null; 
   error?: { message: string; indexCreationUrl?: string } 
 }> => {
-  const { lastVisibleDoc = null, pageSize = 6, filters = {} } = options; // PAGE_SIZE from page.tsx is 6
+  const { lastVisibleDoc = null, pageSize = 6, filters = {} } = options; 
   console.log('[listingsService - getListings] Called with options:', { pageSize, filters, lastVisibleDocExists: !!lastVisibleDoc });
 
   try {
@@ -184,7 +184,8 @@ export const getListings = async (
       queryConstraints.push(where('freightType', '==', filters.freightType));
     }
     
-    if (!filters?.freightType || filters.freightType === 'Ticari') {
+    // Apply commercial-specific filters only if freightType is 'Yük' or not specified (meaning show all types)
+    if (!filters?.freightType || filters.freightType === 'Yük') { // Changed from 'Ticari'
         if (filters?.vehicleNeeded) {
           queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
         }
@@ -256,8 +257,8 @@ export const getListings = async (
             if (filters?.originCity) involvedFields += ", 'originCity'";
             if (filters?.destinationCity) involvedFields += ", 'destinationCity'";
             if (filters?.freightType) involvedFields += ", 'freightType'";
-            if (filters?.vehicleNeeded && (!filters.freightType || filters.freightType === 'Ticari')) involvedFields += ", 'vehicleNeeded'";
-            if (filters?.shipmentScope && (!filters.freightType || filters.freightType === 'Ticari')) involvedFields += ", 'shipmentScope'";
+            if (filters?.vehicleNeeded && (!filters.freightType || filters.freightType === 'Yük')) involvedFields += ", 'vehicleNeeded'"; // Changed from 'Ticari'
+            if (filters?.shipmentScope && (!filters.freightType || filters.freightType === 'Yük')) involvedFields += ", 'shipmentScope'"; // Changed from 'Ticari'
             console.error(`!!! ${involvedFields}`);
             console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }

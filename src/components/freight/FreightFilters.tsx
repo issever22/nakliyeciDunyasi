@@ -66,7 +66,7 @@ export default function FreightFilters({ onFilterChange, isLoading: pageLoading 
     onFilterChange({ sortBy: 'newest' }); 
   };
 
-  const disableCommercialFilters = freightType === 'Evden Eve';
+  const disableLoadSpecificFilters = freightType === 'Evden Eve' || freightType === 'Boş Araç';
   const isAnyLoading = pageLoading || optionsLoading;
 
   return (
@@ -126,13 +126,13 @@ export default function FreightFilters({ onFilterChange, isLoading: pageLoading 
         </div>
         
         <div>
-          <Label htmlFor="shipmentScope">Gönderi Kapsamı (Ticari)</Label>
+          <Label htmlFor="shipmentScope">Gönderi Kapsamı (Yük)</Label> {/* Changed from (Ticari) */}
           <div className="relative mt-1">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Select 
               value={shipmentScope || ALL_OPTIONS_VALUE} 
               onValueChange={(value) => setShipmentScope(value === ALL_OPTIONS_VALUE ? '' : value as ShipmentScope)}
-              disabled={isAnyLoading || disableCommercialFilters}
+              disabled={isAnyLoading || disableLoadSpecificFilters}
             >
               <SelectTrigger className="w-full pl-9">
                 <SelectValue placeholder="Tüm Kapsamlar" />
@@ -147,13 +147,13 @@ export default function FreightFilters({ onFilterChange, isLoading: pageLoading 
           </div>
         </div>
         <div>
-          <Label htmlFor="vehicleNeeded">Araç Tipi (Ticari)</Label>
+          <Label htmlFor="vehicleNeeded">Araç Tipi (Yük)</Label> {/* Changed from (Ticari) */}
           <div className="relative mt-1">
             <VehicleIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Select 
               value={vehicleNeeded || ALL_OPTIONS_VALUE} 
               onValueChange={(value) => setVehicleNeeded(value === ALL_OPTIONS_VALUE ? '' : value as VehicleNeededName)}
-              disabled={isAnyLoading || disableCommercialFilters}
+              disabled={isAnyLoading || disableLoadSpecificFilters}
             >
               <SelectTrigger className="w-full pl-9">
                 <SelectValue placeholder={optionsLoading ? "Yükleniyor..." : "Tüm Araç Tipleri"} />

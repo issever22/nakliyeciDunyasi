@@ -58,7 +58,7 @@ interface BaseFreight {
 }
 
 export interface CommercialFreight extends BaseFreight {
-  freightType: 'Ticari';
+  freightType: 'Yük'; // Changed from 'Ticari'
   cargoType: CargoType;
   vehicleNeeded: VehicleNeeded;
   loadingType: LoadingType;
@@ -291,3 +291,4 @@ export interface TransportOffer {
 
 export type TransportOfferCreationData = Omit<TransportOffer, 'id' | 'postedAt' | 'userId' | 'companyName'>;
 export type TransportOfferUpdateData = Partial<TransportOfferCreationData>;
+

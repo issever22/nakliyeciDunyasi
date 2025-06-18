@@ -150,7 +150,7 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
 
     const newFreightData: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'> = {
       postedBy: user.name, 
-      freightType: 'Ticari',
+      freightType: 'Yük', // Changed from 'Ticari'
       companyName,
       contactPerson,
       contactEmail: contactEmail || undefined,
@@ -415,7 +415,7 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
       
       <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || !isAuthenticated || optionsLoading}>
         {formSubmitting || optionsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
-        {formSubmitting ? 'İlan Yayınlanıyor...' : (optionsLoading ? 'Seçenekler Yükleniyor...' : 'Ticari İlanı Yayınla')}
+        {formSubmitting ? 'İlan Yayınlanıyor...' : (optionsLoading ? 'Seçenekler Yükleniyor...' : 'Yük İlanı Yayınla')}
       </Button>
       {!isAuthenticated && <p className="text-sm text-destructive text-center mt-2">İlan yayınlamak için giriş yapmalısınız.</p>}
     </form>
