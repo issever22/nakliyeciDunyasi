@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db } from '@/lib/firebase'; 
+import { db } from '@/lib/firebase';
 import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory } from '@/types';
 import {
   collection,
@@ -16,8 +16,8 @@ import {
   DocumentData,
   getDocs,
   where,
-  addDoc, 
-  limit 
+  addDoc,
+  limit
 } from 'firebase/firestore';
 import { parseISO, isValid } from 'date-fns';
 
@@ -26,42 +26,38 @@ const USERS_COLLECTION = 'users';
 const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserProfile | null => {
   const data = { ...docData };
 
-  if (data.role !== 'company') {
-    console.warn(`[authService] User ${id}: Role is not 'company'. Skipping profile conversion. Role: ${data.role}`);
-    return null; 
+  // If role is explicitly set and not 'company', it's not a company user.
+  if (data.role && data.role !== 'company') {
+    console.warn(`[authService - convertToUserProfile] User ${id}: Role is '${data.role}', not 'company'. Skipping company profile conversion.`);
+    return null;
   }
 
-  if (data.createdAt && data.createdAt instanceof Timestamp) {
-    data.createdAt = data.createdAt.toDate().toISOString();
-  } else {
-    console.warn(`[authService] Company User ${id}: createdAt is not a Timestamp or is missing. Defaulting. Original:`, data.createdAt);
-    data.createdAt = new Date().toISOString(); 
+  // If role is missing, but it has company-specific identifiers, assume it's a company.
+  const isLikelyCompany = data.role === 'company' || (!data.role && (data.companyTitle || data.username)); // username is specific to company profiles in this app
+
+  if (!isLikelyCompany) {
+    console.warn(`[authService - convertToUserProfile] User ${id}: Does not appear to be a company profile. Skipping. Role: ${data.role}, CompanyTitle: ${data.companyTitle}, Username: ${data.username}`);
+    return null;
   }
 
-  if (data.membershipEndDate && data.membershipEndDate instanceof Timestamp) {
-    data.membershipEndDate = data.membershipEndDate.toDate().toISOString();
-  } else if (data.membershipEndDate === null || data.membershipEndDate === undefined) {
-    data.membershipEndDate = undefined; 
-  } else {
-     console.warn(`[authService] Company User ${id}: membershipEndDate is present but not a Timestamp. Setting to undefined. Original:`, data.membershipEndDate);
-    data.membershipEndDate = undefined;
+  const roleToAssign: 'company' = 'company';
+  if (!data.role) {
+    console.log(`[authService - convertToUserProfile] User ${id}: Role field missing, inferring as 'company'.`);
   }
 
-  // Ensure isActive is explicitly boolean, default to false if undefined (for new users before admin approval)
-  data.isActive = data.isActive === true; 
+  const displayName = data.companyTitle || data.name; // Prioritize companyTitle for display name
 
-  const companyProfile: CompanyUserProfile = {
+  const companyProfileBase: Omit<CompanyUserProfile, 'createdAt' | 'membershipEndDate'> = {
     id,
-    email: data.email,
-    password: data.password || '', 
-    role: 'company',
-    name: data.name, 
-    isActive: data.isActive, 
-    createdAt: data.createdAt,
+    email: data.email || '',
+    password: data.password || '', // Should be handled securely
+    role: roleToAssign,
+    name: displayName || '',
+    isActive: data.isActive === true, // Default to false if undefined or explicitly false
     username: data.username || '',
     logoUrl: data.logoUrl || undefined,
-    companyTitle: data.name, 
-    category: data.category || 'Nakliyeci', 
+    companyTitle: displayName || '', // Ensure companyTitle itself is also populated
+    category: data.category || 'Nakliyeci',
     contactFullName: data.contactFullName || '',
     workPhone: data.workPhone || undefined,
     mobilePhone: data.mobilePhone || '',
@@ -77,11 +73,33 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
     preferredCities: Array.isArray(data.preferredCities) ? data.preferredCities : [],
     preferredCountries: Array.isArray(data.preferredCountries) ? data.preferredCountries : [],
     membershipStatus: data.membershipStatus || 'Yok',
-    membershipEndDate: data.membershipEndDate,
     ownedVehicles: Array.isArray(data.ownedVehicles) ? data.ownedVehicles : [],
     authDocuments: Array.isArray(data.authDocuments) ? data.authDocuments : [],
   };
-  return companyProfile;
+
+  let createdAtStr: string;
+  if (data.createdAt && data.createdAt instanceof Timestamp) {
+    createdAtStr = data.createdAt.toDate().toISOString();
+  } else {
+    console.warn(`[authService - convertToUserProfile] Company User ${id}: createdAt is not a Timestamp or is missing. Defaulting. Original:`, data.createdAt);
+    createdAtStr = new Date().toISOString();
+  }
+
+  let membershipEndDateStr: string | undefined = undefined;
+  if (data.membershipEndDate && data.membershipEndDate instanceof Timestamp) {
+    membershipEndDateStr = data.membershipEndDate.toDate().toISOString();
+  } else if (data.membershipEndDate === null || data.membershipEndDate === undefined) {
+    membershipEndDateStr = undefined;
+  } else {
+     console.warn(`[authService - convertToUserProfile] Company User ${id}: membershipEndDate is present but not a Timestamp. Setting to undefined. Original:`, data.membershipEndDate);
+    membershipEndDateStr = undefined;
+  }
+
+  return {
+    ...companyProfileBase,
+    createdAt: createdAtStr,
+    membershipEndDate: membershipEndDateStr,
+  };
 };
 
 export async function getUserProfile(uid: string): Promise<CompanyUserProfile | null> {
@@ -90,16 +108,13 @@ export async function getUserProfile(uid: string): Promise<CompanyUserProfile | 
     const userDocSnap = await getDoc(userDocRef);
     if (userDocSnap.exists()) {
       const profile = convertToUserProfile(userDocSnap.data(), userDocSnap.id);
-      if (profile && profile.role === 'company') {
-        return profile;
-      }
-      console.log(`[authService.ts] Profile for UID ${uid} is not a company profile or invalid.`);
-      return null;
+      // convertToUserProfile already ensures it's a company profile or returns null
+      return profile;
     }
-    console.log(`[authService.ts] No profile found for UID: ${uid}`);
+    console.log(`[authService.ts - getUserProfile] No profile found for UID: ${uid}`);
     return null;
   } catch (error) {
-    console.error("[authService.ts] Error fetching user profile from Firestore:", error);
+    console.error("[authService.ts - getUserProfile] Error fetching user profile from Firestore:", error);
     return null;
   }
 }
@@ -117,7 +132,7 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
     if (!emailCheckSnapshot.empty) {
       return { profile: null, error: "Bu e-posta adresi zaten kayıtlı." };
     }
-    
+
     const qUsername = query(usersRef, where("username", "==", profileDataFromForm.username));
     const usernameCheckSnapshot = await getDocs(qUsername);
     if (!usernameCheckSnapshot.empty) {
@@ -130,17 +145,17 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
         return { profile: null, error: "Lütfen tüm zorunlu alanları doldurun." };
     }
 
-    const finalProfileDataForFirestore: Omit<CompanyUserProfile, 'id' | 'membershipEndDate'> & { password: string, membershipEndDate?: Timestamp | null } = {
+    const finalProfileDataForFirestore: Omit<CompanyUserProfile, 'id' | 'membershipEndDate' | 'createdAt'> & { password: string, membershipEndDate?: Timestamp | null, createdAt: Timestamp } = {
       email: companyData.email,
-      role: 'company',
-      name: companyData.name, 
-      password: password, 
-      isActive: initialIsActive === undefined ? false : initialIsActive, // Use admin's choice, default to false for public reg
+      role: 'company', // Explicitly set role
+      name: companyData.name,
+      password: password,
+      isActive: initialIsActive === undefined ? false : initialIsActive,
       createdAt: Timestamp.fromDate(new Date()),
       username: companyData.username,
       category: companyData.category,
       logoUrl: companyData.logoUrl || undefined,
-      companyTitle: companyData.name, 
+      companyTitle: companyData.name,
       contactFullName: companyData.contactFullName,
       workPhone: companyData.workPhone || undefined,
       mobilePhone: companyData.mobilePhone,
@@ -156,13 +171,13 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
       preferredCities: Array.isArray(companyData.preferredCities) ? companyData.preferredCities.filter(c => c) : [],
       preferredCountries: Array.isArray(companyData.preferredCountries) ? companyData.preferredCountries.filter(c => c) : [],
       membershipStatus: 'Yok',
-      membershipEndDate: null, 
-      ownedVehicles: [], 
-      authDocuments: [], 
+      membershipEndDate: null,
+      ownedVehicles: [],
+      authDocuments: [],
     };
-    
+
     const docRef = await addDoc(collection(db, USERS_COLLECTION), finalProfileDataForFirestore);
-    const savedDoc = await getDoc(docRef); 
+    const savedDoc = await getDoc(docRef);
 
     if (savedDoc.exists()) {
         const converted = convertToUserProfile(savedDoc.data(), savedDoc.id);
@@ -172,7 +187,7 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
     return { profile: null, error: "Profil oluşturulduktan sonra doğrulanamadı." };
 
   } catch (error: any) {
-    console.error("[authService.ts] Error during Firestore profile creation:", error);
+    console.error("[authService.ts - createCompanyUser] Error during Firestore profile creation:", error);
     let errorMessage = "Profil oluşturma sırasında bilinmeyen bir hata oluştu.";
     if (error.message) errorMessage = error.message;
     else if (typeof error === 'string') errorMessage = error;
@@ -182,21 +197,25 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
 
 export async function getAllUserProfiles(): Promise<CompanyUserProfile[]> {
   try {
-    // Query only for 'company' role users
-    const q = query(collection(db, USERS_COLLECTION), where('role', '==', 'company'), orderBy('createdAt', 'desc'));
+    // Query all users, ordering by createdAt. Filtering to ensure only company profiles are returned
+    // will be handled by convertToUserProfile and the subsequent .filter(Boolean).
+    const q = query(collection(db, USERS_COLLECTION), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     const companyProfiles: CompanyUserProfile[] = [];
     querySnapshot.docs.forEach(doc => {
         const profile = convertToUserProfile(doc.data(), doc.id);
-        if (profile) { // convertToUserProfile will return null if role is not company
+        if (profile) { // convertToUserProfile returns null if not a company or invalid based on new logic
             companyProfiles.push(profile);
         }
     });
+    console.log(`[authService - getAllUserProfiles] Fetched ${querySnapshot.docs.length} total documents, converted and kept ${companyProfiles.length} company profiles.`);
     return companyProfiles;
   } catch (error: any) {
-    console.error("[authService.ts] Error fetching all company user profiles from Firestore: ", error);
+    console.error("[authService.ts - getAllUserProfiles] Error fetching all user profiles from Firestore: ", error);
+    // Note: The 'failed-precondition' error related to 'role' field index should no longer occur with this query.
+    // However, other index errors (e.g., on 'createdAt') are still possible if not set up.
     if (error.code === 'failed-precondition') {
-         const errorMessage = error.message || "Eksik Firestore dizini (admin kullanıcı listesi). Lütfen sunucu konsolunu kontrol edin.";
+         const errorMessage = error.message || "Eksik Firestore dizini (admin kullanıcı listesi - muhtemelen createdAt). Lütfen sunucu konsolunu kontrol edin.";
          console.error(`[authService.ts] FIRESTORE PRECONDITION FAILED (getAllUserProfiles): ${errorMessage}`);
           const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
           const match = errorMessage.match(urlRegex);
@@ -205,7 +224,7 @@ export async function getAllUserProfiles(): Promise<CompanyUserProfile[]> {
               console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
               console.error("!!! ADMIN ALL USERS - MISSING FIRESTORE INDEX !!!");
               console.error(`!!! Index URL: ${indexCreationUrl}`);
-              console.error("!!! Likely involves fields: 'role' (equals 'company') and 'createdAt' (descending).");
+              console.error("!!! Likely involves field: 'createdAt' (descending).");
               console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
           }
      }
@@ -219,32 +238,35 @@ export async function updateUserProfile(uid: string, data: Partial<CompanyUserPr
     const updateData: any = { ...data };
 
     delete updateData.id;
-    delete updateData.password; 
-    delete updateData.email; 
-    delete updateData.role; 
-    delete updateData.createdAt; 
+    delete updateData.password;
+    delete updateData.email;
+    delete updateData.role; // Role should not be changed here
+    delete updateData.createdAt;
 
+    // If 'name' (display name) is being updated, ensure 'companyTitle' also reflects this.
+    // And vice-versa. 'name' on CompanyUserProfile should be the companyTitle.
     if (updateData.hasOwnProperty('name')) {
         updateData.companyTitle = updateData.name;
     } else if (updateData.hasOwnProperty('companyTitle')) {
         updateData.name = updateData.companyTitle;
     }
 
+
     if (updateData.hasOwnProperty('membershipEndDate')) {
       if (updateData.membershipEndDate && typeof updateData.membershipEndDate === 'string' && isValid(parseISO(updateData.membershipEndDate))) {
         updateData.membershipEndDate = Timestamp.fromDate(parseISO(updateData.membershipEndDate));
       } else if (updateData.membershipEndDate === undefined || updateData.membershipEndDate === null || (typeof updateData.membershipEndDate === 'string' && updateData.membershipEndDate.trim() === '')) {
-        updateData.membershipEndDate = null; 
+        updateData.membershipEndDate = null;
       } else {
-         console.warn(`[authService] updateUserProfile: Invalid membershipEndDate string for UID ${uid}: ${updateData.membershipEndDate}. Field not updated.`);
+         console.warn(`[authService - updateUserProfile] Invalid membershipEndDate string for UID ${uid}: ${updateData.membershipEndDate}. Field not updated.`);
          delete updateData.membershipEndDate;
       }
     }
-    
+
     await updateDoc(docRef, updateData);
     return true;
   } catch (error) {
-    console.error("[authService.ts] Error updating user profile in Firestore: ", error);
+    console.error("[authService.ts - updateUserProfile] Error updating user profile in Firestore: ", error);
     return false;
   }
 }
@@ -253,12 +275,10 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
   try {
     const docRef = doc(db, USERS_COLLECTION, uid);
     await deleteDoc(docRef);
-    console.log(`[authService.ts] Firestore profile for UID ${uid} deleted.`);
+    console.log(`[authService.ts - deleteUserProfile] Firestore profile for UID ${uid} deleted.`);
     return true;
   } catch (error) {
-    console.error("[authService.ts] Error deleting user profile from Firestore: ", error);
+    console.error("[authService.ts - deleteUserProfile] Error deleting user profile from Firestore: ", error);
     return false;
   }
 }
-
-    
