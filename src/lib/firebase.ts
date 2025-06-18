@@ -1,8 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
-import { getAuth, type Auth } from "firebase/auth"; // Import Firebase Auth
-
+// Firebase Auth import removed
 
 const firebaseConfig = {
   apiKey: "AIzaSyCzxTXhQ9NkLCK1r05T_l6kbtOI12_jM6M",
@@ -23,6 +22,8 @@ if (!getApps().length) {
 }
 
 const db: Firestore = getFirestore(app);
-const auth: Auth = getAuth(app);
+// Auth instance removed
 
-export { db, auth, app };
+export { db, app }; // auth export removed
+
+    

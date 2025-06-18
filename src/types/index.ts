@@ -36,7 +36,7 @@ export type EmptyVehicleServiceType = typeof EMPTY_VEHICLE_SERVICE_TYPES[number]
 
 interface BaseFreight {
   id: string;
-  userId: string; // Will be a guest ID if not logged in
+  userId: string; // Will be a guest ID if not logged in, or the company's Firestore doc ID
   postedBy: string; // Name of the person/company posting
   companyName: string; // Name of the company or individual posting
   contactPerson: string;
@@ -88,7 +88,6 @@ export interface EmptyVehicleListing extends BaseFreight {
 
 export type Freight = CommercialFreight | ResidentialFreight | EmptyVehicleListing;
 
-// userId is handled by the service for guest posts
 export type FreightCreationData =
   | Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'>
   | Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>
@@ -97,7 +96,7 @@ export type FreightCreationData =
 export type FreightUpdateData = Partial<FreightCreationData>;
 
 
-export type UserRole = 'company'; // Only company users now
+export type UserRole = 'company'; 
 export type CompanyUserType = typeof COMPANY_TYPES[number]['value'];
 export type CompanyCategory = typeof COMPANY_CATEGORIES[number]['value'];
 export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
@@ -107,16 +106,17 @@ interface BaseUserProfile {
   id: string;
   email: string;
   role: UserRole;
-  name: string; // For CompanyUserProfile, this is companyTitle
-  isActive: boolean; // For CompanyUserProfile, this is admin approval status
+  name: string; 
+  isActive: boolean; 
   createdAt: string; // ISO Date string
 }
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
+  password?: string; // Store password (plaintext for now, as per user's current direction)
   username: string;
   logoUrl?: string;
-  companyTitle: string; // This will be the primary name used in 'name' field of BaseUserProfile
+  companyTitle: string; 
   category: CompanyCategory;
   contactFullName: string;
   workPhone?: string;
@@ -138,21 +138,20 @@ export interface CompanyUserProfile extends BaseUserProfile {
   authDocuments: string[];
 }
 
-export type UserProfile = CompanyUserProfile; // UserProfile is now only CompanyUserProfile
+export type UserProfile = CompanyUserProfile; 
 
-// BaseRegisterData remains for structure, but only CompanyRegisterData will be used
 interface BaseRegisterData {
   email: string;
-  password?: string;
-  name: string; // For CompanyRegisterData, this will be companyTitle
+  password?: string; // Will be made mandatory
+  name: string; 
   role: UserRole;
 }
 export interface CompanyRegisterData extends BaseRegisterData {
   role: 'company';
+  password?: string; // This needs to be string (not optional) for custom auth
   username: string;
   category: CompanyCategory;
   logoUrl?: string;
-  // companyTitle is mapped to 'name' in BaseRegisterData
   contactFullName: string;
   workPhone?: string;
   mobilePhone: string;
@@ -169,7 +168,7 @@ export interface CompanyRegisterData extends BaseRegisterData {
   preferredCountries: (CountryCode | string)[];
 }
 
-export type RegisterData = CompanyRegisterData; // RegisterData is now only CompanyRegisterData
+export type RegisterData = CompanyRegisterData; 
 
 
 export interface VehicleTypeSetting {
@@ -179,7 +178,7 @@ export interface VehicleTypeSetting {
   isActive: boolean;
 }
 
-export type RequiredFor = 'Bireysel' | 'Firma' | 'Her İkisi de'; // Keep for settings, as docs might be for individuals even if they don't log in
+export type RequiredFor = 'Bireysel' | 'Firma' | 'Her İkisi de'; 
 export interface AuthDocSetting {
   id: string;
   name: string;
@@ -216,7 +215,7 @@ export interface TransportTypeSetting {
   isActive: boolean;
 }
 
-export type TargetAudience = 'Tümü' | 'Bireysel Kullanıcılar' | 'Firma Kullanıcıları'; // Keep for announcements
+export type TargetAudience = 'Tümü' | 'Bireysel Kullanıcılar' | 'Firma Kullanıcıları'; 
 export interface AnnouncementSetting {
   id: string;
   title: string;
@@ -246,7 +245,7 @@ export interface Sponsor {
   logoUrl?: string;
   linkUrl?: string;
   entityType: SponsorEntityType;
-  entityName: string; // Could be CountryCode or TurkishCity or string
+  entityName: string; 
   startDate: string; // ISO Date string
   endDate?: string; // ISO Date string
   isActive: boolean;
@@ -288,3 +287,5 @@ export interface TransportOffer {
 
 export type TransportOfferCreationData = Omit<TransportOffer, 'id' | 'postedAt' | 'userId' | 'companyName'>;
 export type TransportOfferUpdateData = Partial<TransportOfferCreationData>;
+
+    

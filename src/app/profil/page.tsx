@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRequireAuth, useAuth } from '@/hooks/useAuth'; // useRequireAuth now ensures company user
+import { useRequireAuth, useAuth } from '@/hooks/useAuth'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -21,29 +21,27 @@ import FeedbackModal from '@/components/profile/FeedbackModal';
 import { useRouter } from 'next/navigation';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { sendPasswordResetEmail } from 'firebase/auth'; 
-import { auth } from '@/lib/firebase'; 
+// Firebase Auth import for sendPasswordResetEmail removed
+// import { sendPasswordResetEmail } from 'firebase/auth'; 
+// import { auth } from '@/lib/firebase'; 
 
-import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types'; // UserProfile is now CompanyUserProfile
+import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types'; 
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
 import { getAllAuthDocs } from '@/services/authDocsService';
 import { getAllMemberships } from '@/services/membershipsService';
 import { format, parseISO, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
-// Image component is not used here for logo, img tag is used.
 
 import { WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import { COUNTRIES } from '@/lib/locationData';
 
 
 export default function ProfilePage() {
-  // useRequireAuth now ensures user is CompanyUserProfile if authenticated
   const { user, loading: authLoading, isAuthenticated } = useRequireAuth();
   const { logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
-  // companyUser is the same as user, but explicitly typed for clarity in this component
   const companyUser = user as CompanyUserProfile | null; 
 
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeSetting[]>([]);
@@ -61,7 +59,7 @@ export default function ProfilePage() {
 
 
   useEffect(() => {
-    if (companyUser) { // No need to check role, user is always CompanyUserProfile if exists
+    if (companyUser) { 
       const fetchCompanySettings = async () => {
         setSettingsLoading(true);
         try {
@@ -71,7 +69,6 @@ export default function ProfilePage() {
             getAllMemberships()
           ]);
           setVehicleTypes(vehicles.filter(v => v.isActive));
-          // Auth docs might still be for "Bireysel" for other contexts, filter for Firma or Her İkisi de
           setAuthDocTypes(docs.filter(d => d.isActive && (d.requiredFor === 'Firma' || d.requiredFor === 'Her İkisi de')));
           setMembershipPackages(memberships.filter(m => m.isActive));
         } catch (error) {
@@ -84,35 +81,40 @@ export default function ProfilePage() {
     }
   }, [companyUser]);
 
-  // onProfileUpdate will receive CompanyUserProfile as UserProfile is now CompanyUserProfile
   const handleProfileUpdate = (updatedProfile: CompanyUserProfile) => {
-    // The useAuth hook will update the user state globally, no need to call setCompanyUser here if user is from useAuth
+    // The useAuth hook will update the user state globally
   };
 
   const handleSendPasswordReset = async () => {
-    if (!companyUser || !companyUser.email) {
-      toast({
-        title: "Hata",
-        description: "Şifre sıfırlama e-postası göndermek için e-posta adresiniz bulunamadı.",
+    // Firebase Auth removed, this function needs to be re-implemented or removed
+    toast({
+        title: "İşlev Devre Dışı",
+        description: "Şifre değiştirme işlevi şu anda aktif değildir.",
         variant: "destructive",
-      });
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(auth, companyUser.email);
-      toast({
-        title: "E-posta Gönderildi",
-        description: `${companyUser.email} adresinize şifre sıfırlama bağlantısı gönderildi. Lütfen e-postanızı kontrol edin.`,
-        variant: "default",
-      });
-    } catch (error: any) {
-      console.error("Error sending password reset email:", error);
-      toast({
-        title: "Şifre Sıfırlama Hatası",
-        description: error.message || "Şifre sıfırlama e-postası gönderilirken bir hata oluştu.",
-        variant: "destructive",
-      });
-    }
+    });
+    // if (!companyUser || !companyUser.email) {
+    //   toast({
+    //     title: "Hata",
+    //     description: "Şifre sıfırlama e-postası göndermek için e-posta adresiniz bulunamadı.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
+    // try {
+    //   await sendPasswordResetEmail(auth, companyUser.email);
+    //   toast({
+    //     title: "E-posta Gönderildi",
+    //     description: `${companyUser.email} adresinize şifre sıfırlama bağlantısı gönderildi. Lütfen e-postanızı kontrol edin.`,
+    //     variant: "default",
+    //   });
+    // } catch (error: any) {
+    //   console.error("Error sending password reset email:", error);
+    //   toast({
+    //     title: "Şifre Sıfırlama Hatası",
+    //     description: error.message || "Şifre sıfırlama e-postası gönderilirken bir hata oluştu.",
+    //     variant: "destructive",
+    //   });
+    // }
   };
 
 
@@ -143,7 +145,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!companyUser) { // Check companyUser which is the typed user from useAuth
+  if (!companyUser) { 
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <p className="text-xl text-muted-foreground">Firma profili yüklenemedi veya giriş yapılmamış.</p>
@@ -195,8 +197,8 @@ export default function ProfilePage() {
               <Button onClick={() => setIsEditProfileModalOpen(true)} variant="outline" className="w-full">
                 <Edit3 className="mr-2 h-4 w-4" /> Temel Bilgileri Düzenle
               </Button>
-              <Button onClick={handleSendPasswordReset} variant="outline" className="w-full">
-                <KeyRound className="mr-2 h-4 w-4" /> Şifre Değiştir
+              <Button onClick={handleSendPasswordReset} variant="outline" className="w-full" disabled> {/* Disabled for now */}
+                <KeyRound className="mr-2 h-4 w-4" /> Şifre Değiştir (Devre Dışı)
               </Button>
               <Button onClick={() => setIsFeedbackModalOpen(true)} variant="outline" className="w-full">
                 <MessageSquareText className="mr-2 h-4 w-4" /> Geri Bildirim Gönder
@@ -211,7 +213,7 @@ export default function ProfilePage() {
                  <TabsList
                     className={cn(
                       "grid w-full p-1 rounded-md bg-muted/50",
-                      "grid-cols-3 md:grid-cols-3 lg:grid-cols-6" // Always company tabs count
+                      "grid-cols-3 md:grid-cols-3 lg:grid-cols-6" 
                     )}
                   >
                     <TabsTrigger value="details" className="text-xs sm:text-sm"><Building className="mr-1.5 h-4 w-4 hidden sm:inline"/>Firma Detayları</TabsTrigger>
@@ -329,14 +331,13 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Modals, ensuring companyUser is passed where needed */}
       {companyUser && (
           <>
             <EditProfileModal
                 isOpen={isEditProfileModalOpen}
                 onClose={() => setIsEditProfileModalOpen(false)}
-                user={companyUser} // Pass CompanyUserProfile
-                onProfileUpdate={handleProfileUpdate as (updatedProfile: UserProfile) => void} // Cast for prop type
+                user={companyUser} 
+                onProfileUpdate={handleProfileUpdate as (updatedProfile: UserProfile) => void} 
             />
             {isFeedbackModalOpen && ( 
                 <FeedbackModal
@@ -377,3 +378,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

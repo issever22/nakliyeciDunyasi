@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { Mail, Lock, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation'; 
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -16,7 +16,7 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const { toast } = useToast();
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter(); 
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -26,11 +26,11 @@ export default function LoginForm() {
       if (userProfile) {
         toast({
           title: "Başarılı Giriş",
-          description: `Hoş geldiniz, ${userProfile.name}! Panele yönlendiriliyorsunuz...`,
+          description: `Hoş geldiniz, ${userProfile.name}! Ana sayfaya yönlendiriliyorsunuz...`,
         });
-        router.push('/'); // Redirect to homepage or dashboard after successful login
+        router.push('/'); 
       } else {
-        // This else block might not be reached if login throws an error for failures
+        // This case might not be reached if login always throws for failures
         toast({
           title: "Giriş Başarısız",
           description: "E-posta veya şifre hatalı. Lütfen tekrar deneyin.",
@@ -39,27 +39,9 @@ export default function LoginForm() {
       }
     } catch (error: any) {
       console.error("Login form error:", error);
-      let description = "Giriş sırasında bir hata oluştu. Lütfen bilgilerinizi kontrol edin.";
-      if (error.code) { // Firebase error codes
-        switch (error.code) {
-          case 'auth/user-not-found':
-          case 'auth/wrong-password':
-          case 'auth/invalid-credential': // Covers both wrong email and password for newer SDK versions
-            description = "E-posta veya şifre hatalı.";
-            break;
-          case 'auth/invalid-email':
-            description = "Geçersiz e-posta formatı.";
-            break;
-          case 'auth/too-many-requests':
-            description = "Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.";
-            break;
-          default:
-            description = "Beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin.";
-        }
-      }
       toast({
         title: "Giriş Hatası",
-        description: description,
+        description: error.message || "Giriş sırasında bir hata oluştu. Lütfen bilgilerinizi kontrol edin.",
         variant: "destructive",
       });
     } finally {
@@ -108,3 +90,5 @@ export default function LoginForm() {
     </form>
   );
 }
+
+    

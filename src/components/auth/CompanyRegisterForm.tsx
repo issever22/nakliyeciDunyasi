@@ -31,7 +31,7 @@ export default function CompanyRegisterForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [companyTitle, setCompanyTitle] = useState(''); // This will be 'name' in RegisterData
+  const [companyTitle, setCompanyTitle] = useState(''); 
   const [category, setCategory] = useState<CompanyCategory | ''>('');
   const [contactFullName, setContactFullName] = useState('');
   const [workPhone, setWorkPhone] = useState('');
@@ -124,6 +124,11 @@ export default function CompanyRegisterForm() {
        toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları (*) doldurun.", variant: "destructive" });
        return;
     }
+     if (password.length < 6) {
+        toast({ title: "Hata", description: "Şifre en az 6 karakter olmalıdır.", variant: "destructive" });
+        return;
+    }
+
 
     setIsLoading(true);
     try {
@@ -131,7 +136,7 @@ export default function CompanyRegisterForm() {
         role: 'company',
         email,
         password, 
-        name: companyTitle, // Company Title goes into 'name' field for BaseRegisterData
+        name: companyTitle, 
         username,
         category: category as CompanyCategory,
         logoUrl: logoUrl || undefined,
@@ -159,7 +164,6 @@ export default function CompanyRegisterForm() {
         });
         router.push('/');
       } else {
-        // This case should ideally be handled by errors thrown from the register function
         toast({
           title: "Kayıt Başarısız",
           description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin.",
@@ -169,21 +173,9 @@ export default function CompanyRegisterForm() {
     } catch (error: any) {
       console.error("Company registration form error:", error);
       let description = "Kayıt sırasında bir hata oluştu.";
-      if (error.code) { // Firebase error codes
-        switch (error.code) {
-          case 'auth/email-already-in-use':
-            description = "Bu e-posta adresi zaten kayıtlı.";
-            break;
-          case 'auth/weak-password':
-            description = "Şifre yeterince güçlü değil. En az 6 karakter olmalıdır.";
-            break;
-          case 'auth/invalid-email':
-            description = "Geçersiz e-posta formatı.";
-            break;
-          default:
-             description = error.message || "Beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin.";
-        }
-      } else if (error.message) {
+      // Firebase specific error codes are no longer relevant here for auth/
+      // Custom errors from useAuth or authService will be in error.message
+      if (error.message) {
         description = error.message;
       }
       toast({
@@ -448,3 +440,5 @@ export default function CompanyRegisterForm() {
     </form>
   );
 }
+
+    
