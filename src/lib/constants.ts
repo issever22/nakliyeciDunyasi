@@ -109,11 +109,12 @@ export const COMPANY_TYPES = [
 ] as const;
 
 export const COMPANY_CATEGORIES = [
-  { value: 'Nakliyeci', label: 'Nakliyeci' },
-  { value: 'Yük firması', label: 'Yük Firması' },
-  { value: 'Lowbedci', label: 'Lowbedci' },
-  { value: 'Frigocu', label: 'Frigocu' },
+  { value: 'Nakliyeci', label: 'Nakliyeci', slug: 'nakliyeci', description: 'Genel yük ve eşya taşımacılığı yapan üyelerimiz.' },
+  { value: 'Yük firması', label: 'Yük Firması', slug: 'yuk-firmasi', description: 'Ticari yüklerin taşınması konusunda uzmanlaşmış üyelerimiz.' },
+  { value: 'Lowbedci', label: 'Lowbedci', slug: 'lowbedci', description: 'Ağır ve gabari dışı yük taşımacılığı yapan lowbed sahibi üyelerimiz.' },
+  { value: 'Frigocu', label: 'Frigocu', slug: 'frigocu', description: 'Soğuk zincir taşımacılığı yapan frigofirik araç sahibi üyelerimiz.' },
 ] as const;
+
 
 export const WORKING_METHODS = [
   { id: 'international', label: 'Uluslararası Taşımacılık' },

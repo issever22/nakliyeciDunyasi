@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText, Search } from 'lucide-react';
+import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText, Search, Users as UsersIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { COMPANY_CATEGORIES } from '@/lib/constants';
 
 
 const ListItem = React.forwardRef<
@@ -75,17 +76,19 @@ export default function Header() {
   const [showHeader, setShowHeader] = useState(true);
   const [showSecondaryNav, setShowSecondaryNav] = useState(true);
   const lastScrollY = useRef(0);
-  const scrollThreshold = 100; 
+  const scrollThreshold = 50; 
 
   const controlHeaderVisibility = useCallback(() => {
     if (typeof window !== 'undefined') {
       const currentScrollY = window.scrollY;
+      // For the main header (always visible)
+      // setShowHeader(true); // Main header is now always visible
+
+      // For the secondary navigation
       if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
-        setShowHeader(false); // Hide when scrolling down
-        setShowSecondaryNav(false);
+        setShowSecondaryNav(false); // Hide secondary nav when scrolling down
       } else if (currentScrollY < lastScrollY.current || currentScrollY <= scrollThreshold) {
-        setShowHeader(true); // Show when scrolling up or near top
-        setShowSecondaryNav(true);
+        setShowSecondaryNav(true); // Show secondary nav when scrolling up or near top
       }
       lastScrollY.current = currentScrollY;
     }
@@ -244,9 +247,8 @@ export default function Header() {
     <>
       <header
         className={cn(
-          "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg",
-          "transition-transform duration-300 ease-in-out",
-          showHeader ? "translate-y-0" : "-translate-y-full"
+          "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg"
+          // Always visible, so no transition classes needed here
         )}
       >
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -265,11 +267,9 @@ export default function Header() {
             </div>
             
             <Button variant="ghost" asChild>
-              <Link href="/yeni-ilan" passHref legacyBehavior>
-                <a>
-                  <PlusCircle size={18} /> İlan Ver
-                </a>
-              </Link>
+                <Link href="/yeni-ilan" legacyBehavior passHref>
+                    <a><PlusCircle size={18} /> İlan Ver</a>
+                </Link>
             </Button>
             
             <AnnouncementBell />
@@ -345,7 +345,13 @@ export default function Header() {
                     </Button>
                   </div>
                 </div>
-                <nav className="flex-grow p-4 space-y-2">
+                <ScrollArea className="flex-grow">
+                <nav className="p-4 space-y-1">
+                  <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/yeni-ilan" passHref legacyBehavior>
+                        <a><PlusCircle size={20} /> İlan Ver</a>
+                    </Link>
+                  </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/hakkimizda">Hakkımızda</Link>
                   </Button>
@@ -353,18 +359,32 @@ export default function Header() {
                     <Link href="/iletisim">İletişim</Link>
                   </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                    <Link href="/yeni-ilan" passHref legacyBehavior>
-                        <a><PlusCircle size={20} /> İlan Ver</a>
-                    </Link>
+                    <Link href="/lojistik-firmalari/karayolu">Karayolu Lojistik</Link>
                   </Button>
+                  <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/nakliyeciler/illere-gore">İllere Göre Nakliyeciler</Link>
+                  </Button>
+                  <Separator className="my-2"/>
+                  <p className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Üyelerimiz</p>
+                  {COMPANY_CATEGORIES.map((category) => (
+                    <Button variant="ghost" asChild className="w-full justify-start text-base pl-6" onClick={closeMobileMenu} key={category.slug}>
+                      <Link href={`/uyelerimiz/${category.slug}`}>{category.label} Üyelerimiz</Link>
+                    </Button>
+                  ))}
+
+
                   {isAuthenticated && user && (
+                      <>
+                      <Separator className="my-2"/>
                       <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                           <Link href="/profil" passHref legacyBehavior>
                               <a><UserCircle size={20} /> Profilim</a>
                           </Link>
                       </Button>
+                      </>
                   )}
                 </nav>
+                </ScrollArea>
                 <div className="p-4 border-t mt-auto">
                   {isAuthenticated && user ? (
                       <Button variant="destructive" className="w-full text-base" onClick={() => { logout(); closeMobileMenu(); }}>
@@ -389,9 +409,9 @@ export default function Header() {
       
       <nav
         className={cn(
-          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-16 z-40", // Sticks below the main header
+          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-16 z-40",
           "transition-transform duration-300 ease-in-out",
-          showSecondaryNav ? "translate-y-0" : "-translate-y-full" // This nav specifically will hide/show
+          showSecondaryNav ? "translate-y-0" : "-translate-y-full"
         )}
       >
         <div className="container mx-auto px-4 flex items-center justify-center h-14">
@@ -435,6 +455,23 @@ export default function Header() {
                     <ListItem href="/lojistik-firmalari/denizyolu" title="Denizyolu Lojistik Firmaları">
                       Uluslararası denizyolu konteyner ve yük taşımacılığı.
                     </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Üyelerimiz</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] lg:w-[600px] md:grid-cols-2">
+                    {COMPANY_CATEGORIES.map((category) => (
+                      <ListItem
+                        key={category.slug}
+                        title={`${category.label} Üyelerimiz`}
+                        href={`/uyelerimiz/${category.slug}`}
+                      >
+                        {category.description}
+                      </ListItem>
+                    ))}
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>
