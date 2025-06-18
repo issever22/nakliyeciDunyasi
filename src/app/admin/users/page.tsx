@@ -13,12 +13,11 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-// Tabs are removed as only company users exist
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List } from 'lucide-react'; // UsersIcon removed
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, ListFilter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import type { UserProfile, CompanyUserProfile, UserRole, CompanyCategory } from '@/types'; // UserRole is now just 'company'
+import type { CompanyUserProfile, CompanyCategory, CompanyRegisterData } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { COMPANY_CATEGORIES } from '@/lib/constants';
@@ -26,7 +25,7 @@ import {
   getAllUserProfiles, 
   updateUserProfile,
   deleteUserProfile,
-  // createUserProfile // Admin user creation might be more complex
+  createCompanyUser as createCompanyUserServerAction,
 } from '@/services/authService'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -34,21 +33,22 @@ const MEMBERSHIP_STATUS_OPTIONS = ['Yok', 'Standart', 'Premium'];
 
 export default function UsersPage() {
   const { toast } = useToast();
-  const [allCompanyUsers, setAllCompanyUsers] = useState<CompanyUserProfile[]>([]); // Explicitly CompanyUserProfile
+  const [allCompanyUsers, setAllCompanyUsers] = useState<CompanyUserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<CompanyUserProfile | null>(null); // Explicitly CompanyUserProfile
+  const [editingUser, setEditingUser] = useState<CompanyUserProfile | null>(null);
   const [showOnlyMembers, setShowOnlyMembers] = useState(false);
+  const [showOnlyPendingApproval, setShowOnlyPendingApproval] = useState(false);
   
-  const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile> & { name: string, email: string, category: CompanyCategory }>({ // role is fixed to 'company'
-    role: 'company', name: '', email: '', isActive: true, category: 'Nakliyeci' // Default category
+  const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile> & { name: string, email: string, category: CompanyCategory, password?: string }>({ 
+    role: 'company', name: '', email: '', isActive: true, category: 'Nakliyeci', password: ''
   });
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
-    const usersFromDb = await getAllUserProfiles(); // This now returns CompanyUserProfile[]
+    const usersFromDb = await getAllUserProfiles();
     setAllCompanyUsers(usersFromDb);
     setIsLoading(false);
   }, []);
@@ -71,15 +71,18 @@ export default function UsersPage() {
         name: editingUser.name || '', 
         email: editingUser.email || '',
         membershipEndDate: membershipEndDateToSet,
-        role: 'company', // Ensure role is set
-        category: editingUser.category || 'Nakliyeci', // Ensure category is set
+        role: 'company', 
+        category: editingUser.category || 'Nakliyeci',
+        password: '', // Clear password for edit mode
       });
     } else {
+      // For new company user profile
       setCurrentFormData({
         role: 'company',
         name: '',
         email: '',
-        isActive: true,
+        password: '',
+        isActive: true, // Default for new company created by admin
         category: 'Nakliyeci',
         username: '',
         companyTitle: '',
@@ -114,18 +117,23 @@ export default function UsersPage() {
         toast({ title: "Hata", description: "Firma Adı ve E-posta boş bırakılamaz.", variant: "destructive" });
         return;
     }
-    if (!(currentFormData as CompanyUserProfile).username?.trim()) {
+    if (!currentFormData.username?.trim()) {
         toast({ title: "Hata", description: "Kullanıcı Adı zorunludur.", variant: "destructive" });
         return;
     }
-    if (!(currentFormData as CompanyUserProfile).category?.trim()) {
+     if (!currentFormData.category?.trim()) {
         toast({ title: "Hata", description: "Firma Kategorisi zorunludur.", variant: "destructive" });
         return;
     }
-    if (!(currentFormData as CompanyUserProfile).contactFullName?.trim()) {
+    if (!currentFormData.contactFullName?.trim()) {
         toast({ title: "Hata", description: "Yetkili Adı Soyadı zorunludur.", variant: "destructive" });
         return;
     }
+    if (!currentFormData.mobilePhone?.trim()) {
+        toast({ title: "Hata", description: "Cep Telefonu zorunludur.", variant: "destructive" });
+        return;
+    }
+    
     setFormSubmitting(true);
 
     const dataToSubmit: any = { ...currentFormData };
@@ -135,7 +143,7 @@ export default function UsersPage() {
     } else if (dataToSubmit.membershipEndDate === undefined) {
         dataToSubmit.membershipEndDate = undefined; 
     }
-    // Ensure 'name' (companyTitle) is set for update
+   
     dataToSubmit.name = dataToSubmit.companyTitle || dataToSubmit.name;
 
 
@@ -150,7 +158,45 @@ export default function UsersPage() {
         toast({ title: "Hata", description: "Firma profili güncellenemedi.", variant: "destructive" });
       }
     } else {
-      toast({ title: "Not Implemented", description: "Admin user creation from this panel is not fully implemented for Firebase Auth users. Please use Firebase Console or implement Admin SDK.", variant: "destructive" });
+      // Adding new company
+      if (!currentFormData.password?.trim() || currentFormData.password.length < 6) {
+        toast({ title: "Hata", description: "Yeni firma için en az 6 karakterli bir şifre girilmelidir.", variant: "destructive" });
+        setFormSubmitting(false);
+        return;
+      }
+      
+      const registrationPayload: CompanyRegisterData = {
+        role: 'company',
+        email: currentFormData.email!,
+        password: currentFormData.password!,
+        name: currentFormData.companyTitle || currentFormData.name!,
+        username: currentFormData.username!,
+        category: currentFormData.category!,
+        logoUrl: currentFormData.logoUrl || undefined,
+        contactFullName: currentFormData.contactFullName!,
+        workPhone: currentFormData.workPhone || undefined,
+        mobilePhone: currentFormData.mobilePhone!,
+        fax: currentFormData.fax || undefined,
+        website: currentFormData.website || undefined,
+        companyDescription: currentFormData.companyDescription || undefined,
+        companyType: currentFormData.companyType!,
+        addressCity: currentFormData.addressCity!,
+        addressDistrict: currentFormData.addressDistrict || undefined,
+        fullAddress: currentFormData.fullAddress!,
+        workingMethods: currentFormData.workingMethods || [],
+        workingRoutes: currentFormData.workingRoutes || [],
+        preferredCities: currentFormData.preferredCities?.filter(c => c) || [],
+        preferredCountries: currentFormData.preferredCountries?.filter(c => c) || [],
+        isActive: currentFormData.isActive, // Pass admin's choice for initial active state
+      };
+
+      const result = await createCompanyUserServerAction(registrationPayload);
+      if (result.profile) {
+        toast({ title: "Başarılı", description: `Yeni firma "${result.profile.name}" oluşturuldu.`});
+        fetchUsers();
+      } else {
+        toast({ title: "Firma Oluşturma Hatası", description: result.error || "Firma oluşturulamadı.", variant: "destructive"});
+      }
     }
     setFormSubmitting(false);
     setIsAddEditDialogOpen(false);
@@ -159,7 +205,7 @@ export default function UsersPage() {
   const handleDelete = async (id: string) => {
     const success = await deleteUserProfile(id); 
     if (success) {
-      toast({ title: "Başarılı", description: "Firma profili silindi. (Firebase Auth kullanıcısı hala mevcut olabilir)", variant: "destructive" });
+      toast({ title: "Başarılı", description: "Firma profili silindi.", variant: "destructive" });
       fetchUsers();
     } else {
       toast({ title: "Hata", description: "Firma profili silinemedi.", variant: "destructive" });
@@ -186,16 +232,16 @@ export default function UsersPage() {
 
   const filteredCompanyUsers = useMemo(() => {
     return allCompanyUsers.filter(user => {
-      const companyUser = user as CompanyUserProfile;
-      const matchesSearch = companyUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            companyUser.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (companyUser.username && companyUser.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                            (companyUser.category && companyUser.category.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                            (user.category && user.category.toLowerCase().includes(searchTerm.toLowerCase()));
       if (!matchesSearch) return false;
-      if (showOnlyMembers && (!companyUser.membershipStatus || companyUser.membershipStatus === 'Yok')) return false;
+      if (showOnlyMembers && (!user.membershipStatus || user.membershipStatus === 'Yok')) return false;
+      if (showOnlyPendingApproval && user.isActive === true) return false;
       return true;
     }).sort((a, b) => (parseISO(b.createdAt).getTime() || 0) - (parseISO(a.createdAt).getTime() || 0));
-  }, [allCompanyUsers, searchTerm, showOnlyMembers]);
+  }, [allCompanyUsers, searchTerm, showOnlyMembers, showOnlyPendingApproval]);
 
   const getMembershipBadge = (status?: string) => {
     if (!status || status === 'Yok') return <Badge variant="outline" className="text-xs">Yok</Badge>;
@@ -204,7 +250,7 @@ export default function UsersPage() {
     return <Badge variant="outline" className="text-xs">{status}</Badge>;
   };
 
-  const renderUserTable = (userList: CompanyUserProfile[]) => ( // Takes CompanyUserProfile[]
+  const renderUserTable = (userList: CompanyUserProfile[]) => (
     <div className="rounded-md border overflow-x-auto">
       <Table>
         <TableHeader>
@@ -261,7 +307,7 @@ export default function UsersPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          "{user.name}" adlı firma profilini silmek üzeresiniz. Bu işlem Firebase Auth kullanıcısını silmez. Bu işlem geri alınamaz.
+                          "{user.name}" adlı firma profilini silmek üzeresiniz. Bu işlem geri alınamaz.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -303,7 +349,6 @@ export default function UsersPage() {
                 <Skeleton className="h-10 w-full sm:max-w-xs" />
                 <Skeleton className="h-10 w-full sm:w-auto" />
             </div>
-            {/* No TabsList skeleton needed */}
             <div className="space-y-4">
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-20 w-full" />
@@ -333,19 +378,28 @@ export default function UsersPage() {
                 className="pl-8 w-full"
               />
             </div>
-            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90" disabled>
-              <PlusCircle className="mr-2 h-4 w-4" /> Yeni Firma Ekle (Devre Dışı)
+            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+              <PlusCircle className="mr-2 h-4 w-4" /> Yeni Firma Ekle
             </Button>
           </div>
 
-          {/* Tabs removed, directly render company user table */}
-          <div className="flex items-center space-x-2 mb-4 p-3 bg-muted/30 rounded-md border">
-            <Switch
-                id="showOnlyMembers"
-                checked={showOnlyMembers}
-                onCheckedChange={setShowOnlyMembers}
-            />
-            <Label htmlFor="showOnlyMembers" className="font-medium">Sadece Üyeliği Olanları Göster</Label>
+          <div className="flex flex-col sm:flex-row gap-4 mb-4 p-3 bg-muted/30 rounded-md border items-center">
+            <div className="flex items-center space-x-2 flex-grow">
+              <Switch
+                  id="showOnlyMembers"
+                  checked={showOnlyMembers}
+                  onCheckedChange={setShowOnlyMembers}
+              />
+              <Label htmlFor="showOnlyMembers" className="font-medium whitespace-nowrap">Sadece Üyeliği Olanlar</Label>
+            </div>
+            <div className="flex items-center space-x-2 flex-grow">
+              <Switch
+                  id="showOnlyPendingApproval"
+                  checked={showOnlyPendingApproval}
+                  onCheckedChange={setShowOnlyPendingApproval}
+              />
+              <Label htmlFor="showOnlyPendingApproval" className="font-medium whitespace-nowrap">Sadece Onay Bekleyenler</Label>
+            </div>
           </div>
           {isLoading ? <div><Skeleton className="h-64 w-full"/></div> : renderUserTable(filteredCompanyUsers)}
           
@@ -365,21 +419,20 @@ export default function UsersPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-6">
-              {/* Role selection removed, it's always 'company' */}
                 <>
                   <div className="space-y-1.5">
                     <Label htmlFor="companyTitle" className="font-medium">Firma Adı (*)</Label>
-                    <Input id="companyTitle" value={currentFormData.name || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, name: e.target.value, companyTitle: e.target.value}))} placeholder="Firma resmi ünvanı" />
+                    <Input id="companyTitle" value={currentFormData.companyTitle || currentFormData.name || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, name: e.target.value, companyTitle: e.target.value}))} placeholder="Firma resmi ünvanı" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="companyUsername" className="font-medium">Kullanıcı Adı (Login) (*)</Label>
-                    <Input id="companyUsername" value={(currentFormData as CompanyUserProfile).username || ''} onChange={(e) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), username: e.target.value}))} placeholder="Firmanın giriş için kullanıcı adı" />
+                    <Input id="companyUsername" value={currentFormData.username || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, username: e.target.value}))} placeholder="Firmanın giriş için kullanıcı adı" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="companyCategory" className="font-medium">Firma Kategorisi (*)</Label>
                     <Select 
-                        value={(currentFormData as CompanyUserProfile).category || 'Nakliyeci'} 
-                        onValueChange={(value) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), category: value as CompanyCategory}))}
+                        value={currentFormData.category || 'Nakliyeci'} 
+                        onValueChange={(value) => setCurrentFormData(prev => ({...prev, category: value as CompanyCategory}))}
                     >
                     <SelectTrigger id="companyCategory"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -389,17 +442,28 @@ export default function UsersPage() {
                   </div>
                    <div className="space-y-1.5">
                     <Label htmlFor="companyContactFullName" className="font-medium">Yetkili Adı Soyadı (*)</Label>
-                    <Input id="companyContactFullName" value={(currentFormData as CompanyUserProfile).contactFullName || ''} onChange={(e) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), contactFullName: e.target.value}))} placeholder="Firma yetkilisinin tam adı" />
+                    <Input id="companyContactFullName" value={currentFormData.contactFullName || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, contactFullName: e.target.value}))} placeholder="Firma yetkilisinin tam adı" />
+                  </div>
+                   <div className="space-y-1.5">
+                    <Label htmlFor="companyMobilePhone" className="font-medium">Cep Telefonu (*)</Label>
+                    <Input id="companyMobilePhone" value={currentFormData.mobilePhone || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, mobilePhone: e.target.value}))} placeholder="Yetkilinin cep telefonu" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="companyMobilePhone" className="font-medium">Cep Telefonu</Label>
-                    <Input id="companyMobilePhone" value={(currentFormData as CompanyUserProfile).mobilePhone || ''} onChange={(e) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), mobilePhone: e.target.value}))} placeholder="Yetkilinin cep telefonu" />
+                    <Label htmlFor="userEmail" className="font-medium">E-posta Adresi (*)</Label>
+                    <Input id="userEmail" type="email" value={currentFormData.email || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, email: e.target.value}))} placeholder="kullanici@example.com" disabled={!!editingUser && !currentFormData.email?.includes('@example.com')} />
+                    {editingUser && !currentFormData.email?.includes('@example.com') && <p className="text-xs text-muted-foreground">E-posta adresi değiştirilemez.</p>}
                   </div>
+                  {!editingUser && (
+                    <div className="space-y-1.5">
+                        <Label htmlFor="companyPassword">Şifre (Yeni Firma İçin) (*)</Label>
+                        <Input id="companyPassword" type="password" value={currentFormData.password || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} placeholder="En az 6 karakter" />
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <Label htmlFor="membershipStatus" className="font-medium">Üyelik Durumu</Label>
                     <Select 
-                        value={(currentFormData as CompanyUserProfile).membershipStatus || 'Yok'} 
-                        onValueChange={(value) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), membershipStatus: value as CompanyUserProfile['membershipStatus']}))}
+                        value={currentFormData.membershipStatus || 'Yok'} 
+                        onValueChange={(value) => setCurrentFormData(prev => ({...prev, membershipStatus: value as CompanyUserProfile['membershipStatus']}))}
                     >
                     <SelectTrigger id="membershipStatus"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -411,18 +475,18 @@ export default function UsersPage() {
                     <Label htmlFor="membershipEndDate" className="font-medium">Üyelik Bitiş Tarihi</Label>
                      <Popover>
                         <PopoverTrigger asChild>
-                        <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!(currentFormData as CompanyUserProfile).membershipEndDate && "text-muted-foreground"}`}>
+                        <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!currentFormData.membershipEndDate && "text-muted-foreground"}`}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {(currentFormData as CompanyUserProfile).membershipEndDate && isValid(new Date((currentFormData as CompanyUserProfile).membershipEndDate!))
-                                ? format(new Date((currentFormData as CompanyUserProfile).membershipEndDate!), "PPP", { locale: tr }) 
+                            {currentFormData.membershipEndDate && isValid(new Date(currentFormData.membershipEndDate!))
+                                ? format(new Date(currentFormData.membershipEndDate!), "PPP", { locale: tr }) 
                                 : <span>Tarih seçin</span>}
                         </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                             <Calendar 
                                 mode="single" 
-                                selected={(currentFormData as CompanyUserProfile).membershipEndDate ? new Date((currentFormData as CompanyUserProfile).membershipEndDate!) : undefined} 
-                                onSelect={(date) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), membershipEndDate: date ? date.toISOString().split('T')[0] : undefined}))} 
+                                selected={currentFormData.membershipEndDate ? new Date(currentFormData.membershipEndDate!) : undefined} 
+                                onSelect={(date) => setCurrentFormData(prev => ({...prev, membershipEndDate: date ? date.toISOString().split('T')[0] : undefined}))} 
                                 initialFocus 
                                 locale={tr} 
                             />
@@ -431,14 +495,8 @@ export default function UsersPage() {
                   </div>
                 </>
               
-              <div className="space-y-1.5">
-                <Label htmlFor="userEmail" className="font-medium">E-posta Adresi (*)</Label>
-                <Input id="userEmail" type="email" value={currentFormData.email || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, email: e.target.value}))} placeholder="kullanici@example.com" disabled={!!editingUser} />
-                {editingUser && <p className="text-xs text-muted-foreground">E-posta adresi Firebase Auth ile yönetildiği için buradan değiştirilemez.</p>}
-              </div>
-              
               <div className="flex items-center space-x-2 pt-2">
-                 <Switch id="userIsActive" checked={currentFormData.isActive === undefined ? false : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
+                 <Switch id="userIsActive" checked={currentFormData.isActive === undefined ? true : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
                 <Label htmlFor="userIsActive" className="font-medium cursor-pointer">Firma Onay Durumu (Aktif/Pasif)</Label>
               </div>
             </div>
@@ -446,9 +504,9 @@ export default function UsersPage() {
                  <DialogClose asChild>
                     <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting || !editingUser }>
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
                 {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingUser ? 'Değişiklikleri Kaydet' : 'Firma Ekle (Devre Dışı)'}
+                {editingUser ? 'Değişiklikleri Kaydet' : 'Yeni Firma Ekle'}
               </Button>
             </DialogFooter>
           </form>
@@ -457,3 +515,4 @@ export default function UsersPage() {
     </div>
   );
 }
+

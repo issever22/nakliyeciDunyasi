@@ -36,9 +36,9 @@ export type EmptyVehicleServiceType = typeof EMPTY_VEHICLE_SERVICE_TYPES[number]
 
 interface BaseFreight {
   id: string;
-  userId: string; // Will be a guest ID if not logged in, or the company's Firestore doc ID
-  postedBy: string; // Name of the person/company posting
-  companyName: string; // Name of the company or individual posting
+  userId: string; 
+  postedBy: string; 
+  companyName: string; 
   contactPerson: string;
   contactEmail?: string;
   workPhone?: string;
@@ -52,8 +52,8 @@ interface BaseFreight {
   destinationCity: TurkishCity | string;
   destinationDistrict?: string;
 
-  loadingDate: string; // ISO Date string
-  postedAt: string; // ISO Date string
+  loadingDate: string; 
+  postedAt: string; 
   isActive: boolean;
   description: string;
 }
@@ -108,12 +108,12 @@ interface BaseUserProfile {
   role: UserRole;
   name: string; 
   isActive: boolean; 
-  createdAt: string; // ISO Date string
+  createdAt: string; 
 }
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
-  password?: string; // Store password (plaintext for now, as per user's current direction)
+  password?: string; 
   username: string;
   logoUrl?: string;
   companyTitle: string; 
@@ -133,7 +133,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
   membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string;
-  membershipEndDate?: string; // ISO Date string
+  membershipEndDate?: string; 
   ownedVehicles: string[];
   authDocuments: string[];
 }
@@ -142,13 +142,13 @@ export type UserProfile = CompanyUserProfile;
 
 interface BaseRegisterData {
   email: string;
-  password?: string; // Will be made mandatory
+  password?: string; 
   name: string; 
   role: UserRole;
 }
 export interface CompanyRegisterData extends BaseRegisterData {
   role: 'company';
-  password?: string; // This needs to be string (not optional) for custom auth
+  password?: string; 
   username: string;
   category: CompanyCategory;
   logoUrl?: string;
@@ -166,6 +166,7 @@ export interface CompanyRegisterData extends BaseRegisterData {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
+  isActive?: boolean; // Added for admin creation
 }
 
 export type RegisterData = CompanyRegisterData; 
@@ -221,10 +222,10 @@ export interface AnnouncementSetting {
   title: string;
   content: string;
   targetAudience: TargetAudience;
-  startDate?: string; // ISO Date string
-  endDate?: string; // ISO Date string
+  startDate?: string; 
+  endDate?: string; 
   isActive: boolean;
-  createdAt: string; // ISO Date string
+  createdAt: string; 
 }
 
 export type NoteCategory = 'Yönetici' | 'Kullanıcı Geri Bildirimi' | 'Geliştirme' | 'Genel';
@@ -233,8 +234,8 @@ export interface AdminNoteSetting {
   title: string;
   content: string;
   category: NoteCategory;
-  createdDate: string; // ISO Date string
-  lastModifiedDate: string; // ISO Date string
+  createdDate: string; 
+  lastModifiedDate: string; 
   isImportant: boolean;
 }
 
@@ -246,10 +247,10 @@ export interface Sponsor {
   linkUrl?: string;
   entityType: SponsorEntityType;
   entityName: string; 
-  startDate: string; // ISO Date string
-  endDate?: string; // ISO Date string
+  startDate: string; 
+  endDate?: string; 
   isActive: boolean;
-  createdAt: string; // ISO Date string
+  createdAt: string; 
 }
 
 export type FreightFilterOptions = {

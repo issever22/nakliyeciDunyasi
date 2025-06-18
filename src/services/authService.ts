@@ -16,8 +16,8 @@ import {
   DocumentData,
   getDocs,
   where,
-  addDoc, // Added for new user creation without pre-defined UID
-  limit // Added for login query
+  addDoc, 
+  limit 
 } from 'firebase/firestore';
 import { parseISO, isValid } from 'date-fns';
 
@@ -47,12 +47,13 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
     data.membershipEndDate = undefined;
   }
 
+  // Ensure isActive is explicitly boolean, default to false if undefined (for new users before admin approval)
   data.isActive = data.isActive === true; 
 
   const companyProfile: CompanyUserProfile = {
     id,
     email: data.email,
-    password: data.password || '', // Include password from Firestore
+    password: data.password || '', 
     role: 'company',
     name: data.name, 
     isActive: data.isActive, 
@@ -105,14 +106,14 @@ export async function getUserProfile(uid: string): Promise<CompanyUserProfile | 
 
 export async function createCompanyUser(registrationData: CompanyRegisterData): Promise<{ profile: CompanyUserProfile | null; error?: string }> {
   try {
-    const { password, ...profileDataFromForm } = registrationData;
+    const { password, isActive: initialIsActive, ...profileDataFromForm } = registrationData;
     if (!password) {
       return { profile: null, error: "Şifre kayıt için zorunludur." };
     }
 
     const usersRef = collection(db, USERS_COLLECTION);
-    const q = query(usersRef, where("email", "==", profileDataFromForm.email));
-    const emailCheckSnapshot = await getDocs(q);
+    const qEmail = query(usersRef, where("email", "==", profileDataFromForm.email));
+    const emailCheckSnapshot = await getDocs(qEmail);
     if (!emailCheckSnapshot.empty) {
       return { profile: null, error: "Bu e-posta adresi zaten kayıtlı." };
     }
@@ -123,10 +124,8 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
         return { profile: null, error: "Bu kullanıcı adı zaten alınmış." };
     }
 
+    const companyData = profileDataFromForm as Omit<CompanyRegisterData, 'password' | 'isActive'>;
 
-    const companyData = profileDataFromForm as Omit<CompanyRegisterData, 'password'>;
-
-    // Field validations (can be expanded)
     if (!companyData.username || !companyData.name || !companyData.category || !companyData.contactFullName || !companyData.mobilePhone || !companyData.companyType || !companyData.addressCity || !companyData.fullAddress) {
         return { profile: null, error: "Lütfen tüm zorunlu alanları doldurun." };
     }
@@ -134,9 +133,9 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
     const finalProfileDataForFirestore: Omit<CompanyUserProfile, 'id' | 'membershipEndDate'> & { password: string, membershipEndDate?: Timestamp | null } = {
       email: companyData.email,
       role: 'company',
-      name: companyData.name, // This is companyTitle
-      password: password, // Store the password
-      isActive: false, 
+      name: companyData.name, 
+      password: password, 
+      isActive: initialIsActive === undefined ? false : initialIsActive, // Use admin's choice, default to false for public reg
       createdAt: Timestamp.fromDate(new Date()),
       username: companyData.username,
       category: companyData.category,
@@ -183,12 +182,13 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
 
 export async function getAllUserProfiles(): Promise<CompanyUserProfile[]> {
   try {
+    // Query only for 'company' role users
     const q = query(collection(db, USERS_COLLECTION), where('role', '==', 'company'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     const companyProfiles: CompanyUserProfile[] = [];
     querySnapshot.docs.forEach(doc => {
         const profile = convertToUserProfile(doc.data(), doc.id);
-        if (profile) {
+        if (profile) { // convertToUserProfile will return null if role is not company
             companyProfiles.push(profile);
         }
     });
@@ -219,7 +219,7 @@ export async function updateUserProfile(uid: string, data: Partial<CompanyUserPr
     const updateData: any = { ...data };
 
     delete updateData.id;
-    delete updateData.password; // Password should be changed via a separate secure mechanism
+    delete updateData.password; 
     delete updateData.email; 
     delete updateData.role; 
     delete updateData.createdAt; 
