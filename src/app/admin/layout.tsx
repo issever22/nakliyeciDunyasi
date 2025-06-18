@@ -24,20 +24,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') {
-      setIsLoading(true); // Sunucuda veya pencere yoksa yükleniyor durumunda kal
+      setIsLoading(true); 
       return;
     }
 
     const authStatus = localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
-    setIsAdminAuthenticated(authStatus); // Diğer UI elemanları için state'i ayarla
+    setIsAdminAuthenticated(authStatus); 
 
     if (!authStatus && pathname !== '/admin/login') {
       router.push('/admin/login');
-      // Yönlendirme sırasında iskelet görünümü için yükleniyor durumuna geri dön
-      // Bu, yeni sayfa AdminLayout tarafından işlenene kadar içeriğin yanıp sönmesini engeller
       setIsLoading(true); 
     } else {
-      // Kimlik doğrulanmış veya zaten giriş sayfasında
       setIsLoading(false);
     }
   }, [pathname, router]);
@@ -47,10 +44,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     if (isSettingsRouteActive && !isSettingsOpen) {
       setIsSettingsOpen(true);
     }
-    // Ayarlar menüsünün dışında bir yere tıklandığında ve ayarlar menüsü açıksa kapatma mantığı,
-    // eğer settings dışı bir rota aktifse ve isSettingsOpen true ise setIsSettingsOpen(false) yapılabilir.
-    // Ancak bu, kullanıcının menüyü manuel olarak açık tutma isteğiyle çakışabilir.
-    // Şimdilik mevcut davranış korunuyor: sadece ilgili rota aktifse otomatik açılıyor.
   }, [isSettingsRouteActive, isSettingsOpen]);
 
   const handleLogout = () => {
@@ -77,15 +70,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Giriş sayfası AdminLayout tarafından sarmalanıyorsa, 
-  // children'ı doğrudan render et (yukarıdaki useEffect yönlendirmeyi zaten hallediyor)
   if (pathname === '/admin/login') {
     return <div className="min-h-screen">{children}</div>;
   }
   
-  // Eğer isLoading false ise ve hala kimlik doğrulanmamışsa (ve giriş sayfasında değilsek),
-  // yukarıdaki useEffect zaten yönlendirme yapmış olmalı.
-  // Bu ek kontrol, bir şekilde yönlendirme olmazsa null döndürerek içeriği gizler.
   if (!isAdminAuthenticated) {
      return null; 
   }
@@ -105,22 +93,30 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname === '/admin/dashboard'} tooltip={{content: "Panel", side: "right"}}>
-                <Link href="/admin/dashboard"><LayoutDashboard /> <span>Panel</span></Link>
+                <Link href="/admin/dashboard">
+                  <LayoutDashboard /> <span>Panel</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/users')} tooltip={{content: "Kullanıcıları Yönet", side: "right"}}>
-                <Link href="/admin/users"><Users /> <span>Kullanıcılar</span></Link>
+                <Link href="/admin/users">
+                  <Users /> <span>Kullanıcılar</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/listings')} tooltip={{content: "İlanları Yönet", side: "right"}}>
-                <Link href="/admin/listings"><Package /> <span>İlanlar</span></Link>
+                <Link href="/admin/listings">
+                  <Package /> <span>İlanlar</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/sponsors')} tooltip={{content: "Sponsorları Yönet", side: "right"}}>
-                <Link href="/admin/sponsors"><Award /> <span>Sponsorlar</span></Link>
+                <Link href="/admin/sponsors">
+                 <Award /> <span>Sponsorlar</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             
@@ -129,11 +125,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 onClick={handleToggleSettings} 
                 isActive={isSettingsRouteActive} 
                 tooltip={{content: "Ayarlar", side: "right"}}
-                className="w-full flex justify-between items-center"
+                className="w-full flex justify-between items-center" 
               >
-                <div className="flex items-center gap-2">
-                  <Settings /> <span>Ayarlar</span>
-                </div>
+                <Settings /> <span>Ayarlar</span>
                 {isSettingsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -142,42 +136,58 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <>
                 <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings'} tooltip={{content: "Genel Ayarlar", side: "right"}}>
-                    <Link href="/admin/settings"><Settings size={18}/> <span className="text-sm">Genel Ayarlar</span></Link>
+                    <Link href="/admin/settings">
+                      <Settings size={18}/> <span className="text-sm">Genel Ayarlar</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/vehicle-types'} tooltip={{content: "Araç Tipleri", side: "right"}}>
-                    <Link href="/admin/settings/vehicle-types"><Truck size={18}/> <span className="text-sm">Araç Tipleri</span></Link>
+                    <Link href="/admin/settings/vehicle-types">
+                      <Truck size={18}/> <span className="text-sm">Araç Tipleri</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/auth-docs'} tooltip={{content: "Yetki Belgeleri", side: "right"}}>
-                    <Link href="/admin/settings/auth-docs"><FileText size={18}/> <span className="text-sm">Yetki Belgeleri</span></Link>
+                    <Link href="/admin/settings/auth-docs">
+                      <FileText size={18}/> <span className="text-sm">Yetki Belgeleri</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/memberships'} tooltip={{content: "Üyelikler", side: "right"}}>
-                    <Link href="/admin/settings/memberships"><Star size={18}/> <span className="text-sm">Üyelikler</span></Link>
+                    <Link href="/admin/settings/memberships">
+                      <Star size={18}/> <span className="text-sm">Üyelikler</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/cargo-types'} tooltip={{content: "Yük Cinsleri", side: "right"}}>
-                    <Link href="/admin/settings/cargo-types"><Boxes size={18}/> <span className="text-sm">Yük Cinsleri</span></Link>
+                    <Link href="/admin/settings/cargo-types">
+                      <Boxes size={18}/> <span className="text-sm">Yük Cinsleri</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/transport-types'} tooltip={{content: "Taşımacılık Türleri", side: "right"}}>
-                    <Link href="/admin/settings/transport-types"><RouteIcon size={18}/> <span className="text-sm">Taşımacılık Türleri</span></Link>
+                    <Link href="/admin/settings/transport-types">
+                      <RouteIcon size={18}/> <span className="text-sm">Taşımacılık Türleri</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/announcements'} tooltip={{content: "Duyurular", side: "right"}}>
-                    <Link href="/admin/settings/announcements"><Megaphone size={18}/> <span className="text-sm">Duyurular</span></Link>
+                    <Link href="/admin/settings/announcements">
+                      <Megaphone size={18}/> <span className="text-sm">Duyurular</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/notes'} tooltip={{content: "Notlar", side: "right"}}>
-                    <Link href="/admin/settings/notes"><StickyNote size={18}/> <span className="text-sm">Notlar</span></Link>
+                    <Link href="/admin/settings/notes">
+                      <StickyNote size={18}/> <span className="text-sm">Notlar</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </>
@@ -188,7 +198,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={handleLogout} tooltip={{content: "Çıkış Yap", side: "right"}} className="hover:bg-red-500/10 hover:text-red-500">
-                <LogOut /> <span>Çıkış Yap</span>
+                 <LogOut /> <span>Çıkış Yap</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

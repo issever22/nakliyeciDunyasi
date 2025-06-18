@@ -166,7 +166,7 @@ export interface CompanyRegisterData extends BaseRegisterData {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
-  isActive?: boolean; // Added for admin creation
+  isActive?: boolean; 
 }
 
 export type RegisterData = CompanyRegisterData; 
@@ -261,32 +261,5 @@ export type FreightFilterOptions = {
   freightType?: FreightType;
   sortBy?: 'newest' | 'oldest';
 };
-
-export interface TransportOffer {
-  id: string;
-  userId: string;
-  companyName: string; 
-  postedAt: string; 
-  isActive: boolean;
-
-  originCountry: CountryCode | string;
-  originCity: TurkishCity | string;
-  originDistrict?: string;
-
-  destinationCountry: CountryCode | string;
-  destinationCity: TurkishCity | string;
-  destinationDistrict?: string;
-
-  vehicleType: string; 
-  distanceKm: number;
-
-  priceTRY?: number;
-  priceUSD?: number;
-  priceEUR?: number;
-  notes?: string; 
-}
-
-export type TransportOfferCreationData = Omit<TransportOffer, 'id' | 'postedAt' | 'userId' | 'companyName'>;
-export type TransportOfferUpdateData = Partial<TransportOfferCreationData>;
 
     

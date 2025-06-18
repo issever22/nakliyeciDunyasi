@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks, Tag, KeyRound, MessageSquareText, List as ListIcon } from 'lucide-react';
+import { Mail, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks, KeyRound, MessageSquareText, List as ListIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import EditProfileModal from '@/components/profile/EditProfileModal';
@@ -16,14 +16,11 @@ import ManageCompanyVehiclesModal from '@/components/profile/ManageCompanyVehicl
 import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDocsModal';
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
 import MyListingsTab from '@/components/profile/MyListingsTab';
-import MyTransportOffersTab from '@/components/profile/MyTransportOffersTab';
+// import MyTransportOffersTab from '@/components/profile/MyTransportOffersTab'; // Removed
 import FeedbackModal from '@/components/profile/FeedbackModal'; 
 import { useRouter } from 'next/navigation';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-// Firebase Auth import for sendPasswordResetEmail removed
-// import { sendPasswordResetEmail } from 'firebase/auth'; 
-// import { auth } from '@/lib/firebase'; 
 
 import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types'; 
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -86,39 +83,15 @@ export default function ProfilePage() {
   };
 
   const handleSendPasswordReset = async () => {
-    // Firebase Auth removed, this function needs to be re-implemented or removed
     toast({
         title: "İşlev Devre Dışı",
         description: "Şifre değiştirme işlevi şu anda aktif değildir.",
         variant: "destructive",
     });
-    // if (!companyUser || !companyUser.email) {
-    //   toast({
-    //     title: "Hata",
-    //     description: "Şifre sıfırlama e-postası göndermek için e-posta adresiniz bulunamadı.",
-    //     variant: "destructive",
-    //   });
-    //   return;
-    // }
-    // try {
-    //   await sendPasswordResetEmail(auth, companyUser.email);
-    //   toast({
-    //     title: "E-posta Gönderildi",
-    //     description: `${companyUser.email} adresinize şifre sıfırlama bağlantısı gönderildi. Lütfen e-postanızı kontrol edin.`,
-    //     variant: "default",
-    //   });
-    // } catch (error: any) {
-    //   console.error("Error sending password reset email:", error);
-    //   toast({
-    //     title: "Şifre Sıfırlama Hatası",
-    //     description: error.message || "Şifre sıfırlama e-postası gönderilirken bir hata oluştu.",
-    //     variant: "destructive",
-    //   });
-    // }
   };
 
 
-  if (authLoading || (companyUser && settingsLoading && !['myListings', 'myTransportOffers'].includes(activeTab) )) {
+  if (authLoading || (companyUser && settingsLoading && !['myListings'].includes(activeTab) )) { // Removed 'myTransportOffers'
     return (
       <div className="space-y-6 container mx-auto px-4 py-8">
         <Skeleton className="h-10 w-1/3 mb-6" />
@@ -197,7 +170,7 @@ export default function ProfilePage() {
               <Button onClick={() => setIsEditProfileModalOpen(true)} variant="outline" className="w-full">
                 <Edit3 className="mr-2 h-4 w-4" /> Temel Bilgileri Düzenle
               </Button>
-              <Button onClick={handleSendPasswordReset} variant="outline" className="w-full" disabled> {/* Disabled for now */}
+              <Button onClick={handleSendPasswordReset} variant="outline" className="w-full" disabled>
                 <KeyRound className="mr-2 h-4 w-4" /> Şifre Değiştir (Devre Dışı)
               </Button>
               <Button onClick={() => setIsFeedbackModalOpen(true)} variant="outline" className="w-full">
@@ -213,12 +186,12 @@ export default function ProfilePage() {
                  <TabsList
                     className={cn(
                       "grid w-full p-1 rounded-md bg-muted/50",
-                      "grid-cols-3 md:grid-cols-3 lg:grid-cols-6" 
+                      "grid-cols-2 md:grid-cols-2 lg:grid-cols-5" // Adjusted grid columns
                     )}
                   >
                     <TabsTrigger value="details" className="text-xs sm:text-sm"><Building className="mr-1.5 h-4 w-4 hidden sm:inline"/>Firma Detayları</TabsTrigger>
                     <TabsTrigger value="myListings" className="text-xs sm:text-sm"><ListChecks className="mr-1.5 h-4 w-4 hidden sm:inline"/>Yük İlanlarım</TabsTrigger>
-                    <TabsTrigger value="myTransportOffers" className="text-xs sm:text-sm"><Tag className="mr-1.5 h-4 w-4 hidden sm:inline"/>Fiyat Tekliflerim</TabsTrigger>
+                    {/* MyTransportOffersTab trigger removed */}
                     <TabsTrigger value="vehicles" className="text-xs sm:text-sm"><Truck className="mr-1.5 h-4 w-4 hidden sm:inline"/>Araçlarım</TabsTrigger>
                     <TabsTrigger value="authDocs" className="text-xs sm:text-sm"><FileTextIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Belgelerim</TabsTrigger>
                     <TabsTrigger value="membership" className="text-xs sm:text-sm"><Star className="mr-1.5 h-4 w-4 hidden sm:inline"/>Üyeliğim</TabsTrigger>
@@ -271,9 +244,7 @@ export default function ProfilePage() {
                 <MyListingsTab userId={companyUser.id} />
               </TabsContent>
 
-              <TabsContent value="myTransportOffers">
-                  <MyTransportOffersTab userId={companyUser.id} companyName={companyUser.name} />
-              </TabsContent>
+              {/* MyTransportOffersTab content removed */}
               <TabsContent value="vehicles">
                   <Card className="shadow-md">
                   <CardHeader>

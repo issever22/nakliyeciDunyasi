@@ -74,7 +74,7 @@ export default function Header() {
 
   const [showSecondaryNav, setShowSecondaryNav] = useState(true);
   const lastScrollY = useRef(0);
-  const scrollThreshold = 50; // Daha hassas bir eşik değeri
+  const scrollThreshold = 100; 
 
   const controlSecondaryNavVisibility = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -147,7 +147,7 @@ export default function Header() {
 
       if (ann.targetAudience === 'Tümü') return true;
       if (isAuthenticated && user) {
-        if (user.role === 'individual' && ann.targetAudience === 'Bireysel Kullanıcılar') return true;
+        // No individual role check needed
         if (user.role === 'company' && ann.targetAudience === 'Firma Kullanıcıları') return true;
       }
       
@@ -243,7 +243,6 @@ export default function Header() {
       <header
         className={cn(
           "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg"
-          // Scroll-based transform removed from main header
         )}
       >
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -261,13 +260,11 @@ export default function Header() {
               </Button>
             </div>
             
-            {isAuthenticated && (
-              <Button variant="ghost" asChild>
-                <Link href="/yeni-ilan" className="flex items-center gap-1">
-                  <PlusCircle size={18} /> İlan Ver
-                </Link>
-              </Button>
-            )}
+            <Button variant="ghost" asChild> {/* Always visible for guests too */}
+              <Link href="/yeni-ilan" className="flex items-center gap-1">
+                <PlusCircle size={18} /> İlan Ver
+              </Link>
+            </Button>
             
             <AnnouncementBell />
 
@@ -276,7 +273,7 @@ export default function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={(user as any).logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person avatar"/>
+                      <AvatarImage src={(user as any).logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="person company"/>
                       <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                   </Button>
@@ -307,10 +304,10 @@ export default function Header() {
             ) : (
               <>
                 <Button variant="outline" asChild>
-                  <Link href="/auth/giris">Giriş Yap</Link>
+                  <Link href="/auth/giris">Firma Girişi</Link>
                 </Button>
                 <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                  <Link href="/auth/kayit">Kayıt Ol</Link>
+                  <Link href="/auth/kayit">Firma Kaydı</Link>
                 </Button>
               </>
             )}
@@ -349,14 +346,11 @@ export default function Header() {
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/iletisim">İletişim</Link>
                   </Button>
-                  {/* Add more mobile navigation links as needed, matching secondary nav */}
-                  {isAuthenticated && (
-                    <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                      <Link href="/yeni-ilan" className="flex items-center gap-1">
-                        <PlusCircle size={20} /> İlan Ver
-                      </Link>
-                    </Button>
-                  )}
+                  <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/yeni-ilan" className="flex items-center gap-1">
+                      <PlusCircle size={20} /> İlan Ver
+                    </Link>
+                  </Button>
                   {isAuthenticated && user && (
                       <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                           <Link href="/profil" className="flex items-center gap-1">
@@ -373,10 +367,10 @@ export default function Header() {
                   ) : (
                     <div className="space-y-2">
                       <Button variant="outline" asChild className="w-full text-base" onClick={closeMobileMenu}>
-                        <Link href="/auth/giris">Giriş Yap</Link>
+                        <Link href="/auth/giris">Firma Girişi</Link>
                       </Button>
                       <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base" onClick={closeMobileMenu}>
-                        <Link href="/auth/kayit">Kayıt Ol</Link>
+                        <Link href="/auth/kayit">Firma Kaydı</Link>
                       </Button>
                     </div>
                   )}
@@ -389,7 +383,7 @@ export default function Header() {
       
       <nav
         className={cn(
-          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-16 z-40", // Main header is h-16
+          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-16 z-40", 
           "transition-transform duration-300 ease-in-out",
           showSecondaryNav ? "translate-y-0" : "-translate-y-full"
         )}
@@ -445,20 +439,6 @@ export default function Header() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>Nakliye Fiyatları</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                    <ul className="grid w-[300px] gap-3 p-4 md:w-[400px] ">
-                      <ListItem href="/nakliye-fiyatlari/yurtici" title="Yurtiçi Nakliye Fiyatları">
-                      Şehirlerarası taşıma ücretleri ve teklifleri.
-                    </ListItem>
-                      <ListItem href="/nakliye-fiyatlari/yurtdisi" title="Yurtdışı Nakliye Fiyatları">
-                      Uluslararası taşıma maliyetleri ve çözümleri.
-                    </ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-
               <NavigationMenuItem>
                 <NavigationMenuTrigger>Nakliyeciler</NavigationMenuTrigger>
                 <NavigationMenuContent>
