@@ -72,16 +72,19 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
+  const [showHeader, setShowHeader] = useState(true);
   const [showSecondaryNav, setShowSecondaryNav] = useState(true);
   const lastScrollY = useRef(0);
   const scrollThreshold = 100; 
 
-  const controlSecondaryNavVisibility = useCallback(() => {
+  const controlHeaderVisibility = useCallback(() => {
     if (typeof window !== 'undefined') {
       const currentScrollY = window.scrollY;
       if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
+        setShowHeader(false); // Hide when scrolling down
         setShowSecondaryNav(false);
-      } else {
+      } else if (currentScrollY < lastScrollY.current || currentScrollY <= scrollThreshold) {
+        setShowHeader(true); // Show when scrolling up or near top
         setShowSecondaryNav(true);
       }
       lastScrollY.current = currentScrollY;
@@ -91,12 +94,12 @@ export default function Header() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       lastScrollY.current = window.scrollY;
-      window.addEventListener('scroll', controlSecondaryNavVisibility);
+      window.addEventListener('scroll', controlHeaderVisibility);
       return () => {
-        window.removeEventListener('scroll', controlSecondaryNavVisibility);
+        window.removeEventListener('scroll', controlHeaderVisibility);
       };
     }
-  }, [controlSecondaryNavVisibility]);
+  }, [controlHeaderVisibility]);
 
 
   useEffect(() => {
@@ -147,7 +150,6 @@ export default function Header() {
 
       if (ann.targetAudience === 'Tümü') return true;
       if (isAuthenticated && user) {
-        // No individual role check needed
         if (user.role === 'company' && ann.targetAudience === 'Firma Kullanıcıları') return true;
       }
       
@@ -242,7 +244,9 @@ export default function Header() {
     <>
       <header
         className={cn(
-          "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg"
+          "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg",
+          "transition-transform duration-300 ease-in-out",
+          showHeader ? "translate-y-0" : "-translate-y-full"
         )}
       >
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -260,9 +264,11 @@ export default function Header() {
               </Button>
             </div>
             
-            <Button variant="ghost" asChild> {/* Always visible for guests too */}
-              <Link href="/yeni-ilan" className="flex items-center gap-1">
-                <PlusCircle size={18} /> İlan Ver
+            <Button variant="ghost" asChild>
+              <Link href="/yeni-ilan" passHref legacyBehavior>
+                <a>
+                  <PlusCircle size={18} /> İlan Ver
+                </a>
               </Link>
             </Button>
             
@@ -289,7 +295,7 @@ export default function Header() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/profil" className="flex items-center">
+                    <Link href="/profil">
                       <UserCircle className="mr-2 h-4 w-4" />
                       Profil
                     </Link>
@@ -347,14 +353,14 @@ export default function Header() {
                     <Link href="/iletisim">İletişim</Link>
                   </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                    <Link href="/yeni-ilan" className="flex items-center gap-1">
-                      <PlusCircle size={20} /> İlan Ver
+                    <Link href="/yeni-ilan" passHref legacyBehavior>
+                        <a><PlusCircle size={20} /> İlan Ver</a>
                     </Link>
                   </Button>
                   {isAuthenticated && user && (
                       <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                          <Link href="/profil" className="flex items-center gap-1">
-                              <UserCircle size={20} /> Profilim
+                          <Link href="/profil" passHref legacyBehavior>
+                              <a><UserCircle size={20} /> Profilim</a>
                           </Link>
                       </Button>
                   )}
@@ -383,24 +389,18 @@ export default function Header() {
       
       <nav
         className={cn(
-          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-16 z-40", 
+          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-16 z-40", // Sticks below the main header
           "transition-transform duration-300 ease-in-out",
-          showSecondaryNav ? "translate-y-0" : "-translate-y-full"
+          showSecondaryNav ? "translate-y-0" : "-translate-y-full" // This nav specifically will hide/show
         )}
       >
         <div className="container mx-auto px-4 flex items-center justify-center h-14">
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
-                <Link href="/" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Anasayfa
-                  </NavigationMenuLink>
+                <Link href="/hakkimizda" legacyBehavior passHref>
+                  <NavigationMenuTrigger>Hakkımızda</NavigationMenuTrigger>
                 </Link>
-              </NavigationMenuItem>
-
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>Hakkımızda</NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
                     <ListItem href="/hakkimizda" title="Hakkımızda">
