@@ -27,21 +27,17 @@ const USERS_COLLECTION = 'users';
 const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserProfile | null => {
   const data = { ...docData };
 
-  if (data.role && data.role !== 'company') {
-    console.warn(`[authService - convertToUserProfile] User ${id}: Role is '${data.role}', not 'company'. Skipping company profile conversion.`);
-    return null;
-  }
+  const isCompanyByRole = data.role === 'company';
+  const isCompanyByHeuristic = !data.role && (data.companyTitle || data.username); // Heuristic for old data
 
-  const isLikelyCompany = data.role === 'company' || (!data.role && (data.companyTitle || data.username)); 
-
-  if (!isLikelyCompany) {
-    console.warn(`[authService - convertToUserProfile] User ${id}: Does not appear to be a company profile. Skipping. Role: ${data.role}, CompanyTitle: ${data.companyTitle}, Username: ${data.username}`);
+  if (!isCompanyByRole && !isCompanyByHeuristic) {
+    // console.warn(`[authService - convertToUserProfile] User ${id}: Not a company profile. Role: ${data.role}, CompanyTitle: ${data.companyTitle}, Username: ${data.username}`);
     return null;
   }
 
   const roleToAssign: 'company' = 'company';
-  if (!data.role) {
-    console.log(`[authService - convertToUserProfile] User ${id}: Role field missing, inferring as 'company'.`);
+  if (!data.role && isCompanyByHeuristic) {
+    // console.log(`[authService - convertToUserProfile] User ${id}: Role field missing, inferring as 'company' based on heuristics.`);
   }
 
   const displayName = data.companyTitle || data.name; 
@@ -52,7 +48,8 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
     password: data.password || '', 
     role: roleToAssign,
     name: displayName || '',
-    isActive: data.isActive === true, 
+    // isActive: data.isActive === undefined ? true : data.isActive, // Firestore query handles isActive check
+    isActive: data.isActive === true, // Align with Firestore query; if undefined, it's not true
     username: data.username || '',
     logoUrl: data.logoUrl || undefined,
     companyTitle: displayName || '', 
@@ -80,7 +77,7 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
   if (data.createdAt && data.createdAt instanceof Timestamp) {
     createdAtStr = data.createdAt.toDate().toISOString();
   } else {
-    console.warn(`[authService - convertToUserProfile] Company User ${id}: createdAt is not a Timestamp or is missing. Defaulting. Original:`, data.createdAt);
+    // console.warn(`[authService - convertToUserProfile] Company User ${id}: createdAt is not a Timestamp or is missing. Defaulting. Original:`, data.createdAt);
     createdAtStr = new Date().toISOString();
   }
 
@@ -90,7 +87,7 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
   } else if (data.membershipEndDate === null || data.membershipEndDate === undefined) {
     membershipEndDateStr = undefined;
   } else {
-     console.warn(`[authService - convertToUserProfile] Company User ${id}: membershipEndDate is present but not a Timestamp. Setting to undefined. Original:`, data.membershipEndDate);
+    // console.warn(`[authService - convertToUserProfile] Company User ${id}: membershipEndDate is present but not a Timestamp. Setting to undefined. Original:`, data.membershipEndDate);
     membershipEndDateStr = undefined;
   }
 
@@ -148,7 +145,7 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
       role: 'company', 
       name: companyData.name,
       password: password,
-      isActive: initialIsActive === undefined ? false : initialIsActive,
+      isActive: initialIsActive === undefined ? false : initialIsActive, // Default to false (pending approval)
       createdAt: Timestamp.fromDate(new Date()),
       username: companyData.username,
       category: companyData.category,
@@ -204,7 +201,7 @@ export async function getAllUserProfiles(): Promise<CompanyUserProfile[]> {
             companyProfiles.push(profile);
         }
     });
-    console.log(`[authService - getAllUserProfiles] Fetched ${querySnapshot.docs.length} total documents, converted and kept ${companyProfiles.length} company profiles.`);
+    // console.log(`[authService - getAllUserProfiles] Fetched ${querySnapshot.docs.length} total documents, converted and kept ${companyProfiles.length} company profiles.`);
     return companyProfiles;
   } catch (error: any) {
     console.error("[authService.ts - getAllUserProfiles] Error fetching all user profiles from Firestore: ", error);
@@ -231,21 +228,15 @@ export async function getCompanyProfilesByCategory(categoryValue: CompanyCategor
     const qConstraints: QueryConstraint[] = [
       where('category', '==', categoryValue),
       where('isActive', '==', true),
-      orderBy('name', 'asc') // Order by company name for consistent listing
+      orderBy('name', 'asc')
     ];
-    // Since 'role' check is handled by convertToUserProfile, we don't strictly need where('role', '==', 'company') here
-    // if all documents in USERS_COLLECTION are expected to have a 'category' field relevant to companies.
-    // However, adding it makes the query more specific if there could be other doc types with 'category'.
-    // For now, assuming 'category' implies a company in this context or convertToUserProfile handles it.
-    // To be absolutely safe, and if you have mixed roles in `users` collection, add:
-    // qConstraints.push(where('role', '==', 'company'));
-
+    
     const q = query(collection(db, USERS_COLLECTION), ...qConstraints);
     const querySnapshot = await getDocs(q);
     const companyProfiles: CompanyUserProfile[] = [];
     querySnapshot.docs.forEach(doc => {
         const profile = convertToUserProfile(doc.data(), doc.id);
-        if (profile) { // convertToUserProfile ensures it's a valid company profile
+        if (profile) {
             companyProfiles.push(profile);
         }
     });
@@ -254,16 +245,23 @@ export async function getCompanyProfilesByCategory(categoryValue: CompanyCategor
     console.error(`[authService.ts - getCompanyProfilesByCategory] Error fetching profiles for category ${categoryValue}: `, error);
     if (error.code === 'failed-precondition') {
       const errorMessage = error.message || `Eksik Firestore dizini (getCompanyProfilesByCategory - ${categoryValue}). Lütfen sunucu konsolunu kontrol edin.`;
-      console.error(`[authService.ts] FIRESTORE PRECONDITION FAILED: ${errorMessage}`);
-       const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+      console.error(`[authService.ts] FIRESTORE PRECONDITION FAILED (getCompanyProfilesByCategory): ${errorMessage}`);
+      const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
       const match = errorMessage.match(urlRegex);
       if (match && match[0]) {
           const indexCreationUrl = match[0];
-          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-          console.error("!!! MISSING FIRESTORE INDEX (getCompanyProfilesByCategory) !!!");
-          console.error(`!!! Index URL: ${indexCreationUrl}`);
-          console.error("!!! Likely involves fields: 'category' (equals), 'isActive' (equals), 'name' (ascending). Add 'role' (equals 'company') if needed.");
-          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          console.warn("!!! EKSİK FIRESTORE INDEX (getCompanyProfilesByCategory) !!!");
+          console.warn("!!! Düzeltmek için, aşağıdaki bağlantıyı ziyaret ederek bileşik dizini oluşturun:");
+          console.warn(`!!! ${indexCreationUrl}`);
+          console.warn("!!! Muhtemel eksik alanlar: 'category' (eşit), 'isActive' (eşit), 'name' (artan).");
+          console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+      } else {
+          console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          console.warn("!!! EKSİK FIRESTORE INDEX (getCompanyProfilesByCategory) !!!");
+          console.warn("!!! Index oluşturma URL'si hata mesajından otomatik olarak çıkarılamadı.");
+          console.warn("!!! Lütfen Firebase konsolunu kontrol edin. İlgili alanlar: 'category', 'isActive', 'name'.");
+          console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
       }
     }
     return [];
@@ -295,7 +293,7 @@ export async function updateUserProfile(uid: string, data: Partial<CompanyUserPr
       } else if (updateData.membershipEndDate === undefined || updateData.membershipEndDate === null || (typeof updateData.membershipEndDate === 'string' && updateData.membershipEndDate.trim() === '')) {
         updateData.membershipEndDate = null;
       } else {
-         console.warn(`[authService - updateUserProfile] Invalid membershipEndDate string for UID ${uid}: ${updateData.membershipEndDate}. Field not updated.`);
+         // console.warn(`[authService - updateUserProfile] Invalid membershipEndDate string for UID ${uid}: ${updateData.membershipEndDate}. Field not updated.`);
          delete updateData.membershipEndDate;
       }
     }
@@ -312,7 +310,7 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
   try {
     const docRef = doc(db, USERS_COLLECTION, uid);
     await deleteDoc(docRef);
-    console.log(`[authService.ts - deleteUserProfile] Firestore profile for UID ${uid} deleted.`);
+    // console.log(`[authService.ts - deleteUserProfile] Firestore profile for UID ${uid} deleted.`);
     return true;
   } catch (error) {
     console.error("[authService.ts - deleteUserProfile] Error deleting user profile from Firestore: ", error);
