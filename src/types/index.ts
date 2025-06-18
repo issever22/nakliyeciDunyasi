@@ -14,7 +14,8 @@ import type {
   COMPANY_TYPES,
   WORKING_METHODS,
   WORKING_ROUTES,
-  EMPTY_VEHICLE_SERVICE_TYPES
+  EMPTY_VEHICLE_SERVICE_TYPES,
+  COMPANY_CATEGORIES
 } from '@/lib/constants';
 import type { CountryCode, TurkishCity } from '@/lib/locationData';
 
@@ -98,6 +99,7 @@ export type FreightUpdateData = Partial<FreightCreationData>;
 
 export type UserRole = 'company'; // Only company users now
 export type CompanyUserType = typeof COMPANY_TYPES[number]['value'];
+export type CompanyCategory = typeof COMPANY_CATEGORIES[number]['value'];
 export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
 export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
 
@@ -106,7 +108,7 @@ interface BaseUserProfile {
   email: string;
   role: UserRole;
   name: string; // For CompanyUserProfile, this is companyTitle
-  isActive: boolean;
+  isActive: boolean; // For CompanyUserProfile, this is admin approval status
   createdAt: string; // ISO Date string
 }
 
@@ -115,6 +117,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   username: string;
   logoUrl?: string;
   companyTitle: string; // This will be the primary name used in 'name' field of BaseUserProfile
+  category: CompanyCategory;
   contactFullName: string;
   workPhone?: string;
   mobilePhone: string;
@@ -147,6 +150,7 @@ interface BaseRegisterData {
 export interface CompanyRegisterData extends BaseRegisterData {
   role: 'company';
   username: string;
+  category: CompanyCategory;
   logoUrl?: string;
   // companyTitle is mapped to 'name' in BaseRegisterData
   contactFullName: string;
@@ -284,5 +288,3 @@ export interface TransportOffer {
 
 export type TransportOfferCreationData = Omit<TransportOffer, 'id' | 'postedAt' | 'userId' | 'companyName'>;
 export type TransportOfferUpdateData = Partial<TransportOfferCreationData>;
-
-    

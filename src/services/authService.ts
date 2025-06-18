@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase'; 
-import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole } from '@/types';
+import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory } from '@/types';
 import {
   collection,
   doc,
@@ -14,7 +14,8 @@ import {
   orderBy,
   Timestamp,
   DocumentData,
-  getDocs
+  getDocs,
+  where // Added for admin query
 } from 'firebase/firestore';
 import { parseISO, isValid } from 'date-fns';
 
@@ -45,18 +46,20 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
     data.membershipEndDate = undefined;
   }
 
-  data.isActive = data.isActive === undefined ? true : data.isActive;
+  // isActive is now admin approval status
+  data.isActive = data.isActive === true; // Ensure it's a boolean
 
   const companyProfile: CompanyUserProfile = {
     id,
     email: data.email,
     role: 'company',
     name: data.name, // This is companyTitle
-    isActive: data.isActive,
+    isActive: data.isActive, // Admin approval status
     createdAt: data.createdAt,
     username: data.username || '',
     logoUrl: data.logoUrl || undefined,
     companyTitle: data.name, 
+    category: data.category || 'Nakliyeci', // Default category if missing
     contactFullName: data.contactFullName || '',
     workPhone: data.workPhone || undefined,
     mobilePhone: data.mobilePhone || '',
@@ -113,6 +116,9 @@ export async function createUserProfile(uid: string, registrationData: CompanyRe
     if (!companyData.name || typeof companyData.name !== 'string' || companyData.name.trim() === '') { 
       return { profile: null, error: "Company name (title) is missing or invalid." };
     }
+     if (!companyData.category || typeof companyData.category !== 'string' || companyData.category.trim() === '') {
+      return { profile: null, error: "Company category is missing or invalid." };
+    }
     if (!companyData.contactFullName || typeof companyData.contactFullName !== 'string' || companyData.contactFullName.trim() === '') {
       return { profile: null, error: "Company contact full name is missing or invalid." };
     }
@@ -134,9 +140,10 @@ export async function createUserProfile(uid: string, registrationData: CompanyRe
       email: companyData.email,
       role: 'company',
       name: companyData.name, // This is companyTitle
-      isActive: true,
+      isActive: false, // New companies are inactive by default, awaiting admin approval
       createdAt: Timestamp.fromDate(new Date()),
       username: companyData.username,
+      category: companyData.category,
       logoUrl: companyData.logoUrl || undefined,
       companyTitle: companyData.name, // Explicitly set companyTitle
       contactFullName: companyData.contactFullName,
@@ -263,5 +270,3 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
     return false;
   }
 }
-
-    

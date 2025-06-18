@@ -13,9 +13,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type TurkishCity, type CountryCode } from '@/lib/locationData';
-import { COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
-import type { CompanyUserType, WorkingMethodType, WorkingRouteType, CompanyRegisterData } from '@/types';
-import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Info, MapPin, CheckSquare, Briefcase, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES, COMPANY_CATEGORIES } from '@/lib/constants';
+import type { CompanyUserType, WorkingMethodType, WorkingRouteType, CompanyRegisterData, CompanyCategory } from '@/types';
+import { UploadCloud, User, Building, Lock, Mail, Phone, Smartphone, Globe, Info, MapPin, CheckSquare, Briefcase, Link as LinkIcon, Loader2, List } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -32,6 +32,7 @@ export default function CompanyRegisterForm() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [companyTitle, setCompanyTitle] = useState(''); // This will be 'name' in RegisterData
+  const [category, setCategory] = useState<CompanyCategory | ''>('');
   const [contactFullName, setContactFullName] = useState('');
   const [workPhone, setWorkPhone] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
@@ -115,6 +116,10 @@ export default function CompanyRegisterForm() {
       toast({ title: "Hata", description: "Lütfen Firma Türü seçin.", variant: "destructive" });
       return;
     }
+    if (!category) {
+      toast({ title: "Hata", description: "Lütfen Firma Kategorisi seçin.", variant: "destructive" });
+      return;
+    }
     if (!username || !companyTitle || !contactFullName || !mobilePhone || !email || !addressCity || !fullAddress || !password) {
        toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları (*) doldurun.", variant: "destructive" });
        return;
@@ -128,6 +133,7 @@ export default function CompanyRegisterForm() {
         password, 
         name: companyTitle, // Company Title goes into 'name' field for BaseRegisterData
         username,
+        category: category as CompanyCategory,
         logoUrl: logoUrl || undefined,
         contactFullName,
         workPhone: workPhone || undefined,
@@ -149,7 +155,7 @@ export default function CompanyRegisterForm() {
       if (userProfile) {
         toast({
           title: "Firma Kaydı Başarılı",
-          description: `Firma hesabınız oluşturuldu: ${userProfile.name}! Ana sayfaya yönlendiriliyorsunuz...`,
+          description: `Firma hesabınız oluşturuldu: ${userProfile.name}! Onay sonrası aktif olacaktır. Ana sayfaya yönlendiriliyorsunuz...`,
         });
         router.push('/');
       } else {
@@ -291,20 +297,35 @@ export default function CompanyRegisterForm() {
       <Card className="shadow-md border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl"><Info size={22}/> Firma Detayları</CardTitle>
-          <CardDescription>Firmanızın türü ve adres bilgilerini belirtin.</CardDescription>
+          <CardDescription>Firmanızın türü, kategorisi ve adres bilgilerini belirtin.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <Label className="font-medium">Firma Türü (*)</Label>
-            <RadioGroup value={companyType} onValueChange={(value) => setCompanyType(value as CompanyUserType)} className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-              {COMPANY_TYPES.map(type => (
-                <div key={type.value} className="flex items-center space-x-2">
-                  <RadioGroupItem value={type.value} id={`company-type-${type.value}`} />
-                  <Label htmlFor={`company-type-${type.value}`} className="font-normal cursor-pointer">{type.label}</Label>
-                </div>
-              ))}
-            </RadioGroup>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <Label className="font-medium">Firma Türü (*)</Label>
+              <RadioGroup value={companyType} onValueChange={(value) => setCompanyType(value as CompanyUserType)} className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                {COMPANY_TYPES.map(type => (
+                  <div key={type.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={type.value} id={`company-type-${type.value}`} />
+                    <Label htmlFor={`company-type-${type.value}`} className="font-normal cursor-pointer">{type.label}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="company-category" className="font-medium">Firma Kategorisi (*)</Label>
+               <div className="relative">
+                <List className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Select value={category} onValueChange={(value) => setCategory(value as CompanyCategory)} required>
+                  <SelectTrigger id="company-category" className="pl-10"><SelectValue placeholder="Kategori seçin..." /></SelectTrigger>
+                  <SelectContent>
+                    {COMPANY_CATEGORIES.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
+
           <div className="border-t pt-6 space-y-4">
              <h3 className="font-medium text-md flex items-center gap-2"><MapPin size={18}/> Adres Bilgileri</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

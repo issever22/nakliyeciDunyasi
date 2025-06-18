@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks, Tag, KeyRound, MessageSquareText } from 'lucide-react';
+import { Mail, Edit3, Building, Truck, FileText as FileTextIcon, ShieldCheck, Star, Loader2, Users, MapPin, Briefcase, Globe, Info, ListChecks, Tag, KeyRound, MessageSquareText, List as ListIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import EditProfileModal from '@/components/profile/EditProfileModal';
@@ -231,12 +231,14 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div><strong className="text-muted-foreground">Firma Kategorisi:</strong> {companyUser.category || '-'}</div>
                         <div><strong className="text-muted-foreground">Yetkili:</strong> {companyUser.contactFullName || '-'}</div>
                         <div><strong className="text-muted-foreground">Cep Tel:</strong> {companyUser.mobilePhone || '-'}</div>
                         <div><strong className="text-muted-foreground">İş Tel:</strong> {companyUser.workPhone || '-'}</div>
                         <div><strong className="text-muted-foreground">Fax:</strong> {companyUser.fax || '-'}</div>
                         <div><strong className="text-muted-foreground">Firma Türü:</strong> {companyUser.companyType === 'local' ? 'Yerel Firma' : 'Yabancı Firma'}</div>
                         <div><strong className="text-muted-foreground">Web Sitesi:</strong> {companyUser.website ? <a href={companyUser.website.startsWith('http') ? companyUser.website : `//${companyUser.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{companyUser.website}</a> : '-'}</div>
+                         <div><strong className="text-muted-foreground">Durum:</strong> <Badge variant={companyUser.isActive ? 'default' : 'destructive'} className={companyUser.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-yellow-500/10 text-yellow-700 border-yellow-400"}>{companyUser.isActive ? "Onaylı" : "Onay Bekliyor"}</Badge></div>
                     </div>
                     <div><strong className="text-muted-foreground">Adres:</strong> {`${companyUser.fullAddress || ''}${companyUser.addressDistrict ? `, ${companyUser.addressDistrict}` : ''}${companyUser.addressCity ? `, ${companyUser.addressCity}` : ''}`}</div>
                     <div><strong className="text-muted-foreground">Açıklama:</strong> {companyUser.companyDescription || <span className="italic text-muted-foreground/70">Belirtilmemiş</span>}</div>
@@ -375,5 +377,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

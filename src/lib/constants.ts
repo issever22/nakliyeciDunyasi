@@ -108,6 +108,13 @@ export const COMPANY_TYPES = [
   { value: 'foreign', label: 'Yabancı Firma' },
 ] as const;
 
+export const COMPANY_CATEGORIES = [
+  { value: 'Nakliyeci', label: 'Nakliyeci' },
+  { value: 'Yük firması', label: 'Yük Firması' },
+  { value: 'Lowbedci', label: 'Lowbedci' },
+  { value: 'Frigocu', label: 'Frigocu' },
+] as const;
+
 export const WORKING_METHODS = [
   { id: 'international', label: 'Uluslararası Taşımacılık' },
   { id: 'domestic_intercity', label: 'Yurt İçi Nakliyat (Şehirler Arası)' },
@@ -122,4 +129,3 @@ export const WORKING_ROUTES = [
 ] as const;
 
 export const EMPTY_VEHICLE_SERVICE_TYPES = ['Komple', 'Parsiyel', 'Tonajlı'] as const;
-

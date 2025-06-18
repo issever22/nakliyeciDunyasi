@@ -16,11 +16,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 // Tabs are removed as only company users exist
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Users as UsersIcon, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List } from 'lucide-react'; // UsersIcon removed
 import { useToast } from "@/hooks/use-toast";
-import type { UserProfile, CompanyUserProfile, UserRole } from '@/types'; // UserRole is now just 'company'
+import type { UserProfile, CompanyUserProfile, UserRole, CompanyCategory } from '@/types'; // UserRole is now just 'company'
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { COMPANY_CATEGORIES } from '@/lib/constants';
 import { 
   getAllUserProfiles, 
   updateUserProfile,
@@ -41,8 +42,8 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<CompanyUserProfile | null>(null); // Explicitly CompanyUserProfile
   const [showOnlyMembers, setShowOnlyMembers] = useState(false);
   
-  const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile> & { name: string, email: string }>({ // role is fixed to 'company'
-    role: 'company', name: '', email: '', isActive: true
+  const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile> & { name: string, email: string, category: CompanyCategory }>({ // role is fixed to 'company'
+    role: 'company', name: '', email: '', isActive: true, category: 'Nakliyeci' // Default category
   });
 
   const fetchUsers = useCallback(async () => {
@@ -71,6 +72,7 @@ export default function UsersPage() {
         email: editingUser.email || '',
         membershipEndDate: membershipEndDateToSet,
         role: 'company', // Ensure role is set
+        category: editingUser.category || 'Nakliyeci', // Ensure category is set
       });
     } else {
       setCurrentFormData({
@@ -78,6 +80,7 @@ export default function UsersPage() {
         name: '',
         email: '',
         isActive: true,
+        category: 'Nakliyeci',
         username: '',
         companyTitle: '',
         contactFullName: '',
@@ -113,6 +116,10 @@ export default function UsersPage() {
     }
     if (!(currentFormData as CompanyUserProfile).username?.trim()) {
         toast({ title: "Hata", description: "Kullanıcı Adı zorunludur.", variant: "destructive" });
+        return;
+    }
+    if (!(currentFormData as CompanyUserProfile).category?.trim()) {
+        toast({ title: "Hata", description: "Firma Kategorisi zorunludur.", variant: "destructive" });
         return;
     }
     if (!(currentFormData as CompanyUserProfile).contactFullName?.trim()) {
@@ -182,7 +189,8 @@ export default function UsersPage() {
       const companyUser = user as CompanyUserProfile;
       const matchesSearch = companyUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             companyUser.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (companyUser.username && companyUser.username.toLowerCase().includes(searchTerm.toLowerCase()));
+                            (companyUser.username && companyUser.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                            (companyUser.category && companyUser.category.toLowerCase().includes(searchTerm.toLowerCase()));
       if (!matchesSearch) return false;
       if (showOnlyMembers && (!companyUser.membershipStatus || companyUser.membershipStatus === 'Yok')) return false;
       return true;
@@ -203,11 +211,12 @@ export default function UsersPage() {
           <TableRow>
             <TableHead className="w-[60px]"></TableHead>
             <TableHead className="min-w-[180px]">Firma Adı</TableHead>
+            <TableHead className="min-w-[150px]">Kategori</TableHead>
             <TableHead className="min-w-[180px]">E-posta</TableHead>
             <TableHead className="min-w-[120px]">Üyelik</TableHead>
             <TableHead className="min-w-[120px]">Kalan Üyelik</TableHead>
             <TableHead className="w-[120px]">Kayıt Tarihi</TableHead>
-            <TableHead className="w-[100px] text-center">Durum</TableHead>
+            <TableHead className="w-[100px] text-center">Durum (Onay)</TableHead>
             <TableHead className="w-[120px] text-right">Eylemler</TableHead>
           </TableRow>
         </TableHeader>
@@ -224,6 +233,7 @@ export default function UsersPage() {
                   {user.name}
                   <div className="text-xs text-muted-foreground">K.Adı: {user.username}</div>
               </TableCell>
+              <TableCell><Badge variant="secondary" className="text-xs">{user.category}</Badge></TableCell>
               <TableCell className="text-sm">{user.email}</TableCell>
               <TableCell>{getMembershipBadge(user.membershipStatus)}</TableCell>
               <TableCell className="text-sm"><Clock size={14} className="inline mr-1 text-muted-foreground"/> {calculateRemainingDays(user.membershipEndDate)}</TableCell>
@@ -231,9 +241,9 @@ export default function UsersPage() {
                   {user.createdAt ? format(parseISO(user.createdAt), "dd.MM.yyyy", { locale: tr }) : '-'}
               </TableCell>
               <TableCell className="text-center">
-                  <Badge variant={user.isActive === undefined || user.isActive ? "default" : "outline"} className={user.isActive === undefined || user.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-red-500/10 text-red-700 border-red-400"}>
-                  {user.isActive === undefined || user.isActive ? <CheckCircle size={14} className="inline mr-1"/> : <XCircle size={14} className="inline mr-1"/>}
-                  {user.isActive === undefined || user.isActive ? 'Aktif' : 'Pasif'}
+                  <Badge variant={user.isActive ? "default" : "outline"} className={user.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-yellow-500/10 text-yellow-700 border-yellow-400"}>
+                  {user.isActive ? <CheckCircle size={14} className="inline mr-1"/> : <XCircle size={14} className="inline mr-1"/>}
+                  {user.isActive ? 'Onaylı' : 'Onay Bekliyor'}
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
@@ -267,7 +277,7 @@ export default function UsersPage() {
             </TableRow>
           )) : (
             <TableRow>
-              <TableCell colSpan={8} className="h-32 text-center">
+              <TableCell colSpan={9} className="h-32 text-center">
                 <ShieldAlert className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">
                   {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Kayıtlı firma kullanıcısı bulunamadı.'}
@@ -317,7 +327,7 @@ export default function UsersPage() {
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Firma ara (Ad, E-posta, K.Adı)..."
+                placeholder="Firma ara (Ad, E-posta, K.Adı, Kategori)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-full"
@@ -364,6 +374,18 @@ export default function UsersPage() {
                   <div className="space-y-1.5">
                     <Label htmlFor="companyUsername" className="font-medium">Kullanıcı Adı (Login) (*)</Label>
                     <Input id="companyUsername" value={(currentFormData as CompanyUserProfile).username || ''} onChange={(e) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), username: e.target.value}))} placeholder="Firmanın giriş için kullanıcı adı" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="companyCategory" className="font-medium">Firma Kategorisi (*)</Label>
+                    <Select 
+                        value={(currentFormData as CompanyUserProfile).category || 'Nakliyeci'} 
+                        onValueChange={(value) => setCurrentFormData(prev => ({...(prev as CompanyUserProfile), category: value as CompanyCategory}))}
+                    >
+                    <SelectTrigger id="companyCategory"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        {COMPANY_CATEGORIES.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                    </SelectContent>
+                    </Select>
                   </div>
                    <div className="space-y-1.5">
                     <Label htmlFor="companyContactFullName" className="font-medium">Yetkili Adı Soyadı (*)</Label>
@@ -416,8 +438,8 @@ export default function UsersPage() {
               </div>
               
               <div className="flex items-center space-x-2 pt-2">
-                 <Switch id="userIsActive" checked={currentFormData.isActive === undefined ? true : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
-                <Label htmlFor="userIsActive" className="font-medium cursor-pointer">Aktif Kullanıcı</Label>
+                 <Switch id="userIsActive" checked={currentFormData.isActive === undefined ? false : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
+                <Label htmlFor="userIsActive" className="font-medium cursor-pointer">Firma Onay Durumu (Aktif/Pasif)</Label>
               </div>
             </div>
             <DialogFooter>
@@ -435,5 +457,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    
