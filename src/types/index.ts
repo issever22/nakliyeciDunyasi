@@ -35,9 +35,9 @@ export type EmptyVehicleServiceType = typeof EMPTY_VEHICLE_SERVICE_TYPES[number]
 
 interface BaseFreight {
   id: string;
-  userId: string;
-  postedBy: string;
-  companyName: string;
+  userId: string; // Will be a guest ID if not logged in
+  postedBy: string; // Name of the person/company posting
+  companyName: string; // Name of the company or individual posting
   contactPerson: string;
   contactEmail?: string;
   workPhone?: string;
@@ -58,7 +58,7 @@ interface BaseFreight {
 }
 
 export interface CommercialFreight extends BaseFreight {
-  freightType: 'Yük'; // Changed from 'Ticari'
+  freightType: 'Yük';
   cargoType: CargoType;
   vehicleNeeded: VehicleNeeded;
   loadingType: LoadingType;
@@ -87,6 +87,7 @@ export interface EmptyVehicleListing extends BaseFreight {
 
 export type Freight = CommercialFreight | ResidentialFreight | EmptyVehicleListing;
 
+// userId is handled by the service for guest posts
 export type FreightCreationData =
   | Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'>
   | Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>
@@ -95,7 +96,7 @@ export type FreightCreationData =
 export type FreightUpdateData = Partial<FreightCreationData>;
 
 
-export type UserRole = 'individual' | 'company';
+export type UserRole = 'company'; // Only company users now
 export type CompanyUserType = typeof COMPANY_TYPES[number]['value'];
 export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
 export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
@@ -104,20 +105,16 @@ interface BaseUserProfile {
   id: string;
   email: string;
   role: UserRole;
-  name: string;
+  name: string; // For CompanyUserProfile, this is companyTitle
   isActive: boolean;
   createdAt: string; // ISO Date string
-}
-
-export interface IndividualUserProfile extends BaseUserProfile {
-  role: 'individual';
 }
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
   username: string;
   logoUrl?: string;
-  companyTitle: string;
+  companyTitle: string; // This will be the primary name used in 'name' field of BaseUserProfile
   contactFullName: string;
   workPhone?: string;
   mobilePhone: string;
@@ -138,23 +135,20 @@ export interface CompanyUserProfile extends BaseUserProfile {
   authDocuments: string[];
 }
 
-export type UserProfile = IndividualUserProfile | CompanyUserProfile;
+export type UserProfile = CompanyUserProfile; // UserProfile is now only CompanyUserProfile
 
+// BaseRegisterData remains for structure, but only CompanyRegisterData will be used
 interface BaseRegisterData {
   email: string;
   password?: string;
-  name: string;
+  name: string; // For CompanyRegisterData, this will be companyTitle
   role: UserRole;
 }
-
-export interface IndividualRegisterData extends BaseRegisterData {
-  role: 'individual';
-}
-
 export interface CompanyRegisterData extends BaseRegisterData {
   role: 'company';
   username: string;
   logoUrl?: string;
+  // companyTitle is mapped to 'name' in BaseRegisterData
   contactFullName: string;
   workPhone?: string;
   mobilePhone: string;
@@ -171,7 +165,7 @@ export interface CompanyRegisterData extends BaseRegisterData {
   preferredCountries: (CountryCode | string)[];
 }
 
-export type RegisterData = IndividualRegisterData | CompanyRegisterData;
+export type RegisterData = CompanyRegisterData; // RegisterData is now only CompanyRegisterData
 
 
 export interface VehicleTypeSetting {
@@ -181,7 +175,7 @@ export interface VehicleTypeSetting {
   isActive: boolean;
 }
 
-export type RequiredFor = 'Bireysel' | 'Firma' | 'Her İkisi de';
+export type RequiredFor = 'Bireysel' | 'Firma' | 'Her İkisi de'; // Keep for settings, as docs might be for individuals even if they don't log in
 export interface AuthDocSetting {
   id: string;
   name: string;
@@ -218,7 +212,7 @@ export interface TransportTypeSetting {
   isActive: boolean;
 }
 
-export type TargetAudience = 'Tümü' | 'Bireysel Kullanıcılar' | 'Firma Kullanıcıları';
+export type TargetAudience = 'Tümü' | 'Bireysel Kullanıcılar' | 'Firma Kullanıcıları'; // Keep for announcements
 export interface AnnouncementSetting {
   id: string;
   title: string;
@@ -264,12 +258,11 @@ export type FreightFilterOptions = {
   sortBy?: 'newest' | 'oldest';
 };
 
-// New Type for Transport Offers
 export interface TransportOffer {
   id: string;
   userId: string;
-  companyName: string; // Name of the company providing the offer
-  postedAt: string; // ISO Date string when the offer was created/updated
+  companyName: string; 
+  postedAt: string; 
   isActive: boolean;
 
   originCountry: CountryCode | string;
@@ -280,15 +273,16 @@ export interface TransportOffer {
   destinationCity: TurkishCity | string;
   destinationDistrict?: string;
 
-  vehicleType: string; // Name of the vehicle type from settingsVehicleTypes
+  vehicleType: string; 
   distanceKm: number;
 
   priceTRY?: number;
   priceUSD?: number;
   priceEUR?: number;
-  notes?: string; // Optional notes for the offer
+  notes?: string; 
 }
 
 export type TransportOfferCreationData = Omit<TransportOffer, 'id' | 'postedAt' | 'userId' | 'companyName'>;
 export type TransportOfferUpdateData = Partial<TransportOfferCreationData>;
 
+    

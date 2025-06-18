@@ -25,6 +25,8 @@ import { parseISO, isValid, formatISO } from 'date-fns';
 
 const LISTINGS_COLLECTION = 'listings';
 
+const GUEST_USER_ID_PREFIX = "guest_";
+
 // Helper to convert Firestore document data to Freight type
 const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | DocumentData, id?: string): Freight => {
   const data = id ? docSnap as DocumentData : (docSnap as QueryDocumentSnapshot<DocumentData>).data();
@@ -34,7 +36,6 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
   if (data.loadingDate && data.loadingDate instanceof Timestamp) {
     loadingDateStr = data.loadingDate.toDate().toISOString();
   } else if (data.loadingDate && typeof data.loadingDate === 'string' && isValid(parseISO(data.loadingDate))) {
-    // Handle cases where it might already be a string (e.g., from form data not yet saved)
     loadingDateStr = data.loadingDate;
   } else {
     console.warn(`[listingsService - convertToFreight] Listing ${docId}: loadingDate is not a Timestamp or valid ISO string. Original:`, data.loadingDate, "Fallback to today.");
@@ -53,7 +54,7 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
 
   const baseFreight = {
     id: docId,
-    userId: data.userId || '',
+    userId: data.userId || `${GUEST_USER_ID_PREFIX}unknown`, // Ensure userId is always present
     postedBy: data.postedBy || 'Bilinmiyor',
     companyName: data.companyName || 'Bilinmiyor',
     contactPerson: data.contactPerson || 'Bilinmiyor',
@@ -68,14 +69,14 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
     destinationDistrict: data.destinationDistrict,
     loadingDate: loadingDateStr,
     postedAt: postedAtStr,
-    isActive: data.isActive === true, // Ensure it's strictly boolean true
+    isActive: data.isActive === true, 
     description: data.description || '',
   };
 
-  if (data.freightType === 'Yük') { // Changed from 'Ticari'
+  if (data.freightType === 'Yük') { 
     return {
       ...baseFreight,
-      freightType: 'Yük', // Changed from 'Ticari'
+      freightType: 'Yük', 
       cargoType: data.cargoType || '',
       vehicleNeeded: data.vehicleNeeded || '',
       loadingType: data.loadingType || '',
@@ -114,6 +115,10 @@ const convertToFreight = (docSnap: QueryDocumentSnapshot<DocumentData> | Documen
 
 export const getListingsByUserId = async (userId: string): Promise<{ listings: Freight[]; error?: { message: string; indexCreationUrl?: string } }> => {
   console.log(`[listingsService - getListingsByUserId] Called for userId: ${userId}`);
+   if (userId.startsWith(GUEST_USER_ID_PREFIX)) {
+    console.log(`[listingsService - getListingsByUserId] Attempted to fetch listings for a guest ID (${userId}). Returning empty list.`);
+    return { listings: [] }; // Guests cannot have "my listings" page
+  }
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
     const q = query(listingsRef, where('userId', '==', userId), orderBy('postedAt', 'desc'));
@@ -184,8 +189,7 @@ export const getListings = async (
       queryConstraints.push(where('freightType', '==', filters.freightType));
     }
     
-    // Apply commercial-specific filters only if freightType is 'Yük' or not specified (meaning show all types)
-    if (!filters?.freightType || filters.freightType === 'Yük') { // Changed from 'Ticari'
+    if (!filters?.freightType || filters.freightType === 'Yük') { 
         if (filters?.vehicleNeeded) {
           queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
         }
@@ -257,8 +261,8 @@ export const getListings = async (
             if (filters?.originCity) involvedFields += ", 'originCity'";
             if (filters?.destinationCity) involvedFields += ", 'destinationCity'";
             if (filters?.freightType) involvedFields += ", 'freightType'";
-            if (filters?.vehicleNeeded && (!filters.freightType || filters.freightType === 'Yük')) involvedFields += ", 'vehicleNeeded'"; // Changed from 'Ticari'
-            if (filters?.shipmentScope && (!filters.freightType || filters.freightType === 'Yük')) involvedFields += ", 'shipmentScope'"; // Changed from 'Ticari'
+            if (filters?.vehicleNeeded && (!filters.freightType || filters.freightType === 'Yük')) involvedFields += ", 'vehicleNeeded'"; 
+            if (filters?.shipmentScope && (!filters.freightType || filters.freightType === 'Yük')) involvedFields += ", 'shipmentScope'"; 
             console.error(`!!! ${involvedFields}`);
             console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }
@@ -315,8 +319,8 @@ export const getListingById = async (id: string): Promise<Freight | null> => {
   }
 };
 
-export const addListing = async (userId: string, listingData: FreightCreationData): Promise<string | null> => {
-  console.log('[listingsService - addListing] called for userId:', userId);
+export const addListing = async (userIdFromAuth: string | undefined, listingData: FreightCreationData): Promise<string | null> => {
+  console.log('[listingsService - addListing] called for userIdFromAuth:', userIdFromAuth);
   try {
     let loadingDateTimestamp: Timestamp;
     if (listingData.loadingDate && typeof listingData.loadingDate === 'string' && isValid(parseISO(listingData.loadingDate))) {
@@ -326,19 +330,21 @@ export const addListing = async (userId: string, listingData: FreightCreationDat
       loadingDateTimestamp = Timestamp.fromDate(new Date());
     }
 
+    const finalUserId = userIdFromAuth || `${GUEST_USER_ID_PREFIX}${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
     const dataToSave = {
       ...listingData,
-      userId,
-      postedBy: listingData.postedBy || 'Bilinmiyor',
-      companyName: listingData.companyName || 'Bilinmiyor',
-      contactPerson: listingData.contactPerson || 'Bilinmiyor',
-      mobilePhone: listingData.mobilePhone || 'Belirtilmedi',
+      userId: finalUserId,
+      postedBy: listingData.postedBy || 'Bilinmiyor', // Should be pre-filled by calling component
+      companyName: listingData.companyName, // Mandatory from form
+      contactPerson: listingData.contactPerson, // Mandatory from form
+      mobilePhone: listingData.mobilePhone, // Mandatory from form
       postedAt: Timestamp.fromDate(new Date()),
       loadingDate: loadingDateTimestamp,
       isActive: typeof listingData.isActive === 'boolean' ? listingData.isActive : true,
     };
     const docRef = await addDoc(collection(db, LISTINGS_COLLECTION), dataToSave);
-    console.log(`[listingsService - addListing] Successfully added listing with ID: ${docRef.id}`);
+    console.log(`[listingsService - addListing] Successfully added listing with ID: ${docRef.id} for userId: ${finalUserId}`);
     return docRef.id;
   } catch (error) {
     console.error("[listingsService - addListing] Error adding listing:", error);
@@ -356,7 +362,6 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
       if (dataToUpdate.loadingDate && typeof dataToUpdate.loadingDate === 'string' && isValid(parseISO(dataToUpdate.loadingDate))) {
         dataToUpdate.loadingDate = Timestamp.fromDate(parseISO(dataToUpdate.loadingDate));
       } else if (dataToUpdate.loadingDate === null || dataToUpdate.loadingDate === undefined || (typeof dataToUpdate.loadingDate === 'string' && dataToUpdate.loadingDate.trim() === '')) {
-        // Allow clearing the date by setting it to null
         dataToUpdate.loadingDate = null; 
       } else {
         console.warn(`[listingsService - updateListing] Invalid loadingDate string for ID ${id}: ${dataToUpdate.loadingDate}. Field not updated.`);
@@ -365,8 +370,9 @@ export const updateListing = async (id: string, listingUpdateData: FreightUpdate
     }
 
     delete dataToUpdate.id; 
-    delete dataToUpdate.postedAt; 
-    delete dataToUpdate.userId; 
+    delete dataToUpdate.postedAt; // Keep postedAt as is, or update to 'lastModifiedAt' if needed
+    // userId should not be updatable by a user editing their own listing.
+    // delete dataToUpdate.userId; 
 
     await updateDoc(docRef, dataToUpdate);
     console.log(`[listingsService - updateListing] Successfully updated listing with ID: ${id}`);
@@ -390,3 +396,4 @@ export const deleteListing = async (id: string): Promise<boolean> => {
   }
 };
 
+    

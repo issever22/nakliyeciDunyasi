@@ -17,7 +17,7 @@ import {
   WEIGHT_UNITS,
 } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
-import type { CommercialFreight, CargoType as CargoTypeName, VehicleNeeded as VehicleNeededName, LoadingType, CargoForm, WeightUnit, ShipmentScope, VehicleTypeSetting, CargoTypeSetting } from '@/types';
+import type { CommercialFreight, CargoType as CargoTypeName, VehicleNeeded as VehicleNeededName, LoadingType, CargoForm, WeightUnit, ShipmentScope, VehicleTypeSetting, CargoTypeSetting, CompanyUserProfile } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isValid } from "date-fns";
@@ -32,7 +32,7 @@ interface FreightFormProps {
 }
 
 export default function FreightForm({ onSubmitSuccess, initialData }: FreightFormProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth(); // user is CompanyUserProfile | null
   const { toast } = useToast();
 
   const [companyName, setCompanyName] = useState(initialData?.companyName || '');
@@ -92,19 +92,25 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
   }, [toast]);
   
   useEffect(() => {
-    if (isAuthenticated && user && !initialData) { 
-      setCompanyName(user.name || ''); 
-      if (user.role === 'company') {
-        const companyUser = user as import('@/types').CompanyUserProfile;
-        setContactPerson(companyUser.contactFullName || '');
-        setMobilePhone(companyUser.mobilePhone || '');
-        setContactEmail(companyUser.email || '');
-      } else {
-        setContactPerson(user.name || '');
-        setContactEmail(user.email || '');
-      }
+    // Pre-fill contact info if a company user is logged in and it's not an edit scenario with initialData
+    if (isAuthenticated && user && user.role === 'company' && !initialData) { 
+      const companyUser = user as CompanyUserProfile; // Cast since role is 'company'
+      setCompanyName(companyUser.companyTitle || ''); 
+      setContactPerson(companyUser.contactFullName || '');
+      setMobilePhone(companyUser.mobilePhone || '');
+      setContactEmail(companyUser.email || '');
+      setWorkPhone(companyUser.workPhone || '');
+    } else if (!isAuthenticated && !initialData) {
+      // Clear fields if user logs out or for guest new form
+      setCompanyName('');
+      setContactPerson('');
+      setMobilePhone('');
+      setContactEmail('');
+      setWorkPhone('');
     }
+    // If initialData is provided, it means we are editing, so fields are already set from initialData
   }, [user, isAuthenticated, initialData]);
+
 
   useEffect(() => {
     let newDistricts: readonly string[] = [];
@@ -130,10 +136,7 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isAuthenticated || !user) {
-      toast({ title: "Giriş Gerekli", description: "İlan vermek için lütfen giriş yapın.", variant: "destructive" });
-      return;
-    }
+    // For guests or logged-in users, these fields are now mandatory at form level
     if (!companyName || !contactPerson || !mobilePhone || !cargoType || !vehicleNeeded || !loadingType || !cargoForm || !cargoWeight || !originCity || !destinationCity || !loadingDate || !description ) {
        toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu (*) alanları doldurun.", variant: "destructive" });
        return;
@@ -148,9 +151,9 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
 
     const determinedShipmentScope: ShipmentScope = (originCountry === 'TR' && destinationCountry === 'TR') ? 'Yurt İçi' : 'Yurt Dışı';
 
+    // postedBy will be handled by the parent page based on auth state
     const newFreightData: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'> = {
-      postedBy: user.name, 
-      freightType: 'Yük', // Changed from 'Ticari'
+      freightType: 'Yük', 
       companyName,
       contactPerson,
       contactEmail: contactEmail || undefined,
@@ -173,6 +176,8 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
       isContinuousLoad,
       shipmentScope: determinedShipmentScope,
       isActive: true, 
+      // userId and postedBy will be added by the parent onSubmitSuccess handler
+      postedBy: '', // Placeholder, will be overridden
     };
     
     try {
@@ -233,7 +238,7 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
       <Card className="shadow-md border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl"><Briefcase size={20}/> İletişim Bilgileri</CardTitle>
-          <CardDescription>İlan veren firma ve yetkili kişi bilgileri.</CardDescription>
+          <CardDescription>İlan veren firma/kişi ve yetkili iletişim bilgileri.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -413,12 +418,12 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
         </CardContent>
       </Card>
       
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || !isAuthenticated || optionsLoading}>
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || optionsLoading}>
         {formSubmitting || optionsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
         {formSubmitting ? 'İlan Yayınlanıyor...' : (optionsLoading ? 'Seçenekler Yükleniyor...' : 'Yük İlanı Yayınla')}
       </Button>
-      {!isAuthenticated && <p className="text-sm text-destructive text-center mt-2">İlan yayınlamak için giriş yapmalısınız.</p>}
     </form>
   );
 }
 
+    

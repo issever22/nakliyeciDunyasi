@@ -4,43 +4,60 @@
 import { useState, useCallback } from 'react';
 import CommercialFreightForm from '@/components/freight/FreightForm'; 
 import ResidentialFreightForm from '@/components/freight/ResidentialFreightForm';
-import EmptyVehicleForm from '@/components/freight/EmptyVehicleForm'; // New form for empty vehicles
+import EmptyVehicleForm from '@/components/freight/EmptyVehicleForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRequireAuth } from '@/hooks/useAuth'; 
+import { useAuth } from '@/hooks/useAuth'; // Keep useAuth to check if a company user is logged in
 import { useRouter } from 'next/navigation';
 import type { FreightCreationData, CommercialFreight, ResidentialFreight, EmptyVehicleListing } from '@/types'; 
 import { Skeleton } from '@/components/ui/skeleton';
-import { Truck, Home, PackagePlus, Loader2, AlertTriangle } from 'lucide-react'; // Added PackagePlus for Empty Vehicle
+import { Truck, Home, PackagePlus, Loader2 } from 'lucide-react';
 import { addListing } from '@/services/listingsService';
 import { useToast } from "@/hooks/use-toast";
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 
 export default function NewFreightPage() {
-  const { user, loading: authLoading, isAuthenticated } = useRequireAuth(); 
+  const { user, loading: authLoading, isAuthenticated } = useAuth(); // No longer using useRequireAuth
   const router = useRouter();
   const { toast } = useToast();
-  const [selectedFreightType, setSelectedFreightType] = useState<'Yük' | 'Evden Eve' | 'Boş Araç'>('Yük'); // Changed 'Ticari' to 'Yük'
+  const [selectedFreightType, setSelectedFreightType] = useState<'Yük' | 'Evden Eve' | 'Boş Araç'>('Yük');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFormSubmit = useCallback(async (newFreightData: FreightCreationData) => {
-    if (!user || !isAuthenticated) {
-        toast({ title: "Giriş Gerekli", description: "İlan oluşturmak için giriş yapmalısınız.", variant: "destructive" });
-        setIsSubmitting(false);
-        return;
-    }
     setIsSubmitting(true);
+    let userIdForListing: string | undefined = undefined;
+    let finalPostedBy = newFreightData.companyName; // Default for guests
+    let finalCompanyName = newFreightData.companyName;
+    let finalContactPerson = newFreightData.contactPerson;
+    let finalMobilePhone = newFreightData.mobilePhone;
+    let finalContactEmail = newFreightData.contactEmail;
+
+
+    if (isAuthenticated && user && user.role === 'company') {
+        userIdForListing = user.id;
+        finalPostedBy = user.name; // Company's display name (companyTitle)
+        finalCompanyName = user.companyTitle; // From company profile
+        finalContactPerson = newFreightData.contactPerson || user.contactFullName; // Use form or profile
+        finalMobilePhone = newFreightData.mobilePhone || user.mobilePhone; // Use form or profile
+        finalContactEmail = newFreightData.contactEmail || user.email; // Use form or profile
+    } else {
+        // For guests, ensure all required fields are from the form
+        if (!newFreightData.companyName || !newFreightData.contactPerson || !newFreightData.mobilePhone) {
+            toast({ title: "Eksik İletişim Bilgisi", description: "Lütfen firma/ad soyad, yetkili kişi ve cep telefonu alanlarını doldurun.", variant: "destructive" });
+            setIsSubmitting(false);
+            return;
+        }
+    }
+
     try {
-      // Ensure correct user details are passed to the listing service
       const dataWithUserDetails = {
         ...newFreightData,
-        postedBy: user.name, // Always use the authenticated user's name as postedBy
-        companyName: newFreightData.companyName || user.name, // Use form's companyName or fallback to user's name
-        contactPerson: newFreightData.freightType === 'Boş Araç' ? user.name : (newFreightData.contactPerson || user.name),
-        mobilePhone: (newFreightData.freightType === 'Boş Araç' && (user as any).mobilePhone) ? (user as any).mobilePhone : (newFreightData.mobilePhone || (user as any).mobilePhone || 'Belirtilmedi'),
+        postedBy: finalPostedBy, 
+        companyName: finalCompanyName,
+        contactPerson: finalContactPerson,
+        mobilePhone: finalMobilePhone,
+        contactEmail: finalContactEmail,
       };
       
-      const newListingId = await addListing(user.id, dataWithUserDetails);
+      const newListingId = await addListing(userIdForListing, dataWithUserDetails); // Pass undefined userId for guests
       if (newListingId) {
         toast({
           title: "İlan Başarıyla Oluşturuldu!",
@@ -59,7 +76,7 @@ export default function NewFreightPage() {
     }
   }, [user, isAuthenticated, router, toast]);
 
-  if (authLoading) {
+  if (authLoading && !isSubmitting) { // Show skeleton only during initial auth check, not form submission
      return (
       <div className="max-w-3xl mx-auto space-y-6 py-8">
         <Skeleton className="h-10 w-1/3 mx-auto mb-4" />
@@ -77,18 +94,7 @@ export default function NewFreightPage() {
     );
   }
 
-  if (!isAuthenticated && !authLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center">
-        <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-semibold mb-2">Erişim Reddedildi</h2>
-        <p className="text-muted-foreground mb-6">İlan oluşturmak için lütfen giriş yapınız.</p>
-        <Button asChild>
-          <Link href="/auth/giris">Giriş Yap</Link>
-        </Button>
-      </div>
-    );
-  }
+  // No longer redirecting guests, they can access the page.
 
   return (
     <div className="max-w-3xl mx-auto py-8">
@@ -97,10 +103,10 @@ export default function NewFreightPage() {
         <p className="text-muted-foreground mt-2">Lütfen ilan türünü seçin ve detayları girin.</p>
       </div>
 
-      <Tabs value={selectedFreightType} onValueChange={(value) => setSelectedFreightType(value as 'Yük' | 'Evden Eve' | 'Boş Araç')} className="w-full mb-8"> {/* Changed 'Ticari' to 'Yük' */}
+      <Tabs value={selectedFreightType} onValueChange={(value) => setSelectedFreightType(value as 'Yük' | 'Evden Eve' | 'Boş Araç')} className="w-full mb-8">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="Yük" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner"> {/* Changed 'Ticari' to 'Yük' */}
-            <Truck size={18}/> Yük İlanı {/* Changed text */}
+          <TabsTrigger value="Yük" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
+            <Truck size={18}/> Yük İlanı
           </TabsTrigger>
           <TabsTrigger value="Evden Eve" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
             <Home size={18}/> Evden Eve Nakliyat
@@ -109,7 +115,7 @@ export default function NewFreightPage() {
             <PackagePlus size={18}/> Boş Araç İlanı
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="Yük"> {/* Changed 'Ticari' to 'Yük' */}
+        <TabsContent value="Yük">
           <CommercialFreightForm 
             onSubmitSuccess={handleFormSubmit as (data: Omit<CommercialFreight, 'id' | 'postedAt' | 'userId'>) => Promise<void>} 
           />
@@ -134,3 +140,4 @@ export default function NewFreightPage() {
   );
 }
 
+    

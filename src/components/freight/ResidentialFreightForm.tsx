@@ -16,7 +16,7 @@ import {
   RESIDENTIAL_FLOOR_LEVELS
 } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
-import type { ResidentialFreight, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, TransportTypeSetting } from '@/types';
+import type { ResidentialFreight, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, TransportTypeSetting, CompanyUserProfile } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isValid } from "date-fns";
@@ -30,7 +30,7 @@ interface ResidentialFreightFormProps {
 }
 
 export default function ResidentialFreightForm({ onSubmitSuccess, initialData }: ResidentialFreightFormProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth(); // user is CompanyUserProfile | null
   const { toast } = useToast();
 
   const [companyName, setCompanyName] = useState(initialData?.companyName || '');
@@ -84,17 +84,19 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
   }, [toast]);
 
   useEffect(() => {
-     if (isAuthenticated && user && !initialData) { 
-      setCompanyName(user.name || '');
-      if (user.role === 'company') {
-        const companyUser = user as import('@/types').CompanyUserProfile;
-        setContactPerson(companyUser.contactFullName || '');
-        setMobilePhone(companyUser.mobilePhone || '');
-        setContactEmail(companyUser.email || '');
-      } else {
-        setContactPerson(user.name || '');
-        setContactEmail(user.email || '');
-      }
+    if (isAuthenticated && user && user.role === 'company' && !initialData) { 
+      const companyUser = user as CompanyUserProfile;
+      setCompanyName(companyUser.companyTitle || '');
+      setContactPerson(companyUser.contactFullName || '');
+      setMobilePhone(companyUser.mobilePhone || '');
+      setContactEmail(companyUser.email || '');
+      setWorkPhone(companyUser.workPhone || '');
+    } else if (!isAuthenticated && !initialData) {
+      setCompanyName('');
+      setContactPerson('');
+      setMobilePhone('');
+      setContactEmail('');
+      setWorkPhone('');
     }
   }, [user, isAuthenticated, initialData]);
 
@@ -122,10 +124,6 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isAuthenticated || !user) {
-      toast({ title: "Giriş Gerekli", description: "İlan vermek için lütfen giriş yapın.", variant: "destructive" });
-      return;
-    }
     if (!companyName || !contactPerson || !mobilePhone || !residentialTransportType || !residentialPlaceType || !residentialElevatorStatus || !residentialFloorLevel || !originCity || !destinationCity || !loadingDate || !description ) {
        toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu (*) alanları doldurun.", variant: "destructive" });
        return;
@@ -134,7 +132,6 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
     setFormSubmitting(true);
 
     const newFreightData: Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'> = {
-      postedBy: user.name,
       freightType: 'Evden Eve',
       companyName,
       contactPerson,
@@ -154,6 +151,8 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
       destinationDistrict: destinationCountry === 'TR' ? destinationDistrict || undefined : undefined,
       loadingDate: format(loadingDate, "yyyy-MM-dd"),
       isActive: true,
+      // userId and postedBy will be added by the parent onSubmitSuccess handler
+      postedBy: '', // Placeholder, will be overridden
     };
     
     try {
@@ -376,12 +375,12 @@ export default function ResidentialFreightForm({ onSubmitSuccess, initialData }:
         </CardContent>
       </Card>
 
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || !isAuthenticated || optionsLoading}>
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || optionsLoading}>
         {formSubmitting || optionsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
         {formSubmitting ? 'İlan Yayınlanıyor...' : (optionsLoading ? 'Seçenekler Yükleniyor...' : 'Evden Eve İlanı Yayınla')}
       </Button>
-      {!isAuthenticated && <p className="text-sm text-destructive text-center mt-2">İlan yayınlamak için giriş yapmalısınız.</p>}
     </form>
   );
 }
 
+    

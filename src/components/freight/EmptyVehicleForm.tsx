@@ -12,12 +12,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EMPTY_VEHICLE_SERVICE_TYPES, WEIGHT_UNITS } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
-import type { EmptyVehicleListing, EmptyVehicleServiceType, WeightUnit, VehicleTypeSetting } from '@/types';
+import type { EmptyVehicleListing, EmptyVehicleServiceType, WeightUnit, VehicleTypeSetting, CompanyUserProfile } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import { Send, Briefcase, Truck, User, MapPin, CalendarIcon, FileText, Loader2 } from 'lucide-react';
+import { Send, Briefcase, Truck, User, MapPin, CalendarIcon, FileText, Loader2, Phone, Smartphone, Mail } from 'lucide-react'; // Added contact icons
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
 
 interface EmptyVehicleFormProps {
@@ -26,10 +26,14 @@ interface EmptyVehicleFormProps {
 }
 
 export default function EmptyVehicleForm({ onSubmitSuccess, initialData }: EmptyVehicleFormProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth(); // user is CompanyUserProfile | null
   const { toast } = useToast();
 
   const [companyName, setCompanyName] = useState(initialData?.companyName || '');
+  // For EmptyVehicleForm, contactPerson, mobilePhone etc. might be directly from user or entered
+  const [contactPerson, setContactPerson] = useState(initialData?.contactPerson || '');
+  const [mobilePhone, setMobilePhone] = useState(initialData?.mobilePhone || '');
+  const [contactEmail, setContactEmail] = useState(initialData?.contactEmail || ''); // Optional
   
   const [advertisedVehicleType, setAdvertisedVehicleType] = useState<string>(initialData?.advertisedVehicleType || '');
   const [serviceTypeForLoad, setServiceTypeForLoad] = useState<EmptyVehicleServiceType | ''>(initialData?.serviceTypeForLoad || '');
@@ -73,8 +77,17 @@ export default function EmptyVehicleForm({ onSubmitSuccess, initialData }: Empty
   }, [toast]);
   
   useEffect(() => {
-    if (isAuthenticated && user && !initialData) { 
-      setCompanyName(user.name || ''); 
+    if (isAuthenticated && user && user.role === 'company' && !initialData) { 
+      const companyUser = user as CompanyUserProfile;
+      setCompanyName(companyUser.companyTitle || ''); 
+      setContactPerson(companyUser.contactFullName || '');
+      setMobilePhone(companyUser.mobilePhone || '');
+      setContactEmail(companyUser.email || '');
+    } else if (!isAuthenticated && !initialData) {
+        setCompanyName('');
+        setContactPerson('');
+        setMobilePhone('');
+        setContactEmail('');
     }
   }, [user, isAuthenticated, initialData]);
 
@@ -102,11 +115,7 @@ export default function EmptyVehicleForm({ onSubmitSuccess, initialData }: Empty
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isAuthenticated || !user) {
-      toast({ title: "Giriş Gerekli", description: "İlan vermek için lütfen giriş yapın.", variant: "destructive" });
-      return;
-    }
-    if (!companyName || !advertisedVehicleType || !serviceTypeForLoad || !vehicleStatedCapacity || !originCity || !destinationCity || !availabilityDate || !description ) {
+    if (!companyName || !contactPerson || !mobilePhone || !advertisedVehicleType || !serviceTypeForLoad || !vehicleStatedCapacity || !originCity || !destinationCity || !availabilityDate || !description ) {
        toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu (*) alanları doldurun.", variant: "destructive" });
        return;
     }
@@ -119,11 +128,11 @@ export default function EmptyVehicleForm({ onSubmitSuccess, initialData }: Empty
     setFormSubmitting(true);
 
     const newFreightData: Omit<EmptyVehicleListing, 'id' | 'postedAt' | 'userId'> = {
-      postedBy: user.name, 
       freightType: 'Boş Araç',
-      companyName, // This is typically the user.name for company or individual's name
-      contactPerson: user.name, // Default to user's name, can be changed if more specific contact needed
-      mobilePhone: (user as any).mobilePhone || 'Belirtilmedi', // Assuming user object has mobilePhone
+      companyName, 
+      contactPerson, 
+      mobilePhone, 
+      contactEmail: contactEmail || undefined,
       
       advertisedVehicleType,
       serviceTypeForLoad: serviceTypeForLoad as EmptyVehicleServiceType,
@@ -137,8 +146,10 @@ export default function EmptyVehicleForm({ onSubmitSuccess, initialData }: Empty
       destinationCountry,
       destinationCity,
       destinationDistrict: destinationCountry === 'TR' ? destinationDistrict || undefined : undefined, 
-      loadingDate: format(availabilityDate, "yyyy-MM-dd"), // Use BaseFreight's loadingDate for availability
+      loadingDate: format(availabilityDate, "yyyy-MM-dd"),
       isActive: true, 
+      // userId and postedBy will be added by the parent onSubmitSuccess handler
+      postedBy: '', // Placeholder, will be overridden
     };
     
     try {
@@ -198,13 +209,29 @@ export default function EmptyVehicleForm({ onSubmitSuccess, initialData }: Empty
     <form onSubmit={handleSubmit} className="space-y-8">
       <Card className="shadow-md border">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl"><User size={20}/> Firma Bilgisi</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-xl"><User size={20}/> Firma/Kişi Bilgileri</CardTitle>
+          <CardDescription>İlan veren firma/kişi ve yetkili iletişim bilgileri.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="empty-companyName">Firma Ünvanı (*)</Label>
-              <Input id="empty-companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required readOnly={!!(isAuthenticated && user?.name)} className="bg-muted/50"/>
-              {isAuthenticated && user?.name && <p className="text-xs text-muted-foreground">Firma adı profilinizden otomatik alınmıştır.</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                <Label htmlFor="empty-companyName">Firma Adı / Ad Soyad (*)</Label>
+                <Input id="empty-companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required placeholder="Nakliyat A.Ş. veya Ad Soyad"/>
+                </div>
+                <div className="space-y-1.5">
+                <Label htmlFor="empty-contactPerson">Yetkili Kişi (*)</Label>
+                <Input id="empty-contactPerson" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} required placeholder="Ahmet Yılmaz"/>
+                </div>
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                <Label htmlFor="empty-mobilePhone">Cep Telefonu (*)</Label>
+                <Input id="empty-mobilePhone" value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} required placeholder="05XX XXX XX XX"/>
+                </div>
+                <div className="space-y-1.5">
+                <Label htmlFor="empty-contactEmail">E-Posta (Opsiyonel)</Label>
+                <Input id="empty-contactEmail" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="iletisim@firma.com"/>
+                </div>
             </div>
         </CardContent>
       </Card>
@@ -335,11 +362,12 @@ export default function EmptyVehicleForm({ onSubmitSuccess, initialData }: Empty
         </CardContent>
       </Card>
       
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || !isAuthenticated || optionsLoading}>
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-3 font-semibold flex items-center justify-center gap-2" disabled={formSubmitting || optionsLoading}>
         {formSubmitting || optionsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
         {formSubmitting ? 'İlan Yayınlanıyor...' : (optionsLoading ? 'Seçenekler Yükleniyor...' : 'Boş Araç İlanı Yayınla')}
       </Button>
-      {!isAuthenticated && <p className="text-sm text-destructive text-center mt-2">İlan yayınlamak için giriş yapmalısınız.</p>}
     </form>
   );
 }
+
+    
