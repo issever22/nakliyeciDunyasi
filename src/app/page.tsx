@@ -446,7 +446,6 @@ export default function HomePage() {
                       alt="Lojistik operasyonlarını gösteren bir görsel"
                       width={600}
                       height={500}
-                      className="rounded-xl shadow-2xl"
                       data-ai-hint="logistics operation"
                   />
               </div>
