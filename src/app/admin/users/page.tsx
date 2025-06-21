@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting } from '@/types';
@@ -29,6 +29,7 @@ import {
   deleteUserProfile,
 } from '@/services/authService'; 
 import { getAllMemberships } from '@/services/membershipsService';
+import { addAdminNote } from '@/services/adminNotesService';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
@@ -61,6 +62,13 @@ export default function UsersPage() {
   
   const [membershipOptions, setMembershipOptions] = useState<MembershipSetting[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(true);
+  
+  // State for new features
+  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  const [isRecordFeeAlertOpen, setIsRecordFeeAlertOpen] = useState(false);
+  const [noteContent, setNoteContent] = useState({ title: '', content: '' });
+  const [membershipFee, setMembershipFee] = useState('');
+  const [pendingMembershipSelection, setPendingMembershipSelection] = useState<{ status: CompanyUserProfile['membershipStatus'], endDate?: Date } | null>(null);
 
 
   const fetchUsers = useCallback(async (isLoadMore = false) => {
@@ -205,8 +213,8 @@ export default function UsersPage() {
 
     if (dataToSubmit.membershipEndDate instanceof Date) {
         dataToSubmit.membershipEndDate = format(dataToSubmit.membershipEndDate, "yyyy-MM-dd");
-    } else if (dataToSubmit.membershipEndDate === undefined) {
-        dataToSubmit.membershipEndDate = undefined; 
+    } else if (dataToSubmit.membershipEndDate === undefined || dataToSubmit.membershipEndDate === null) {
+        dataToSubmit.membershipEndDate = null; 
     }
    
     dataToSubmit.name = dataToSubmit.companyTitle || dataToSubmit.name;
@@ -289,6 +297,94 @@ export default function UsersPage() {
     newLocations[index] = actualValue;
     setCurrentFormData(prev => ({...prev, [key]: newLocations}));
   };
+  
+  const handleNoteSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !noteContent.title.trim() || !noteContent.content.trim()) return;
+
+    setFormSubmitting(true);
+    const success = await addAdminNote({
+        title: noteContent.title,
+        content: noteContent.content,
+        category: 'Yönetici',
+        isImportant: false
+    });
+    if (success) {
+        toast({ title: "Başarılı", description: "Not eklendi." });
+        setIsAddNoteModalOpen(false);
+        setNoteContent({ title: '', content: '' });
+    } else {
+        toast({ title: "Hata", description: "Not eklenirken bir sorun oluştu.", variant: "destructive" });
+    }
+    setFormSubmitting(false);
+  };
+
+  const handleMembershipChange = (value: string) => {
+    const newStatus = value as CompanyUserProfile['membershipStatus'];
+    const oldStatus = currentFormData.membershipStatus || 'Yok';
+
+    if (newStatus !== 'Yok' && oldStatus === 'Yok') {
+        const selectedPackage = membershipOptions.find(opt => opt.name === newStatus);
+        if (selectedPackage) {
+            const newEndDate = new Date();
+            if (selectedPackage.durationUnit === 'Ay') {
+                newEndDate.setMonth(newEndDate.getMonth() + selectedPackage.duration);
+            } else if (selectedPackage.durationUnit === 'Yıl') {
+                newEndDate.setFullYear(newEndDate.getFullYear() + selectedPackage.duration);
+            } else if (selectedPackage.durationUnit === 'Gün') {
+                newEndDate.setDate(newEndDate.getDate() + selectedPackage.duration);
+            }
+            setPendingMembershipSelection({ status: newStatus, endDate: newEndDate });
+            setIsRecordFeeAlertOpen(true);
+        } else {
+             setCurrentFormData(prev => ({ ...prev, membershipStatus: newStatus, membershipEndDate: undefined }));
+        }
+    } else if (newStatus === 'Yok') {
+        setCurrentFormData(prev => ({...prev, membershipStatus: newStatus, membershipEndDate: undefined }));
+    } else {
+        // Just update status, no fee prompt if changing between paid tiers for now
+        setCurrentFormData(prev => ({...prev, membershipStatus: newStatus}));
+    }
+  };
+  
+  const handleRecordFeeSubmit = async () => {
+    if (!editingUser || !pendingMembershipSelection) return;
+    
+    const fee = parseFloat(membershipFee);
+    if (isNaN(fee) || fee <= 0) {
+      toast({ title: "Geçersiz Ücret", description: "Lütfen geçerli bir ücret tutarı girin.", variant: "destructive" });
+      return;
+    }
+    
+    setFormSubmitting(true);
+    
+    const noteTitle = `Üyelik Satışı: ${editingUser.name}`;
+    const noteContentText = `Yeni üyelik paketi: ${pendingMembershipSelection.status}. Alınan ücret: ${membershipFee} TL. Yeni son kullanma tarihi: ${pendingMembershipSelection.endDate ? format(pendingMembershipSelection.endDate, 'dd.MM.yyyy') : 'N/A'}`;
+    
+    const noteSuccess = await addAdminNote({
+      title: noteTitle,
+      content: noteContentText,
+      category: 'Yönetici',
+      isImportant: true,
+    });
+    
+    if (noteSuccess) {
+        toast({ title: "Not Eklendi", description: "Üyelik ücreti kaydedildi." });
+        setCurrentFormData(prev => ({
+            ...prev, 
+            membershipStatus: pendingMembershipSelection.status,
+            membershipEndDate: pendingMembershipSelection.endDate
+        }));
+    } else {
+        toast({ title: "Hata", description: "Ücret notu kaydedilemedi.", variant: "destructive" });
+    }
+    
+    setFormSubmitting(false);
+    setIsRecordFeeAlertOpen(false);
+    setMembershipFee('');
+    setPendingMembershipSelection(null);
+  };
+
 
   const renderUserTable = (userList: CompanyUserProfile[]) => (
     <div className="rounded-md border overflow-x-auto">
@@ -661,7 +757,7 @@ export default function UsersPage() {
                             <Label htmlFor="edit-membershipStatus">Üyelik Durumu</Label>
                             <Select 
                                 value={currentFormData.membershipStatus || 'Yok'} 
-                                onValueChange={(value) => setCurrentFormData(prev => ({...prev, membershipStatus: value as CompanyUserProfile['membershipStatus']}))}
+                                onValueChange={handleMembershipChange}
                                 disabled={optionsLoading}
                             >
                                 <SelectTrigger id="edit-membershipStatus">
@@ -702,6 +798,17 @@ export default function UsersPage() {
                         <Label htmlFor="edit-isActive">Firma Onayı (Aktif/Pasif)</Label>
                     </div>
                 </CardContent>
+                <CardFooter>
+                    <Button type="button" variant="outline" onClick={() => {
+                        if (editingUser) {
+                            setNoteContent({ title: `Not: ${editingUser.name}`, content: '' });
+                            setIsAddNoteModalOpen(true);
+                        }
+                    }}>
+                    <StickyNote className="mr-2 h-4 w-4" />
+                    Bu Firma İçin Not Ekle
+                    </Button>
+                </CardFooter>
             </Card>
             </div>
 
@@ -714,6 +821,71 @@ export default function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
+      
+      {editingUser && (
+        <>
+            <Dialog open={isAddNoteModalOpen} onOpenChange={setIsAddNoteModalOpen}>
+                <DialogContent>
+                    <form onSubmit={handleNoteSubmit}>
+                        <DialogHeader>
+                            <DialogTitle>Firma İçin Not Ekle</DialogTitle>
+                            <DialogDescription>
+                                "{editingUser.name}" firması için dahili bir not oluşturun. Bu notlar sadece adminler tarafından görülebilir.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="note-title" className="text-right">Başlık</Label>
+                                <Input id="note-title" value={noteContent.title} onChange={(e) => setNoteContent(prev => ({...prev, title: e.target.value}))} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="note-content" className="text-right">İçerik</Label>
+                                <Textarea id="note-content" value={noteContent.content} onChange={(e) => setNoteContent(prev => ({...prev, content: e.target.value}))} className="col-span-3" />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline" type="button">İptal</Button></DialogClose>
+                            <Button type="submit" disabled={formSubmitting}>
+                                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Notu Kaydet
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={isRecordFeeAlertOpen} onOpenChange={setIsRecordFeeAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Üyelik Ücreti Kaydı</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Firmaya yeni bir üyelik tanımlıyorsunuz. Lütfen alınan ücreti girin. Bu bilgi, "Yönetici Notları" bölümüne kaydedilecektir.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-2">
+                        <Label htmlFor="membership-fee">Alınan Ücret (TL)</Label>
+                        <Input
+                            id="membership-fee"
+                            type="number"
+                            value={membershipFee}
+                            onChange={(e) => setMembershipFee(e.target.value)}
+                            placeholder="Örn: 249"
+                        />
+                    </div>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setPendingMembershipSelection(null)}>İptal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRecordFeeSubmit} disabled={formSubmitting || !membershipFee}>
+                        {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Onayla ve Kaydet
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+      )}
+
     </div>
   );
 }
+
+    
