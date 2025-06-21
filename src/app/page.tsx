@@ -220,8 +220,18 @@ export default function HomePage() {
       </section>
 
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><ListFilter /> Hızlı Filtreler</h2>
+        <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><ListFilter /> Hızlı Filtreler</h2>
+            <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={() => setShowAdvancedFilters(prev => !prev)}>
+                <SlidersHorizontal size={16} className="mr-1.5"/>
+                Gelişmiş Filtreleme
+            </Button>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant={activeQuickFilter === 'all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('all')}>
+              <Globe size={16} className="mr-1.5"/>
+              Tümü
+            </Button>
             <Button size="sm" variant={activeQuickFilter === 'today_all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_all')}>
               <CalendarClock size={16} className="mr-1.5"/>
               Bugün Yayınlananlar
@@ -245,10 +255,6 @@ export default function HomePage() {
             <Button size="sm" variant={activeQuickFilter === 'today_empty_vehicle' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_empty_vehicle')}>
               <PackagePlus size={16} className="mr-1.5"/>
               Bugünkü Boş Araçlar
-            </Button>
-            <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={() => setShowAdvancedFilters(prev => !prev)}>
-                <SlidersHorizontal size={16} className="mr-1.5"/>
-                Gelişmiş Filtreleme
             </Button>
         </div>
       </div>
