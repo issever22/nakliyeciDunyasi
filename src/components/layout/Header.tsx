@@ -24,7 +24,7 @@ import { useEffect, useState, useMemo, forwardRef, useCallback, useRef } from 'r
 import { format, parseISO, isValid, isAfter, isBefore, isEqual } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import React from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -67,10 +67,12 @@ ListItem.displayName = "ListItem";
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
+  const router = useRouter();
   const [announcements, setAnnouncements] = useState<AnnouncementSetting[]>([]);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(true);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const pathname = usePathname();
 
   const [showHeader, setShowHeader] = useState(true);
@@ -81,14 +83,11 @@ export default function Header() {
   const controlHeaderVisibility = useCallback(() => {
     if (typeof window !== 'undefined') {
       const currentScrollY = window.scrollY;
-      // For the main header (always visible)
-      // setShowHeader(true); // Main header is now always visible
-
-      // For the secondary navigation
+      
       if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
-        setShowSecondaryNav(false); // Hide secondary nav when scrolling down
+        setShowSecondaryNav(false); 
       } else if (currentScrollY < lastScrollY.current || currentScrollY <= scrollThreshold) {
-        setShowSecondaryNav(true); // Show secondary nav when scrolling up or near top
+        setShowSecondaryNav(true); 
       }
       lastScrollY.current = currentScrollY;
     }
@@ -161,6 +160,13 @@ export default function Header() {
   }, [announcements, isAuthenticated, user]);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      router.push(`/arama/firmalar?q=${encodeURIComponent(searchTerm.trim())}`);
+    }
+  };
 
   const renderAnnouncementsList = () => {
     if (isLoadingAnnouncements) {
@@ -248,7 +254,6 @@ export default function Header() {
       <header
         className={cn(
           "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg"
-          // Always visible, so no transition classes needed here
         )}
       >
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -258,15 +263,7 @@ export default function Header() {
           </Link>
           
           <nav className="hidden md:flex items-center gap-x-3">
-            <div className="flex items-center gap-1">
-              <Input placeholder="Firmalarda ara..." className="h-9 w-48 md:w-56 lg:w-64" />
-              <Button type="submit" size="sm" variant="outline" className="h-9 px-3">
-                <Search className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Ara</span>
-              </Button>
-            </div>
-            
-            <Button variant="ghost" asChild>
+             <Button variant="ghost" asChild>
                 <Link href="/yeni-ilan" legacyBehavior passHref>
                     <a><PlusCircle size={18} /> İlan Ver</a>
                 </Link>
@@ -337,14 +334,6 @@ export default function Header() {
                       </Link>
                   </SheetTitle>
                 </SheetHeader>
-                <div className="p-4 border-b">
-                  <div className="flex items-center gap-1">
-                    <Input placeholder="Firmalarda ara..." className="h-9 flex-grow text-sm" />
-                    <Button type="submit" size="icon" variant="outline" className="h-9 w-9 shrink-0">
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
                 <ScrollArea className="flex-grow">
                 <nav className="p-4 space-y-1">
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
@@ -414,7 +403,7 @@ export default function Header() {
           showSecondaryNav ? "translate-y-0" : "-translate-y-full"
         )}
       >
-        <div className="container mx-auto px-4 flex items-center justify-center h-14">
+        <div className="container mx-auto px-4 flex items-center justify-between h-14">
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
@@ -509,6 +498,18 @@ export default function Header() {
 
             </NavigationMenuList>
           </NavigationMenu>
+
+          <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Firmalarda ara..."
+              className="h-9 pl-9 w-full bg-muted/50 border-border"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </form>
+
         </div>
       </nav>
     </>

@@ -153,6 +153,39 @@ export async function getPaginatedAdminUsers(options: {
   }
 }
 
+export async function searchCompanyProfilesByName(searchTerm: string): Promise<CompanyUserProfile[]> {
+  try {
+    if (!searchTerm) return [];
+    
+    const usersRef = collection(db, USERS_COLLECTION);
+    const q = query(
+      usersRef,
+      where('role', '==', 'company'),
+      where('isActive', '==', true),
+      where('name', '>=', searchTerm),
+      where('name', '<=', searchTerm + '\uf8ff'),
+      orderBy('name', 'asc'),
+      limit(20) // Limit results to prevent overwhelming data return
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const companyProfiles: CompanyUserProfile[] = [];
+    querySnapshot.docs.forEach(doc => {
+      const profile = convertToUserProfile(doc.data(), doc.id);
+      if (profile) {
+        companyProfiles.push(profile);
+      }
+    });
+    return companyProfiles;
+  } catch (error: any) {
+    console.error("[authService.ts - searchCompanyProfilesByName] Error searching profiles:", error);
+    // Firestore might require an index for this query. You would see an error in the server logs
+    // with a link to create it. We can't create it from here, so we just log the error.
+    return [];
+  }
+}
+
+
 export async function getUserProfile(uid: string): Promise<CompanyUserProfile | null> {
   try {
     const userDocRef = doc(db, USERS_COLLECTION, uid);
