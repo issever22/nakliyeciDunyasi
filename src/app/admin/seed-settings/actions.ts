@@ -9,13 +9,7 @@ import type {
   AuthDocSetting, 
   MembershipSetting, 
   TransportTypeSetting, 
-  AnnouncementSetting, 
-  AdminNoteSetting,
-  RequiredFor,
-  DurationUnit,
-  ApplicableTo,
-  TargetAudience,
-  NoteCategory
+  AnnouncementSetting
 } from '@/types';
 import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { parseISO } from 'date-fns';
@@ -26,7 +20,6 @@ const AUTH_DOCS_COLLECTION = 'settingsAuthDocs';
 const MEMBERSHIPS_COLLECTION = 'settingsMemberships';
 const TRANSPORT_TYPES_COLLECTION = 'settingsTransportTypes';
 const ANNOUNCEMENTS_COLLECTION = 'settingsAnnouncements';
-const ADMIN_NOTES_COLLECTION = 'settingsAdminNotes';
 
 interface SeedResultDetail {
   category?: string;
@@ -56,11 +49,6 @@ const DUMMY_TRANSPORT_TYPES: Omit<TransportTypeSetting, 'id'>[] = [
 const DUMMY_ANNOUNCEMENTS: Omit<AnnouncementSetting, 'id' | 'createdAt'>[] = [
   { title: "Yeni Yıl Kampanyası!", content: "Tüm üyeliklerde %20 indirim fırsatını kaçırmayın. Detaylar için tıklayın.", targetAudience: "Tümü", startDate: "2023-12-15", endDate: "2024-01-05", isActive: true },
   { title: "Sistem Bakımı", content: "Platformumuzda 20 Ocak Pazar 02:00-04:00 saatleri arasında kısa süreli bir bakım çalışması yapılacaktır.", targetAudience: "Tümü", startDate: "2024-01-18", endDate: "2024-01-20", isActive: true },
-];
-
-const DUMMY_ADMIN_NOTES: Omit<AdminNoteSetting, 'id' | 'createdDate' | 'lastModifiedDate'>[] = [
-  { title: "Kullanıcı Arayüzü Geri Bildirimi", content: "Kullanıcılar mobil arayüzde filtrelerin daha belirgin olmasını talep ediyor.", category: "Kullanıcı Geri Bildirimi", isImportant: false },
-  { title: "Pazarlama Stratejisi Toplantısı", content: "Gelecek çeyrek pazarlama hedefleri ve bütçesi için 15 Şubat'ta toplantı planlandı.", category: "Yönetici", isImportant: true },
 ];
 
 
@@ -191,35 +179,9 @@ export async function seedInitialSettings(): Promise<{ success: boolean; message
     results.push({ category: 'Duyurular', status: 'Tamamlandı.' });
   } catch (e:any) { results.push({ category: 'Duyurular', status: `Genel Hata: ${e.message}`}); successOverall = false; }
 
-  // Seed Admin Notes
-  try {
-    const adminNotesRef = collection(db, ADMIN_NOTES_COLLECTION);
-    results.push({ category: 'Yönetici Notları', status: 'Başlatılıyor...' });
-    for (const noteData of DUMMY_ADMIN_NOTES) {
-      try {
-        const q = query(adminNotesRef, where('title', '==', noteData.title));
-        const existingDocs = await getDocs(q);
-        if (existingDocs.empty) {
-          const dataToSave = {
-            ...noteData,
-            createdDate: now,
-            lastModifiedDate: now,
-          };
-          await addDoc(adminNotesRef, dataToSave);
-          results.push({ name: noteData.title, status: 'Başarıyla eklendi' });
-        } else {
-          results.push({ name: noteData.title, status: 'Zaten mevcut, atlandı' });
-        }
-      } catch (e: any) { results.push({ name: noteData.title, status: `Ekleme hatası: ${e.message}`}); successOverall = false; }
-    }
-    results.push({ category: 'Yönetici Notları', status: 'Tamamlandı.' });
-  } catch (e:any) { results.push({ category: 'Yönetici Notları', status: `Genel Hata: ${e.message}`}); successOverall = false; }
-  
   const finalMessage = successOverall 
       ? 'Başlangıç ayarları başarıyla Firestore\'a yüklendi (veya zaten mevcuttu).'
       : 'Bazı ayarlar yüklenirken hatalar oluştu. Detayları kontrol edin.';
 
   return { success: successOverall, message: finalMessage, details: results };
 }
-
-    

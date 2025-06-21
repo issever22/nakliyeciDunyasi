@@ -236,15 +236,12 @@ export interface AnnouncementSetting {
   createdAt: string; 
 }
 
-export type NoteCategory = 'Yönetici' | 'Kullanıcı Geri Bildirimi' | 'Geliştirme' | 'Genel';
-export interface AdminNoteSetting {
+export interface CompanyNote {
   id: string;
   title: string;
   content: string;
-  category: NoteCategory;
-  createdDate: string; 
-  lastModifiedDate: string; 
-  isImportant: boolean;
+  createdAt: string; // ISO string
+  author?: string; // Name of admin who wrote it
 }
 
 export type FreightFilterOptions = {

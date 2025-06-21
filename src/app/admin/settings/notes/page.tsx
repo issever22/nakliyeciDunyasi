@@ -1,279 +1,186 @@
+'use server';
 
-"use client";
+import { db } from '@/lib/firebase';
+import { VEHICLES_NEEDED, CARGO_TYPES } from '@/lib/constants';
+import type { 
+  VehicleTypeSetting, 
+  CargoTypeSetting, 
+  AuthDocSetting, 
+  MembershipSetting, 
+  TransportTypeSetting, 
+  AnnouncementSetting
+} from '@/types';
+import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { parseISO } from 'date-fns';
 
-import { useState, useEffect, type FormEvent, useCallback } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit, Trash2, Search, StickyNote, BookUser, Code, Cog, Loader2 } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
-import { tr } from 'date-fns/locale';
-import type { AdminNoteSetting, NoteCategory } from '@/types';
-import { getAllAdminNotes, addAdminNote, updateAdminNote, deleteAdminNote } from '@/services/adminNotesService';
-import { Skeleton } from '@/components/ui/skeleton';
+const VEHICLE_TYPES_COLLECTION = 'settingsVehicleTypes';
+const CARGO_TYPES_COLLECTION = 'settingsCargoTypes';
+const AUTH_DOCS_COLLECTION = 'settingsAuthDocs';
+const MEMBERSHIPS_COLLECTION = 'settingsMemberships';
+const TRANSPORT_TYPES_COLLECTION = 'settingsTransportTypes';
+const ANNOUNCEMENTS_COLLECTION = 'settingsAnnouncements';
 
-export default function AdminNotesPage() {
-  const { toast } = useToast();
-  const [notes, setNotes] = useState<AdminNoteSetting[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState<AdminNoteSetting | null>(null);
+interface SeedResultDetail {
+  category?: string;
+  name?: string; // For items with a 'name' or 'title'
+  status: string;
+}
+
+const DUMMY_AUTH_DOCS: Omit<AuthDocSetting, 'id'>[] = [
+  { name: "K1 Yetki Belgesi", requiredFor: "Firma", details: "Yurtiçi ticari amaçlı eşya taşımacılığı yapacaklara verilir.", isActive: true },
+  { name: "C2 Yetki Belgesi", requiredFor: "Firma", details: "Uluslararası ve yurtiçi ticari amaçlı eşya taşımacılığı yapacaklara verilir.", isActive: true },
+  { name: "Src Belgesi", requiredFor: "Bireysel", details: "Ticari araç sürücüleri için mesleki yeterlilik belgesi.", isActive: true },
+];
+
+const DUMMY_MEMBERSHIPS: Omit<MembershipSetting, 'id'>[] = [
+  { name: "Standart Üyelik", price: 99, duration: 1, durationUnit: "Ay", features: ["Aylık 10 ilan hakkı", "Standart destek"], description: "Başlangıç seviyesi için aylık üyelik.", isActive: true },
+  { name: "Premium Üyelik", price: 249, duration: 1, durationUnit: "Ay", features: ["Sınırsız ilan hakkı", "Öne çıkan ilanlar", "7/24 Destek"], description: "Profesyoneller için aylık premium üyelik.", isActive: true },
+  { name: "Yıllık Gold Üyelik", price: 2499, duration: 1, durationUnit: "Yıl", features: ["Sınırsız ilan hakkı", "Öne çıkan ilanlar", "Dedicated Destek", "Raporlama"], description: "Uzun vadeli avantajlı yıllık üyelik.", isActive: true },
+];
+
+const DUMMY_TRANSPORT_TYPES: Omit<TransportTypeSetting, 'id'>[] = [
+  { name: "Komple Taşıma", applicableTo: "Ticari", description: "Tek bir müşterinin yükünü bir araçla taşıma.", isActive: true },
+  { name: "Parsiyel Taşıma", applicableTo: "Ticari", description: "Birden fazla müşterinin yükünü aynı araçta birleştirerek taşıma.", isActive: true },
+  { name: "Evden Eve Nakliyat", applicableTo: "Evden Eve", description: "Konut ve ofis eşyalarının taşınması.", isActive: true },
+  { name: "Proje Taşımacılığı", applicableTo: "Ticari", description: "Özel ekipman ve planlama gerektiren büyük ölçekli yükler.", isActive: true },
+];
+
+const DUMMY_ANNOUNCEMENTS: Omit<AnnouncementSetting, 'id' | 'createdAt'>[] = [
+  { title: "Yeni Yıl Kampanyası!", content: "Tüm üyeliklerde %20 indirim fırsatını kaçırmayın. Detaylar için tıklayın.", targetAudience: "Tümü", startDate: "2023-12-15", endDate: "2024-01-05", isActive: true },
+  { title: "Sistem Bakımı", content: "Platformumuzda 20 Ocak Pazar 02:00-04:00 saatleri arasında kısa süreli bir bakım çalışması yapılacaktır.", targetAudience: "Tümü", startDate: "2024-01-18", endDate: "2024-01-20", isActive: true },
+];
+
+
+export async function seedInitialSettings(): Promise<{ success: boolean; message: string; details?: SeedResultDetail[] }> {
+  const results: SeedResultDetail[] = [];
+  let successOverall = true;
+  const now = Timestamp.fromDate(new Date());
+
+  // Seed Vehicle Types
+  try {
+    const vehicleTypesRef = collection(db, VEHICLE_TYPES_COLLECTION);
+    results.push({ category: 'Araç Tipleri', status: 'Başlatılıyor...' });
+    for (const vehicleName of VEHICLES_NEEDED) {
+      try {
+        const q = query(vehicleTypesRef, where('name', '==', vehicleName));
+        const existingDocs = await getDocs(q);
+        if (existingDocs.empty) {
+          const newVehicleType: Omit<VehicleTypeSetting, 'id'> = { name: vehicleName, description: `Araç tipi: ${vehicleName}`, isActive: true };
+          await addDoc(vehicleTypesRef, newVehicleType);
+          results.push({ name: vehicleName, status: 'Başarıyla eklendi' });
+        } else {
+          results.push({ name: vehicleName, status: 'Zaten mevcut, atlandı' });
+        }
+      } catch (e: any) { results.push({ name: vehicleName, status: `Ekleme hatası: ${e.message}`}); successOverall = false; }
+    }
+    results.push({ category: 'Araç Tipleri', status: 'Tamamlandı.' });
+  } catch (e:any) { results.push({ category: 'Araç Tipleri', status: `Genel Hata: ${e.message}`}); successOverall = false; }
+
+  // Seed Cargo Types
+  try {
+    const cargoTypesRef = collection(db, CARGO_TYPES_COLLECTION);
+    results.push({ category: 'Yük Cinsleri', status: 'Başlatılıyor...' });
+    for (const cargoName of CARGO_TYPES) {
+      try {
+        const q = query(cargoTypesRef, where('name', '==', cargoName));
+        const existingDocs = await getDocs(q);
+        if (existingDocs.empty) {
+          const newCargoType: Omit<CargoTypeSetting, 'id'> = { name: cargoName, category: 'Genel', isActive: true };
+          await addDoc(cargoTypesRef, newCargoType);
+          results.push({ name: cargoName, status: 'Başarıyla eklendi' });
+        } else {
+          results.push({ name: cargoName, status: 'Zaten mevcut, atlandı' });
+        }
+      } catch (e: any) { results.push({ name: cargoName, status: `Ekleme hatası: ${e.message}`}); successOverall = false; }
+    }
+    results.push({ category: 'Yük Cinsleri', status: 'Tamamlandı.' });
+  } catch (e:any) { results.push({ category: 'Yük Cinsleri', status: `Genel Hata: ${e.message}`}); successOverall = false; }
+
+  // Seed Auth Docs
+  try {
+    const authDocsRef = collection(db, AUTH_DOCS_COLLECTION);
+    results.push({ category: 'Yetki Belgeleri', status: 'Başlatılıyor...' });
+    for (const docData of DUMMY_AUTH_DOCS) {
+      try {
+        const q = query(authDocsRef, where('name', '==', docData.name));
+        const existingDocs = await getDocs(q);
+        if (existingDocs.empty) {
+          await addDoc(authDocsRef, docData);
+          results.push({ name: docData.name, status: 'Başarıyla eklendi' });
+        } else {
+          results.push({ name: docData.name, status: 'Zaten mevcut, atlandı' });
+        }
+      } catch (e: any) { results.push({ name: docData.name, status: `Ekleme hatası: ${e.message}`}); successOverall = false; }
+    }
+    results.push({ category: 'Yetki Belgeleri', status: 'Tamamlandı.' });
+  } catch (e:any) { results.push({ category: 'Yetki Belgeleri', status: `Genel Hata: ${e.message}`}); successOverall = false; }
+
+  // Seed Memberships
+  try {
+    const membershipsRef = collection(db, MEMBERSHIPS_COLLECTION);
+    results.push({ category: 'Üyelikler', status: 'Başlatılıyor...' });
+    for (const membershipData of DUMMY_MEMBERSHIPS) {
+      try {
+        const q = query(membershipsRef, where('name', '==', membershipData.name));
+        const existingDocs = await getDocs(q);
+        if (existingDocs.empty) {
+          await addDoc(membershipsRef, membershipData);
+          results.push({ name: membershipData.name, status: 'Başarıyla eklendi' });
+        } else {
+          results.push({ name: membershipData.name, status: 'Zaten mevcut, atlandı' });
+        }
+      } catch (e: any) { results.push({ name: membershipData.name, status: `Ekleme hatası: ${e.message}`}); successOverall = false; }
+    }
+    results.push({ category: 'Üyelikler', status: 'Tamamlandı.' });
+  } catch (e:any) { results.push({ category: 'Üyelikler', status: `Genel Hata: ${e.message}`}); successOverall = false; }
   
-  const [currentFormData, setCurrentFormData] = useState<{ title: string; content: string; category: NoteCategory; isImportant: boolean }>({ title: '', content: '', category: 'Genel', isImportant: false });
-
-  const fetchNotes = useCallback(async () => {
-    setIsLoading(true);
-    const data = await getAllAdminNotes();
-    setNotes(data);
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchNotes();
-  }, [fetchNotes]);
-
-  useEffect(() => {
-    if (editingNote) {
-      setCurrentFormData({
-        title: editingNote.title,
-        content: editingNote.content,
-        category: editingNote.category,
-        isImportant: editingNote.isImportant,
-      });
-    } else {
-      setCurrentFormData({ title: '', content: '', category: 'Genel', isImportant: false });
+  // Seed Transport Types
+  try {
+    const transportTypesRef = collection(db, TRANSPORT_TYPES_COLLECTION);
+    results.push({ category: 'Taşımacılık Türleri', status: 'Başlatılıyor...' });
+    for (const transportData of DUMMY_TRANSPORT_TYPES) {
+      try {
+        const q = query(transportTypesRef, where('name', '==', transportData.name));
+        const existingDocs = await getDocs(q);
+        if (existingDocs.empty) {
+          await addDoc(transportTypesRef, transportData);
+          results.push({ name: transportData.name, status: 'Başarıyla eklendi' });
+        } else {
+          results.push({ name: transportData.name, status: 'Zaten mevcut, atlandı' });
+        }
+      } catch (e: any) { results.push({ name: transportData.name, status: `Ekleme hatası: ${e.message}`}); successOverall = false; }
     }
-  }, [editingNote, isAddEditDialogOpen]);
+    results.push({ category: 'Taşımacılık Türleri', status: 'Tamamlandı.' });
+  } catch (e:any) { results.push({ category: 'Taşımacılık Türleri', status: `Genel Hata: ${e.message}`}); successOverall = false; }
 
-  const handleAddNew = () => {
-    setEditingNote(null);
-    setIsAddEditDialogOpen(true);
-  };
-
-  const handleEdit = (note: AdminNoteSetting) => {
-    setEditingNote(note);
-    setIsAddEditDialogOpen(true);
-  };
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!currentFormData.title.trim() || !currentFormData.content.trim()) {
-        toast({ title: "Hata", description: "Başlık ve içerik boş bırakılamaz.", variant: "destructive" });
-        return;
+  // Seed Announcements
+  try {
+    const announcementsRef = collection(db, ANNOUNCEMENTS_COLLECTION);
+    results.push({ category: 'Duyurular', status: 'Başlatılıyor...' });
+    for (const announcementData of DUMMY_ANNOUNCEMENTS) {
+      try {
+        const q = query(announcementsRef, where('title', '==', announcementData.title));
+        const existingDocs = await getDocs(q);
+        if (existingDocs.empty) {
+          const dataToSave = {
+            ...announcementData,
+            startDate: announcementData.startDate ? Timestamp.fromDate(parseISO(announcementData.startDate)) : null,
+            endDate: announcementData.endDate ? Timestamp.fromDate(parseISO(announcementData.endDate)) : null,
+            createdAt: now,
+          };
+          await addDoc(announcementsRef, dataToSave);
+          results.push({ name: announcementData.title, status: 'Başarıyla eklendi' });
+        } else {
+          results.push({ name: announcementData.title, status: 'Zaten mevcut, atlandı' });
+        }
+      } catch (e: any) { results.push({ name: announcementData.title, status: `Ekleme hatası: ${e.message}`}); successOverall = false; }
     }
-    setFormSubmitting(true);
+    results.push({ category: 'Duyurular', status: 'Tamamlandı.' });
+  } catch (e:any) { results.push({ category: 'Duyurular', status: `Genel Hata: ${e.message}`}); successOverall = false; }
 
-    const noteData: Omit<AdminNoteSetting, 'id' | 'createdDate' | 'lastModifiedDate'> = {
-      title: currentFormData.title,
-      content: currentFormData.content,
-      category: currentFormData.category,
-      isImportant: currentFormData.isImportant,
-    };
-    
-    let success = false;
-    if (editingNote) {
-      success = await updateAdminNote(editingNote.id, noteData);
-      if (success) toast({ title: "Başarılı", description: "Not güncellendi." });
-    } else {
-      const newId = await addAdminNote(noteData);
-      if (newId) {
-        success = true;
-        toast({ title: "Başarılı", description: "Yeni not eklendi." });
-      }
-    }
-    
-    if(success) {
-        fetchNotes();
-        setIsAddEditDialogOpen(false);
-    } else {
-        toast({ title: "Hata", description: `Not ${editingNote ? 'güncellenirken' : 'eklenirken'} bir sorun oluştu.`, variant: "destructive" });
-    }
-    setFormSubmitting(false);
-  };
+  const finalMessage = successOverall 
+      ? 'Başlangıç ayarları başarıyla Firestore\'a yüklendi (veya zaten mevcuttu).'
+      : 'Bazı ayarlar yüklenirken hatalar oluştu. Detayları kontrol edin.';
 
-  const handleDelete = async (id: string) => {
-    const success = await deleteAdminNote(id);
-    if (success) {
-      toast({ title: "Başarılı", description: "Not silindi.", variant: "destructive" });
-      fetchNotes();
-    } else {
-      toast({ title: "Hata", description: "Not silinirken bir sorun oluştu.", variant: "destructive" });
-    }
-  };
-
-  const filteredNotes = notes.filter(note => 
-    note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    note.category.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a,b) => parseISO(b.lastModifiedDate).getTime() - parseISO(a.lastModifiedDate).getTime());
-
-  const CategoryIcon = ({ category }: { category: NoteCategory }) => {
-    if (category === 'Yönetici') return <Cog className="h-4 w-4 mr-1.5 text-red-600" />;
-    if (category === 'Kullanıcı Geri Bildirimi') return <BookUser className="h-4 w-4 mr-1.5 text-blue-600" />;
-    if (category === 'Geliştirme') return <Code className="h-4 w-4 mr-1.5 text-green-600" />;
-    return <StickyNote className="h-4 w-4 mr-1.5 text-gray-600" />;
-  };
-
-
-  return (
-    <div className="space-y-6">
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2"><StickyNote className="h-6 w-6 text-primary" /> Yönetici Notları</CardTitle>
-          <CardDescription>Dahili kullanım için notlar oluşturun, düzenleyin ve takip edin.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Not ara..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 w-full"
-              />
-            </div>
-            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
-              <PlusCircle className="mr-2 h-4 w-4" /> Yeni Not Ekle
-            </Button>
-          </div>
-          {isLoading ? (
-             <div className="space-y-4">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-             </div>
-            ) : (
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[200px]">Başlık</TableHead>
-                  <TableHead className="min-w-[150px]">Kategori</TableHead>
-                  <TableHead className="min-w-[150px]">Son Güncelleme</TableHead>
-                  <TableHead className="w-[100px] text-center">Önemli</TableHead>
-                  <TableHead className="w-[120px] text-right">Eylemler</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredNotes.length > 0 ? filteredNotes.map((note) => (
-                  <TableRow key={note.id} className={`hover:bg-muted/50 ${note.isImportant ? 'bg-yellow-500/5' : ''}`}>
-                    <TableCell className="font-medium">{note.title}</TableCell>
-                    <TableCell>
-                        <Badge variant="outline" className="flex items-center w-fit">
-                           <CategoryIcon category={note.category} /> {note.category}
-                        </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{format(parseISO(note.lastModifiedDate), "dd.MM.yyyy HH:mm", { locale: tr })}</TableCell>
-                    <TableCell className="text-center">
-                       <Badge variant={note.isImportant ? "destructive" : "outline"} className={note.isImportant ? "bg-yellow-500/20 text-yellow-700 border-yellow-500" : ""}>
-                        {note.isImportant ? 'Evet' : 'Hayır'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(note)} title="Düzenle" className="hover:bg-accent">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="Sil" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                "{note.title}" başlıklı notu silmek üzeresiniz. Bu işlem geri alınamaz.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>İptal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(note.id)} className="bg-destructive hover:bg-destructive/90">
-                                Sil
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                       {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Kayıtlı not bulunamadı.'}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={isAddEditDialogOpen} onOpenChange={(isOpen) => {
-          setIsAddEditDialogOpen(isOpen);
-          if (!isOpen) setEditingNote(null);
-      }}>
-        <DialogContent className="sm:max-w-lg">
-          <form onSubmit={handleSubmit}>
-            <DialogHeader>
-              <DialogTitle>{editingNote ? 'Notu Düzenle' : 'Yeni Not Ekle'}</DialogTitle>
-               <DialogDescription>
-                 {editingNote ? `"${editingNote.title}" notunun bilgilerini güncelleyin.` : 'Yeni bir not için gerekli bilgileri girin.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-6">
-              <div className="space-y-1.5">
-                <Label htmlFor="noteTitle" className="font-medium">Başlık (*)</Label>
-                <Input id="noteTitle" value={currentFormData.title} onChange={(e) => setCurrentFormData({...currentFormData, title: e.target.value})} placeholder="Not başlığı" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="noteContent" className="font-medium">İçerik (*)</Label>
-                <Textarea id="noteContent" value={currentFormData.content} onChange={(e) => setCurrentFormData({...currentFormData, content: e.target.value})} placeholder="Not içeriği..." rows={6}/>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="noteCategory" className="font-medium">Kategori (*)</Label>
-                <Select value={currentFormData.category} onValueChange={(value: NoteCategory) => setCurrentFormData({...currentFormData, category: value})}>
-                  <SelectTrigger id="noteCategory"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Genel">Genel</SelectItem>
-                    <SelectItem value="Yönetici">Yönetici</SelectItem>
-                    <SelectItem value="Kullanıcı Geri Bildirimi">Kullanıcı Geri Bildirimi</SelectItem>
-                    <SelectItem value="Geliştirme">Geliştirme</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2 pt-2">
-                 <Switch id="noteIsImportant" checked={currentFormData.isImportant} onCheckedChange={(checked) => setCurrentFormData({...currentFormData, isImportant: checked})} />
-                <Label htmlFor="noteIsImportant" className="font-medium cursor-pointer">Önemli olarak işaretle</Label>
-              </div>
-            </div>
-            <DialogFooter>
-                 <DialogClose asChild>
-                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
-                </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
-                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingNote ? 'Değişiklikleri Kaydet' : 'Not Ekle'}
-                </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+  return { success: successOverall, message: finalMessage, details: results };
 }

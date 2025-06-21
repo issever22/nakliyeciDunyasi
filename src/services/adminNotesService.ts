@@ -1,102 +1,125 @@
+"use client";
 
-'use server';
-import { db } from '@/lib/firebase';
-import type { AdminNoteSetting, NoteCategory } from '@/types';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  orderBy,
-  Timestamp,
-  DocumentData
-} from 'firebase/firestore';
-import { parseISO, isValid } from 'date-fns';
+import { useState, type FormEvent } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { addCompanyNote } from '@/services/companyNotesService';
+import type { CompanyNote } from '@/types';
+import { Loader2, Send } from 'lucide-react';
 
-const ADMIN_NOTES_COLLECTION = 'settingsAdminNotes';
+interface FeedbackModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  userId: string;
+  userName: string;
+}
 
-const convertToAdminNoteSetting = (docData: DocumentData, id: string): AdminNoteSetting => {
-  const data = { ...docData };
+export default function FeedbackModal({ isOpen, onClose, userId, userName }: FeedbackModalProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
 
-  if (data.createdDate && data.createdDate instanceof Timestamp) {
-    data.createdDate = data.createdDate.toDate().toISOString();
-  } else {
-    console.warn(`[adminNotesService] Note ${id}: createdDate is not a Timestamp or is missing. Defaulting. Original:`, data.createdDate);
-    data.createdDate = new Date().toISOString(); // Fallback
-  }
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!title.trim() || !content.trim()) {
+      toast({
+        title: "Eksik Bilgi",
+        description: "Lütfen hem başlık hem de geri bildirim içeriğini doldurun.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSubmitting(true);
 
-  if (data.lastModifiedDate && data.lastModifiedDate instanceof Timestamp) {
-    data.lastModifiedDate = data.lastModifiedDate.toDate().toISOString();
-  } else {
-    console.warn(`[adminNotesService] Note ${id}: lastModifiedDate is not a Timestamp or is missing. Defaulting. Original:`, data.lastModifiedDate);
-    data.lastModifiedDate = new Date().toISOString(); // Fallback
-  }
-  
-  return {
-    id,
-    title: data.title || '',
-    content: data.content || '',
-    category: data.category || 'Genel',
-    isImportant: data.isImportant === undefined ? false : data.isImportant,
-    createdDate: data.createdDate,
-    lastModifiedDate: data.lastModifiedDate,
-  } as AdminNoteSetting;
-};
-
-export const getAllAdminNotes = async (): Promise<AdminNoteSetting[]> => {
-  try {
-    const q = query(collection(db, ADMIN_NOTES_COLLECTION), orderBy('lastModifiedDate', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => convertToAdminNoteSetting(doc.data(), doc.id));
-  } catch (error) {
-    console.error("Error fetching admin notes: ", error);
-    return [];
-  }
-};
-
-export const addAdminNote = async (data: Omit<AdminNoteSetting, 'id' | 'createdDate' | 'lastModifiedDate'>): Promise<string | null> => {
-  try {
-    const now = Timestamp.fromDate(new Date());
-    const docRef = await addDoc(collection(db, ADMIN_NOTES_COLLECTION), {
-        ...data,
-        isImportant: data.isImportant === undefined ? false : data.isImportant,
-        createdDate: now,
-        lastModifiedDate: now,
-    });
-    return docRef.id;
-  } catch (error) {
-    console.error("Error adding admin note: ", error);
-    return null;
-  }
-};
-
-export const updateAdminNote = async (id: string, data: Partial<Omit<AdminNoteSetting, 'id' | 'createdDate' | 'lastModifiedDate'>>): Promise<boolean> => {
-  try {
-    const docRef = doc(db, ADMIN_NOTES_COLLECTION, id);
-    const dataToUpdate = {
-        ...data,
-        lastModifiedDate: Timestamp.fromDate(new Date()),
+    const feedbackData: Omit<CompanyNote, 'id' | 'createdAt'> = {
+      title: `Kullanıcı Geri Bildirimi: ${title}`,
+      content: content,
+      author: userName,
     };
-    delete (dataToUpdate as any).createdDate; // createdDate should not be updated
-    
-    await updateDoc(docRef, dataToUpdate);
-    return true;
-  } catch (error) {
-    console.error("Error updating admin note: ", error);
-    return false;
-  }
-};
 
-export const deleteAdminNote = async (id: string): Promise<boolean> => {
-  try {
-    const docRef = doc(db, ADMIN_NOTES_COLLECTION, id);
-    await deleteDoc(docRef);
-    return true;
-  } catch (error) {
-    console.error("Error deleting admin note: ", error);
-    return false;
-  }
-};
+    try {
+      const newNoteId = await addCompanyNote(userId, feedbackData);
+      if (newNoteId) {
+        toast({
+          title: "Geri Bildirim Gönderildi",
+          description: "Değerli geri bildiriminiz için teşekkür ederiz!",
+        });
+        setTitle('');
+        setContent('');
+        onClose();
+      } else {
+        throw new Error("Geri bildirim kaydedilemedi.");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Hata",
+        description: error.message || "Geri bildirim gönderilirken bir sorun oluştu.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        setTitle('');
+        setContent('');
+        onClose();
+      }
+    }}>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Geri Bildirim Gönder</DialogTitle>
+            <DialogDescription>
+              Platform hakkındaki düşüncelerinizi, önerilerinizi veya karşılaştığınız sorunları bizimle paylaşın.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-6">
+            <div className="space-y-1.5">
+              <Label htmlFor="feedback-title">Başlık (*)</Label>
+              <Input
+                id="feedback-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Geri bildiriminizin konusu"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="feedback-content">Geri Bildiriminiz (*)</Label>
+              <Textarea
+                id="feedback-content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Lütfen düşüncelerinizi detaylıca yazın..."
+                required
+                rows={5}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" disabled={isSubmitting}>İptal</Button>
+            </DialogClose>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              {isSubmitting ? 'Gönderiliyor...' : 'Geri Bildirimi Gönder'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

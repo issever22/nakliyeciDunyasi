@@ -18,7 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting } from '@/types';
+import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting, CompanyNote } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { COMPANY_CATEGORIES, COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
@@ -29,7 +29,7 @@ import {
   deleteUserProfile,
 } from '@/services/authService'; 
 import { getAllMemberships } from '@/services/membershipsService';
-import { addAdminNote } from '@/services/adminNotesService';
+import { getCompanyNotes, addCompanyNote } from '@/services/companyNotesService';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
@@ -69,6 +69,10 @@ export default function UsersPage() {
   const [noteContent, setNoteContent] = useState({ title: '', content: '' });
   const [membershipFee, setMembershipFee] = useState('');
   const [pendingMembershipSelection, setPendingMembershipSelection] = useState<{ status: CompanyUserProfile['membershipStatus'], endDate?: Date } | null>(null);
+
+  const [isViewNotesModalOpen, setIsViewNotesModalOpen] = useState(false);
+  const [notesForViewing, setNotesForViewing] = useState<CompanyNote[]>([]);
+  const [viewingCompany, setViewingCompany] = useState<CompanyUserProfile | null>(null);
 
 
   const fetchUsers = useCallback(async (isLoadMore = false) => {
@@ -303,11 +307,10 @@ export default function UsersPage() {
     if (!editingUser || !noteContent.title.trim() || !noteContent.content.trim()) return;
 
     setFormSubmitting(true);
-    const success = await addAdminNote({
+    const success = await addCompanyNote(editingUser.id, {
         title: noteContent.title,
         content: noteContent.content,
-        category: 'Yönetici',
-        isImportant: false
+        author: 'Admin',
     });
     if (success) {
         toast({ title: "Başarılı", description: "Not eklendi." });
@@ -342,7 +345,6 @@ export default function UsersPage() {
     } else if (newStatus === 'Yok') {
         setCurrentFormData(prev => ({...prev, membershipStatus: newStatus, membershipEndDate: undefined }));
     } else {
-        // Just update status, no fee prompt if changing between paid tiers for now
         setCurrentFormData(prev => ({...prev, membershipStatus: newStatus}));
     }
   };
@@ -361,11 +363,10 @@ export default function UsersPage() {
     const noteTitle = `Üyelik Satışı: ${editingUser.name}`;
     const noteContentText = `Yeni üyelik paketi: ${pendingMembershipSelection.status}. Alınan ücret: ${membershipFee} TL. Yeni son kullanma tarihi: ${pendingMembershipSelection.endDate ? format(pendingMembershipSelection.endDate, 'dd.MM.yyyy') : 'N/A'}`;
     
-    const noteSuccess = await addAdminNote({
+    const noteSuccess = await addCompanyNote(editingUser.id, {
       title: noteTitle,
       content: noteContentText,
-      category: 'Yönetici',
-      isImportant: true,
+      author: 'Admin',
     });
     
     if (noteSuccess) {
@@ -383,6 +384,15 @@ export default function UsersPage() {
     setIsRecordFeeAlertOpen(false);
     setMembershipFee('');
     setPendingMembershipSelection(null);
+  };
+
+  const handleViewNotes = async (company: CompanyUserProfile) => {
+    setViewingCompany(company);
+    setIsLoading(true);
+    const notes = await getCompanyNotes(company.id);
+    setNotesForViewing(notes);
+    setIsLoading(false);
+    setIsViewNotesModalOpen(true);
   };
 
 
@@ -428,6 +438,9 @@ export default function UsersPage() {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex gap-1 justify-end">
+                   <Button variant="ghost" size="icon" onClick={() => handleViewNotes(user)} title="Notları Görüntüle" className="hover:bg-accent">
+                    <StickyNote className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(user)} title="Düzenle" className="hover:bg-accent">
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -859,7 +872,7 @@ export default function UsersPage() {
                     <AlertDialogHeader>
                     <AlertDialogTitle>Üyelik Ücreti Kaydı</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Firmaya yeni bir üyelik tanımlıyorsunuz. Lütfen alınan ücreti girin. Bu bilgi, "Yönetici Notları" bölümüne kaydedilecektir.
+                        Firmaya yeni bir üyelik tanımlıyorsunuz. Lütfen alınan ücreti girin. Bu bilgi, bu firmaya özel "Notlar" bölümüne kaydedilecektir.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="py-2">
@@ -881,11 +894,44 @@ export default function UsersPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            
+            <Dialog open={isViewNotesModalOpen} onOpenChange={setIsViewNotesModalOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>"{viewingCompany?.name}" İçin Notlar</DialogTitle>
+                        <DialogDescription>
+                            Bu firma için kaydedilmiş tüm yönetici notları.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] overflow-y-auto p-1">
+                        {isLoading ? (
+                            <div className="flex justify-center items-center h-24">
+                                <Loader2 className="h-6 w-6 animate-spin"/>
+                            </div>
+                        ) : notesForViewing.length > 0 ? (
+                            <div className="space-y-4">
+                                {notesForViewing.map(note => (
+                                    <div key={note.id} className="p-4 border rounded-lg bg-muted/30">
+                                        <h4 className="font-semibold text-md">{note.title}</h4>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{note.content}</p>
+                                        <p className="text-xs text-muted-foreground/70 mt-3 text-right">
+                                            {format(parseISO(note.createdAt), "dd MMMM yyyy, HH:mm", { locale: tr })}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">Bu firma için kayıtlı not bulunmamaktadır.</p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsViewNotesModalOpen(false)}>Kapat</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
       )}
 
     </div>
   );
 }
-
-    

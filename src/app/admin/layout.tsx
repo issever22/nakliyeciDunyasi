@@ -239,13 +239,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/notes'} tooltip={{content: "Notlar", side: "right"}}>
-                    <Link href="/admin/settings/notes">
-                      <StickyNote size={18}/> <span className="text-sm">Notlar</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </>
             )}
           </SidebarMenu>

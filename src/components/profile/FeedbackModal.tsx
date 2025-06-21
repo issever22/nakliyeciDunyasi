@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { addAdminNote } from '@/services/adminNotesService';
-import type { AdminNoteSetting } from '@/types';
+import { addCompanyNote } from '@/services/companyNotesService';
+import type { CompanyNote } from '@/types';
 import { Loader2, Send } from 'lucide-react';
 
 interface FeedbackModalProps {
@@ -37,15 +37,14 @@ export default function FeedbackModal({ isOpen, onClose, userId, userName }: Fee
     }
     setIsSubmitting(true);
 
-    const feedbackData: Omit<AdminNoteSetting, 'id' | 'createdDate' | 'lastModifiedDate'> = {
-      title: `Kullanıcı Geri Bildirimi: ${title} (Kullanıcı: ${userName}, ID: ${userId.substring(0,6)})`,
+    const feedbackData: Omit<CompanyNote, 'id' | 'createdAt'> = {
+      title: `Kullanıcı Geri Bildirimi: ${title}`,
       content: content,
-      category: 'Kullanıcı Geri Bildirimi',
-      isImportant: false,
+      author: userName,
     };
 
     try {
-      const newNoteId = await addAdminNote(feedbackData);
+      const newNoteId = await addCompanyNote(userId, feedbackData);
       if (newNoteId) {
         toast({
           title: "Geri Bildirim Gönderildi",
