@@ -4,7 +4,7 @@
 import { useState, useEffect, type FormEvent, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
@@ -15,15 +15,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { COMPANY_CATEGORIES, COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR } from '@/lib/locationData';
 import { 
-  getAllUserProfiles, 
+  getPaginatedAdminUsers, 
   updateUserProfile,
   deleteUserProfile,
 } from '@/services/authService'; 
@@ -37,12 +38,18 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
 const MAX_PREFERRED_LOCATIONS = 5;
+const PAGE_SIZE = 15;
 
 
 export default function UsersPage() {
   const { toast } = useToast();
   const [allCompanyUsers, setAllCompanyUsers] = useState<CompanyUserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -57,27 +64,69 @@ export default function UsersPage() {
   const [optionsLoading, setOptionsLoading] = useState(true);
 
 
-  const fetchUsersAndOptions = useCallback(async () => {
-    setIsLoading(true);
-    setOptionsLoading(true);
-    try {
-        const [usersFromDb, membershipsFromDb] = await Promise.all([
-            getAllUserProfiles(),
-            getAllMemberships()
-        ]);
-        setAllCompanyUsers(usersFromDb);
-        setMembershipOptions(membershipsFromDb.filter(m => m.isActive));
-    } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({ title: "Hata", description: "Kullanıcılar veya üyelik seçenekleri yüklenirken bir sorun oluştu.", variant: "destructive" });
+  const fetchUsers = useCallback(async (isLoadMore = false) => {
+    if (isLoadMore) {
+        setIsLoadingMore(true);
+    } else {
+        setIsLoading(true);
+        setFetchError(null);
     }
-    setIsLoading(false);
-    setOptionsLoading(false);
-  }, [toast]);
+
+    try {
+        const result = await getPaginatedAdminUsers({
+            lastVisibleDoc: isLoadMore ? lastVisibleDoc : null,
+            pageSize: PAGE_SIZE,
+            filters: { showOnlyMembers, showOnlyPendingApproval }
+        });
+        
+        if (result.error) throw new Error(result.error.message);
+
+        const newUsers = result.users;
+        setAllCompanyUsers(prev => isLoadMore ? [...prev, ...newUsers] : newUsers);
+        setLastVisibleDoc(result.newLastVisibleDoc);
+        setHasMore(!!result.newLastVisibleDoc);
+
+    } catch (error: any) {
+        console.error("Failed to fetch users:", error);
+        const errorMessage = error.message || "Kullanıcılar yüklenirken bir sorun oluştu.";
+        setFetchError(errorMessage);
+        toast({ title: "Hata", description: errorMessage, variant: "destructive" });
+    } finally {
+        if (isLoadMore) {
+            setIsLoadingMore(false);
+        } else {
+            setIsLoading(false);
+        }
+    }
+  }, [lastVisibleDoc, showOnlyMembers, showOnlyPendingApproval, toast]);
+
+
+  const handleRefreshAndRefetch = () => {
+    setLastVisibleDoc(null);
+    setHasMore(true);
+    fetchUsers(false);
+  }
 
   useEffect(() => {
-    fetchUsersAndOptions();
-  }, [fetchUsersAndOptions]);
+    handleRefreshAndRefetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showOnlyMembers, showOnlyPendingApproval]);
+
+  useEffect(() => {
+    const fetchMembershipOptions = async () => {
+        setOptionsLoading(true);
+        try {
+            const membershipsFromDb = await getAllMemberships();
+            setMembershipOptions(membershipsFromDb.filter(m => m.isActive));
+        } catch (error) {
+             console.error("Error fetching membership options:", error);
+             toast({ title: "Hata", description: "Üyelik seçenekleri yüklenirken bir sorun oluştu.", variant: "destructive" });
+        }
+        setOptionsLoading(false);
+    };
+
+    fetchMembershipOptions();
+  }, [toast]);
 
 
   useEffect(() => {
@@ -105,7 +154,6 @@ export default function UsersPage() {
     }
   }, [editingUser]);
 
-  // Effect for updating districts when city changes in the dialog
   useEffect(() => {
     const city = currentFormData.addressCity;
     if (city && TURKISH_CITIES.includes(city as TurkishCity)) {
@@ -115,7 +163,6 @@ export default function UsersPage() {
     }
   }, [currentFormData.addressCity]);
 
-  // Effect to reset district if it's no longer valid after city change
   useEffect(() => {
     if (currentFormData.addressDistrict && !availableDistricts.includes(currentFormData.addressDistrict)) {
       setCurrentFormData(prev => ({ ...prev, addressDistrict: '' }));
@@ -166,7 +213,7 @@ export default function UsersPage() {
     const success = await updateUserProfile(editingUser.id, updateData as Partial<CompanyUserProfile>);
     if (success) {
       toast({ title: "Başarılı", description: "Firma profili güncellendi." });
-      fetchUsersAndOptions();
+      handleRefreshAndRefetch();
     } else {
       toast({ title: "Hata", description: "Firma profili güncellenemedi.", variant: "destructive" });
     }
@@ -179,7 +226,7 @@ export default function UsersPage() {
     const success = await deleteUserProfile(id); 
     if (success) {
       toast({ title: "Başarılı", description: "Firma profili silindi.", variant: "destructive" });
-      fetchUsersAndOptions();
+      handleRefreshAndRefetch();
     } else {
       toast({ title: "Hata", description: "Firma profili silinemedi.", variant: "destructive" });
     }
@@ -204,17 +251,16 @@ export default function UsersPage() {
   };
 
   const filteredCompanyUsers = useMemo(() => {
+    if (!searchTerm) return allCompanyUsers;
     return allCompanyUsers.filter(user => {
-      const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                            (user.category && user.category.toLowerCase().includes(searchTerm.toLowerCase()));
-      if (!matchesSearch) return false;
-      if (showOnlyMembers && (!user.membershipStatus || user.membershipStatus === 'Yok')) return false;
-      if (showOnlyPendingApproval && user.isActive === true) return false;
-      return true;
-    }).sort((a, b) => (parseISO(b.createdAt).getTime() || 0) - (parseISO(a.createdAt).getTime() || 0));
-  }, [allCompanyUsers, searchTerm, showOnlyMembers, showOnlyPendingApproval]);
+      const companyUser = user as CompanyUserProfile;
+      const matchesSearch = companyUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            companyUser.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (companyUser.username && companyUser.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                            (companyUser.category && companyUser.category.toLowerCase().includes(searchTerm.toLowerCase()));
+      return matchesSearch;
+    });
+  }, [allCompanyUsers, searchTerm]);
 
   const getMembershipBadge = (status?: string) => {
     if (!status || status === 'Yok') return <Badge variant="outline" className="text-xs">Yok</Badge>;
@@ -313,17 +359,34 @@ export default function UsersPage() {
               <TableCell colSpan={7} className="h-32 text-center">
                 <ShieldAlert className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">
-                  {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Kayıtlı firma kullanıcısı bulunamadı.'}
+                  {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Filtrelerle eşleşen firma bulunamadı.'}
                 </p>
               </TableCell>
             </TableRow>
           )}
         </TableBody>
+        <TableFooter>
+            <TableRow>
+              <TableCell colSpan={7} className="text-center">
+                {isLoadingMore ? (
+                    <Button disabled className="w-full sm:w-auto">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Yükleniyor...
+                  </Button>
+                ) : hasMore ? (
+                  <Button onClick={() => fetchUsers(true)} variant="outline" className="w-full sm:w-auto">
+                    Daha Fazla Yükle
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Tüm firmalar yüklendi.</p>
+                )}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
       </Table>
     </div>
   );
 
-  if (isLoading && allCompanyUsers.length === 0) {
+  if (isLoading && allCompanyUsers.length === 0 && !fetchError) {
     return (
       <div className="space-y-6">
         <Card className="shadow-md">
@@ -378,6 +441,7 @@ export default function UsersPage() {
                   id="showOnlyMembers"
                   checked={showOnlyMembers}
                   onCheckedChange={setShowOnlyMembers}
+                  disabled={isLoading}
               />
               <Label htmlFor="showOnlyMembers" className="font-medium whitespace-nowrap">Sadece Üyeliği Olanlar</Label>
             </div>
@@ -386,11 +450,22 @@ export default function UsersPage() {
                   id="showOnlyPendingApproval"
                   checked={showOnlyPendingApproval}
                   onCheckedChange={setShowOnlyPendingApproval}
+                  disabled={isLoading}
               />
               <Label htmlFor="showOnlyPendingApproval" className="font-medium whitespace-nowrap">Sadece Onay Bekleyenler</Label>
             </div>
           </div>
-          {isLoading ? <div><Skeleton className="h-64 w-full"/></div> : renderUserTable(filteredCompanyUsers)}
+          {isLoading && allCompanyUsers.length === 0 ? (
+                <div><Skeleton className="h-64 w-full"/></div>
+            ) : fetchError ? (
+                <div className="text-center py-10 bg-destructive/10 border border-destructive rounded-lg">
+                    <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+                    <h3 className="text-lg font-semibold text-destructive-foreground mb-2">Firmalar Yüklenemedi</h3>
+                    <p className="text-sm text-destructive-foreground/80 px-4">{fetchError}</p>
+                    <p className="text-xs text-destructive-foreground/70 mt-1 px-4">Eksik bir Firestore dizini olabilir. Lütfen tarayıcı konsolunu kontrol edin.</p>
+                    <Button onClick={handleRefreshAndRefetch} variant="destructive" className="mt-4">Tekrar Dene</Button>
+                </div>
+            ) : renderUserTable(filteredCompanyUsers)}
           
         </CardContent>
       </Card>

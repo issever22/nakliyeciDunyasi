@@ -3,8 +3,8 @@
 
 import { useState, useEffect, type FormEvent, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
@@ -16,11 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon, Repeat, Truck, Home, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon, Repeat, Truck, Home, Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import type { Freight, CommercialFreight, ResidentialFreight, EmptyVehicleListing, FreightType, CargoType as CargoTypeName, VehicleNeeded as VehicleNeededName, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, FreightCreationData, FreightUpdateData, VehicleTypeSetting, CargoTypeSetting, TransportTypeSetting, EmptyVehicleServiceType } from '@/types'; // Added EmptyVehicleListing and ServiceType
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import type { Freight, CommercialFreight, ResidentialFreight, EmptyVehicleListing, FreightType, CargoType as CargoTypeName, VehicleNeeded as VehicleNeededName, LoadingType, CargoForm, WeightUnit, ShipmentScope, ResidentialTransportType, ResidentialPlaceType, ResidentialElevatorStatus, ResidentialFloorLevel, FreightCreationData, FreightUpdateData, VehicleTypeSetting, CargoTypeSetting, TransportTypeSetting, EmptyVehicleServiceType } from '@/types';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type CountryCode, type TurkishCity } from '@/lib/locationData';
 import { 
   LOADING_TYPES, 
@@ -30,16 +31,18 @@ import {
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS,
-  EMPTY_VEHICLE_SERVICE_TYPES // Added
+  EMPTY_VEHICLE_SERVICE_TYPES
 } from '@/lib/constants'; 
-import { getAllListingsForAdmin, addListing, updateListing, deleteListing } from '@/services/listingsService';
+import { getPaginatedAdminListings, addListing, updateListing, deleteListing } from '@/services/listingsService';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
 import { getAllCargoTypes } from '@/services/cargoTypesService';
 import { getAllTransportTypes } from '@/services/transportTypesService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth'; 
 
-const createEmptyFormData = (type: FreightType = 'Yük', currentUserId?: string, currentUserName?: string): Partial<Freight> => { // Changed 'Ticari' to 'Yük'
+const PAGE_SIZE = 15;
+
+const createEmptyFormData = (type: FreightType = 'Yük', currentUserId?: string, currentUserName?: string): Partial<Freight> => {
   const base = {
     userId: currentUserId || 'admin-placeholder-uid', 
     postedBy: currentUserName || 'Admin', 
@@ -59,10 +62,10 @@ const createEmptyFormData = (type: FreightType = 'Yük', currentUserId?: string,
     description: '',
   };
 
-  if (type === 'Yük') { // Changed from 'Ticari'
+  if (type === 'Yük') {
     return {
       ...base,
-      freightType: 'Yük', // Changed from 'Ticari'
+      freightType: 'Yük',
       cargoType: '' as CargoTypeName, 
       vehicleNeeded: '' as VehicleNeededName,
       loadingType: LOADING_TYPES[0] as LoadingType, 
@@ -98,12 +101,16 @@ export default function AdminListingsPage() {
   const { user } = useAuth(); 
   const [allListings, setAllListings] = useState<Freight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<Freight | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
   
-  const [currentFormData, setCurrentFormData] = useState<Partial<Freight>>(createEmptyFormData('Yük', user?.id, user?.name)); // Changed 'Ticari' to 'Yük'
+  const [currentFormData, setCurrentFormData] = useState<Partial<Freight>>(createEmptyFormData('Yük', user?.id, user?.name));
   
   const [availableOriginDistricts, setAvailableOriginDistricts] = useState<readonly string[]>([]);
   const [availableDestinationDistricts, setAvailableDestinationDistricts] = useState<readonly string[]>([]);
@@ -133,23 +140,52 @@ export default function AdminListingsPage() {
     setOptionsLoading(false);
   }, [toast]);
 
-
-  const fetchListings = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const listingsFromDb = await getAllListingsForAdmin();
-      setAllListings(listingsFromDb);
-    } catch (error) {
-      console.error("Failed to fetch admin listings:", error);
-      toast({ title: "Hata", description: "İlanlar yüklenirken bir sorun oluştu.", variant: "destructive" });
+  const fetchListings = useCallback(async (isLoadMore = false) => {
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+      setFetchError(null);
     }
-    setIsLoading(false);
-  }, [toast]);
+    
+    try {
+      const result = await getPaginatedAdminListings({ 
+        lastVisibleDoc: isLoadMore ? lastVisibleDoc : null, 
+        pageSize: PAGE_SIZE,
+      });
+
+      if (result.error) throw new Error(result.error.message);
+      
+      const newFreights = result.listings;
+      setAllListings(prev => isLoadMore ? [...prev, ...newFreights] : newFreights);
+      setLastVisibleDoc(result.newLastVisibleDoc);
+      setHasMore(!!result.newLastVisibleDoc);
+
+    } catch (error: any) {
+      console.error("Failed to fetch admin listings:", error);
+      const errorMessage = error.message || "İlanlar yüklenirken bir sorun oluştu.";
+      setFetchError(errorMessage);
+      toast({ title: "Hata", description: errorMessage, variant: "destructive" });
+    } finally {
+       if (isLoadMore) {
+        setIsLoadingMore(false);
+      } else {
+        setIsLoading(false);
+      }
+    }
+  }, [toast, lastVisibleDoc]);
 
   useEffect(() => {
-    fetchListings();
+    fetchListings(false);
     fetchFormOptions();
-  }, [fetchListings, fetchFormOptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleRefreshAndRefetch = () => {
+    setLastVisibleDoc(null);
+    setHasMore(true);
+    fetchListings(false);
+  }
 
   useEffect(() => {
     if (isAddEditDialogOpen) {
@@ -162,12 +198,11 @@ export default function AdminListingsPage() {
         };
         setCurrentFormData(formDataToSet);
       } else {
-        setCurrentFormData(createEmptyFormData(currentFormData.freightType || 'Yük', user?.id, user?.name)); // Changed 'Ticari' to 'Yük'
+        setCurrentFormData(createEmptyFormData(currentFormData.freightType || 'Yük', user?.id, user?.name));
       }
     }
   }, [editingListing, isAddEditDialogOpen, user, currentFormData.freightType]);
 
-  // Effect to update available origin districts when origin city/country changes
   useEffect(() => {
     let newDistricts: readonly string[] = [];
     if (currentFormData.originCountry === 'TR' && currentFormData.originCity && TURKISH_CITIES.includes(currentFormData.originCity as TurkishCity)) {
@@ -176,14 +211,12 @@ export default function AdminListingsPage() {
     setAvailableOriginDistricts(newDistricts);
   }, [currentFormData.originCity, currentFormData.originCountry]);
 
-  // Effect to reset origin district if it becomes invalid after city/country change
   useEffect(() => {
     if (currentFormData.originDistrict && !availableOriginDistricts.includes(currentFormData.originDistrict)) {
       setCurrentFormData(prev => ({ ...prev, originDistrict: '' }));
     }
   }, [availableOriginDistricts, currentFormData.originDistrict]);
 
-  // Effect to update available destination districts when destination city/country changes
   useEffect(() => {
     let newDistricts: readonly string[] = [];
     if (currentFormData.destinationCountry === 'TR' && currentFormData.destinationCity && TURKISH_CITIES.includes(currentFormData.destinationCity as TurkishCity)) {
@@ -192,7 +225,6 @@ export default function AdminListingsPage() {
     setAvailableDestinationDistricts(newDistricts);
   }, [currentFormData.destinationCity, currentFormData.destinationCountry]);
 
-  // Effect to reset destination district if it becomes invalid after city/country change
   useEffect(() => {
     if (currentFormData.destinationDistrict && !availableDestinationDistricts.includes(currentFormData.destinationDistrict)) {
       setCurrentFormData(prev => ({ ...prev, destinationDistrict: '' }));
@@ -202,8 +234,7 @@ export default function AdminListingsPage() {
 
   const handleAddNew = () => {
     setEditingListing(null);
-    // Retain current dialog type or default to 'Yük'
-    const currentType = currentFormData.freightType || 'Yük'; // Changed 'Ticari' to 'Yük'
+    const currentType = currentFormData.freightType || 'Yük';
     setCurrentFormData(createEmptyFormData(currentType, user?.id, user?.name)); 
     setIsAddEditDialogOpen(true);
   };
@@ -224,7 +255,7 @@ export default function AdminListingsPage() {
     }
     
     const requiredFields: (keyof Freight)[] = ['freightType', 'companyName', 'contactPerson', 'mobilePhone', 'originCity', 'destinationCity', 'loadingDate', 'description'];
-    if (currentFormData.freightType === 'Yük') { // Changed 'Ticari'
+    if (currentFormData.freightType === 'Yük') {
         requiredFields.push('cargoType', 'vehicleNeeded', 'loadingType', 'cargoForm', 'cargoWeight');
     } else if (currentFormData.freightType === 'Evden Eve') {
         requiredFields.push('residentialTransportType', 'residentialPlaceType', 'residentialElevatorStatus', 'residentialFloorLevel');
@@ -232,10 +263,8 @@ export default function AdminListingsPage() {
         requiredFields.push('advertisedVehicleType', 'serviceTypeForLoad', 'vehicleStatedCapacity');
     }
 
-
     for (const field of requiredFields) {
         let valueToCheck: any;
-        // Type assertion to access specific fields
         if (currentFormData.freightType === 'Yük') {
             valueToCheck = (currentFormData as Partial<CommercialFreight>)[field as keyof CommercialFreight];
         } else if (currentFormData.freightType === 'Evden Eve') {
@@ -248,9 +277,8 @@ export default function AdminListingsPage() {
         
         let isMissing = valueToCheck === undefined || valueToCheck === null || (typeof valueToCheck === 'string' && !valueToCheck.trim());
         
-        if (field === 'cargoWeight' && (currentFormData as Partial<CommercialFreight>).cargoWeight === 0) isMissing = false; // 0 is a valid weight
-        if (field === 'vehicleStatedCapacity' && (currentFormData as Partial<EmptyVehicleListing>).vehicleStatedCapacity === 0) isMissing = false; // 0 is a valid capacity
-
+        if (field === 'cargoWeight' && (currentFormData as Partial<CommercialFreight>).cargoWeight === 0) isMissing = false;
+        if (field === 'vehicleStatedCapacity' && (currentFormData as Partial<EmptyVehicleListing>).vehicleStatedCapacity === 0) isMissing = false;
 
         if (isMissing) {
             toast({ title: "Eksik Bilgi", description: `Lütfen "${field}" alanını doldurun.`, variant: "destructive" });
@@ -266,7 +294,6 @@ export default function AdminListingsPage() {
     } as FreightCreationData; 
 
     const { id, postedAt, userId, ...updatePayloadForService } = dataPayload;
-
 
     try {
       if (editingListing && editingListing.id) {
@@ -284,7 +311,7 @@ export default function AdminListingsPage() {
           throw new Error("Yeni ilan eklenemedi.");
         }
       }
-      fetchListings(); 
+      handleRefreshAndRefetch();
       setIsAddEditDialogOpen(false); 
     } catch (error: any) {
       console.error("Error submitting listing:", error);
@@ -299,7 +326,7 @@ export default function AdminListingsPage() {
       const success = await deleteListing(listingId);
       if (success) {
         toast({ title: "Başarılı", description: "İlan silindi.", variant: "destructive" });
-        fetchListings(); 
+        handleRefreshAndRefetch();
       } else {
         throw new Error("İlan silinemedi.");
       }
@@ -310,6 +337,7 @@ export default function AdminListingsPage() {
   };
 
   const filteredListings = useMemo(() => {
+    if (!searchTerm) return allListings;
     return allListings.filter(listing => {
       const searchTermLower = searchTerm.toLowerCase();
       return (
@@ -319,7 +347,7 @@ export default function AdminListingsPage() {
         (listing.originCity && (listing.originCity as string).toLowerCase().includes(searchTermLower)) ||
         (listing.destinationCity && (listing.destinationCity as string).toLowerCase().includes(searchTermLower))
       );
-    }).sort((a, b) => (a.postedAt && b.postedAt) ? parseISO(b.postedAt).getTime() - parseISO(a.postedAt).getTime() : 0);
+    });
   }, [allListings, searchTerm]);
 
   const renderCityInput = (country: CountryCode | string | undefined, city: string | TurkishCity | undefined, setCity: (city: string | TurkishCity) => void, type: 'origin' | 'destination') => {
@@ -395,12 +423,19 @@ export default function AdminListingsPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni İlan Ekle
             </Button>
           </div>
-          {isLoadingCombined ? (
+          {isLoadingCombined && allListings.length === 0 ? (
              <div className="space-y-4">
                 <Skeleton className="h-12 w-full rounded-md" />
                 <Skeleton className="h-20 w-full rounded-md" />
                 <Skeleton className="h-20 w-full rounded-md" />
                 <Skeleton className="h-20 w-full rounded-md" />
+            </div>
+          ) : fetchError ? (
+            <div className="text-center py-10 bg-destructive/10 border border-destructive rounded-lg">
+                <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+                <h3 className="text-lg font-semibold text-destructive-foreground mb-2">İlanlar Yüklenemedi</h3>
+                <p className="text-sm text-destructive-foreground/80 px-4">{fetchError}</p>
+                <Button onClick={handleRefreshAndRefetch} variant="destructive" className="mt-4">Tekrar Dene</Button>
             </div>
           ) : (
           <div className="rounded-md border overflow-x-auto">
@@ -410,8 +445,8 @@ export default function AdminListingsPage() {
                   <TableHead className="w-[120px]">İlan ID</TableHead>
                   <TableHead className="w-[120px]">İlan Tipi</TableHead>
                   <TableHead className="min-w-[180px]">İlan Veren</TableHead>
-                  <TableHead className="min-w-[200px]">Güzergah</TableHead>
-                  <TableHead className="w-[130px]">Yükleme Tarihi</TableHead>
+                  <TableHead className="min-w-[200px] hidden md:table-cell">Güzergah</TableHead>
+                  <TableHead className="w-[130px] hidden sm:table-cell">Yükleme Tarihi</TableHead>
                   <TableHead className="w-[100px] text-center">Aktif</TableHead>
                   <TableHead className="w-[120px] text-right">Eylemler</TableHead>
                 </TableRow>
@@ -421,14 +456,14 @@ export default function AdminListingsPage() {
                   <TableRow key={listing.id} className="hover:bg-muted/50">
                     <TableCell className="font-mono text-xs truncate" title={listing.id}>{listing.id.substring(0,10)}...</TableCell>
                     <TableCell>
-                      <Badge variant={listing.freightType === 'Yük' ? 'default' : (listing.freightType === 'Evden Eve' ? 'secondary' : 'outline')} className="text-xs"> {/* Changed 'Ticari' to 'Yük' */}
-                        {listing.freightType === 'Yük' ? <Truck size={14} className="mr-1.5"/> : (listing.freightType === 'Evden Eve' ? <Home size={14} className="mr-1.5"/> : <PackageIcon size={14} className="mr-1.5"/> )} {/* Changed 'Ticari' to 'Yük' */}
+                      <Badge variant={listing.freightType === 'Yük' ? 'default' : (listing.freightType === 'Evden Eve' ? 'secondary' : 'outline')} className="text-xs">
+                        {listing.freightType === 'Yük' ? <Truck size={14} className="mr-1.5"/> : (listing.freightType === 'Evden Eve' ? <Home size={14} className="mr-1.5"/> : <PackageIcon size={14} className="mr-1.5"/> )}
                         {listing.freightType}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{listing.companyName}</TableCell>
-                    <TableCell className="text-sm">{listing.originCity as string} &rarr; {listing.destinationCity as string}</TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-sm hidden md:table-cell">{listing.originCity as string} &rarr; {listing.destinationCity as string}</TableCell>
+                    <TableCell className="text-sm hidden sm:table-cell">
                       {listing.loadingDate && isValid(parseISO(listing.loadingDate)) 
                         ? format(parseISO(listing.loadingDate), "dd.MM.yyyy", { locale: tr }) 
                         : 'Geçersiz Tarih'}
@@ -475,6 +510,23 @@ export default function AdminListingsPage() {
                   </TableRow>
                 )}
               </TableBody>
+               <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">
+                    {isLoadingMore ? (
+                       <Button disabled className="w-full sm:w-auto">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Yükleniyor...
+                      </Button>
+                    ) : hasMore ? (
+                      <Button onClick={() => fetchListings(true)} variant="outline" className="w-full sm:w-auto">
+                        Daha Fazla Yükle
+                      </Button>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Tüm ilanlar yüklendi.</p>
+                    )}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
             </Table>
           </div>
           )}
@@ -498,7 +550,7 @@ export default function AdminListingsPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="dlg-listingFreightType">İlan Tipi (*)</Label>
                 <Select 
-                    value={currentFormData.freightType || 'Yük'} // Changed 'Ticari' to 'Yük'
+                    value={currentFormData.freightType || 'Yük'}
                     onValueChange={(value) => handleFreightTypeChangeInDialog(value as FreightType)}
                     disabled={!!editingListing} 
                 >
@@ -539,9 +591,9 @@ export default function AdminListingsPage() {
                 </CardContent>
               </Card>
 
-              {currentFormData.freightType === 'Yük' && ( // Changed 'Ticari'
+              {currentFormData.freightType === 'Yük' && (
                 <Card className="border shadow-sm">
-                    <CardHeader className="bg-muted/30"><CardTitle className="text-base">Yük Detayları</CardTitle></CardHeader> {/* Changed */}
+                    <CardHeader className="bg-muted/30"><CardTitle className="text-base">Yük Detayları</CardTitle></CardHeader>
                     <CardContent className="pt-6 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
@@ -770,4 +822,3 @@ export default function AdminListingsPage() {
     </div>
   );
 }
-
