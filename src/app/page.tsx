@@ -37,6 +37,12 @@ import Image from 'next/image';
 import { getListings } from '@/services/listingsService';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 const PAGE_SIZE = 6; 
 
@@ -466,6 +472,59 @@ export default function HomePage() {
                   </Button>
               </div>
           </div>
+      </section>
+
+      <section className="py-16">
+        <div className="text-center">
+            <h2 className="text-3xl font-bold text-center mb-2">Nakliyeci Dünyası Yanıtlıyor</h2>
+            <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-10">Sıkça sorulan sorularla aklınızdaki tüm soru işaretlerini giderin.</p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div className="p-4 sm:p-6 bg-muted/30 rounded-lg">
+                 <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger>İlan vermek ücretli mi?</AccordionTrigger>
+                        <AccordionContent>
+                        Hayır, platformumuzda temel yük ve evden eve nakliyat ilanı vermek tamamen ücretsizdir. İlanınızı oluşturarak dakikalar içinde binlerce nakliyeciden teklif almaya başlayabilirsiniz.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-2">
+                        <AccordionTrigger>Fiyat tekliflerini nasıl alırım?</AccordionTrigger>
+                        <AccordionContent>
+                        İlanınız yayınlandıktan sonra, ilanınızla ilgilenen nakliye firmaları size doğrudan platform üzerinden veya belirttiğiniz iletişim kanalları aracılığıyla fiyat tekliflerini iletecektir.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-3">
+                        <AccordionTrigger>Güvenilir nakliyeciyi nasıl seçerim?</AccordionTrigger>
+                        <AccordionContent>
+                        Teklif veren firmaların profillerini inceleyebilirsiniz. Profillerinde daha önceki müşteri yorumları, puanları ve firma hakkında detaylı bilgiler bulunur. Bu bilgiler doğru seçimi yapmanıza yardımcı olur.
+                        </AccordionContent>
+                    </AccordionItem>
+                     <AccordionItem value="item-4">
+                        <AccordionTrigger>Ödemeyi nasıl yapıyorum?</AccordionTrigger>
+                        <AccordionContent>
+                        Ödeme süreci tamamen siz ve anlaştığınız nakliye firması arasındadır. Platformumuz ödeme işlemlerine aracılık etmez. Ödeme koşullarını firma ile doğrudan görüşmeniz gerekmektedir.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-5" className="border-b-0">
+                        <AccordionTrigger>Taşıma sürecinde eşyalarım sigortalı mı?</AccordionTrigger>
+                        <AccordionContent>
+                        Sigorta konusu, hizmet aldığınız nakliye firmasının politikalarına bağlıdır. Anlaşma yapmadan önce nakliye firmasına sigorta seçeneklerini ve kapsamını mutlaka sormanızı öneririz.
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </div>
+            <div className="hidden lg:flex justify-center">
+                 <Image 
+                      src="https://placehold.co/450x450.png"
+                      alt="Sıkça sorulan sorular için yardımcı karakter"
+                      width={450}
+                      height={450}
+                      className="rounded-xl"
+                      data-ai-hint="customer service mascot"
+                  />
+            </div>
+        </div>
       </section>
 
     </div>
