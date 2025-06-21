@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, MessageSquare, Mail, MailOpen, Eye, Phone, MessageCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, MessageSquare, Mail, MailOpen, Eye, Phone, MessageCircle, Search } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { tr } from 'date-fns/locale';
@@ -36,10 +37,11 @@ export default function AdminMessagesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-
-  // New state for company profile
   const [selectedCompanyProfile, setSelectedCompanyProfile] = useState<CompanyUserProfile | null>(null);
   const [isContacting, setIsContacting] = useState(false);
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'unread'>('all');
 
 
   const fetchMessages = useCallback(async () => {
@@ -52,6 +54,24 @@ export default function AdminMessagesPage() {
   useEffect(() => {
     fetchMessages();
   }, [fetchMessages]);
+
+  const filteredMessages = useMemo(() => {
+    return messages
+      .filter(message => {
+        if (filterStatus === 'unread' && message.isRead) {
+          return false;
+        }
+        return true;
+      })
+      .filter(message => {
+        if (!searchTerm) return true;
+        const lowerCaseSearch = searchTerm.toLowerCase();
+        return (
+          message.userName.toLowerCase().includes(lowerCaseSearch) ||
+          message.title.toLowerCase().includes(lowerCaseSearch)
+        );
+      });
+  }, [messages, searchTerm, filterStatus]);
 
   const handleViewMessage = async (message: Message) => {
     setSelectedMessage(message);
@@ -103,6 +123,25 @@ export default function AdminMessagesPage() {
           <CardDescription>Kullanıcılardan gelen mesajları buradan görüntüleyin ve yönetin.</CardDescription>
         </CardHeader>
         <CardContent>
+           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Gönderen veya konuda ara..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 w-full"
+              />
+            </div>
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+              <Button size="sm" variant={filterStatus === 'all' ? 'default' : 'ghost'} onClick={() => setFilterStatus('all')} className="h-8 px-3">
+                Tümü
+              </Button>
+              <Button size="sm" variant={filterStatus === 'unread' ? 'default' : 'ghost'} onClick={() => setFilterStatus('unread')} className="h-8 px-3">
+                Okunmamış
+              </Button>
+            </div>
+          </div>
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-12 w-full" />
@@ -122,7 +161,7 @@ export default function AdminMessagesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {messages.length > 0 ? messages.map((message) => (
+                  {filteredMessages.length > 0 ? filteredMessages.map((message) => (
                     <TableRow key={message.id} className={!message.isRead ? "font-bold bg-muted/30" : "font-normal"}>
                       <TableCell className="text-center">
                         {message.isRead ? (
@@ -143,7 +182,7 @@ export default function AdminMessagesPage() {
                   )) : (
                     <TableRow>
                       <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                        Gelen kutunuz boş.
+                        {searchTerm || filterStatus !== 'all' ? 'Arama kriterlerinize uygun mesaj bulunamadı.' : 'Gelen kutunuz boş.'}
                       </TableCell>
                     </TableRow>
                   )}
