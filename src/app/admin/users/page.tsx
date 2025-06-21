@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting } from '@/types';
@@ -54,8 +54,7 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<CompanyUserProfile | null>(null);
-  const [showOnlyMembers, setShowOnlyMembers] = useState(false);
-  const [showOnlyPendingApproval, setShowOnlyPendingApproval] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'members' | 'pending' | 'sponsors'>('all');
   
   const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile>>({});
   const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
@@ -71,12 +70,18 @@ export default function UsersPage() {
         setIsLoading(true);
         setFetchError(null);
     }
+    
+    const filters = {
+        showOnlyMembers: activeFilter === 'members',
+        showOnlyPendingApproval: activeFilter === 'pending',
+        showOnlySponsors: activeFilter === 'sponsors',
+    };
 
     try {
         const result = await getPaginatedAdminUsers({
             lastVisibleDoc: isLoadMore ? lastVisibleDoc : null,
             pageSize: PAGE_SIZE,
-            filters: { showOnlyMembers, showOnlyPendingApproval }
+            filters
         });
         
         if (result.error) throw new Error(result.error.message);
@@ -98,7 +103,7 @@ export default function UsersPage() {
             setIsLoading(false);
         }
     }
-  }, [lastVisibleDoc, showOnlyMembers, showOnlyPendingApproval, toast]);
+  }, [activeFilter, lastVisibleDoc, toast]);
 
 
   const handleRefreshAndRefetch = () => {
@@ -110,7 +115,7 @@ export default function UsersPage() {
   useEffect(() => {
     handleRefreshAndRefetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showOnlyMembers, showOnlyPendingApproval]);
+  }, [activeFilter]);
 
   useEffect(() => {
     const fetchMembershipOptions = async () => {
@@ -435,26 +440,13 @@ export default function UsersPage() {
             </Button>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-4 p-3 bg-muted/30 rounded-md border items-center">
-            <div className="flex items-center space-x-2 flex-grow">
-              <Switch
-                  id="showOnlyMembers"
-                  checked={showOnlyMembers}
-                  onCheckedChange={setShowOnlyMembers}
-                  disabled={isLoading}
-              />
-              <Label htmlFor="showOnlyMembers" className="font-medium whitespace-nowrap">Sadece Üyeliği Olanlar</Label>
-            </div>
-            <div className="flex items-center space-x-2 flex-grow">
-              <Switch
-                  id="showOnlyPendingApproval"
-                  checked={showOnlyPendingApproval}
-                  onCheckedChange={setShowOnlyPendingApproval}
-                  disabled={isLoading}
-              />
-              <Label htmlFor="showOnlyPendingApproval" className="font-medium whitespace-nowrap">Sadece Onay Bekleyenler</Label>
-            </div>
+          <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-muted/30 rounded-lg border">
+            <Button size="sm" variant={activeFilter === 'all' ? 'default' : 'ghost'} onClick={() => setActiveFilter('all')} className="h-8 px-3">Tümü</Button>
+            <Button size="sm" variant={activeFilter === 'members' ? 'default' : 'ghost'} onClick={() => setActiveFilter('members')} className="h-8 px-3">Üyeliği Olanlar</Button>
+            <Button size="sm" variant={activeFilter === 'pending' ? 'default' : 'ghost'} onClick={() => setActiveFilter('pending')} className="h-8 px-3">Onay Bekleyenler</Button>
+            <Button size="sm" variant={activeFilter === 'sponsors' ? 'default' : 'ghost'} onClick={() => setActiveFilter('sponsors')} className="h-8 px-3">Sponsorlar</Button>
           </div>
+          
           {isLoading && allCompanyUsers.length === 0 ? (
                 <div><Skeleton className="h-64 w-full"/></div>
             ) : fetchError ? (

@@ -95,6 +95,7 @@ export async function getPaginatedAdminUsers(options: {
   filters?: {
     showOnlyMembers?: boolean;
     showOnlyPendingApproval?: boolean;
+    showOnlySponsors?: boolean;
   };
 }): Promise<{
   users: CompanyUserProfile[];
@@ -114,6 +115,9 @@ export async function getPaginatedAdminUsers(options: {
     }
     if (filters.showOnlyPendingApproval) {
       queryConstraints.push(where('isActive', '==', false));
+    }
+    if (filters.showOnlySponsors) {
+      queryConstraints.push(where('sponsorships', '!=', []));
     }
 
     queryConstraints.push(orderBy('createdAt', 'desc'));
