@@ -168,6 +168,23 @@ export default function Header() {
     }
   };
 
+  const isFirmalarActive = useMemo(() => pathname.startsWith('/arama/firmalar') || pathname.startsWith('/uyelerimiz/firma/'), [pathname]);
+  
+  const isHakkimizdaActive = useMemo(() => {
+      const paths = ['/hakkimizda', '/tasarladigimiz-afisler', '/tasarladigimiz-logolar', '/tasarladigimiz-siteler'];
+      return paths.some(p => pathname.startsWith(p));
+  }, [pathname]);
+
+  const isUyelerimizActive = useMemo(() => {
+    return pathname.startsWith('/uyelerimiz/') && !pathname.startsWith('/uyelerimiz/firma/');
+  }, [pathname]);
+
+  const isBizeUlasinActive = useMemo(() => {
+      const paths = ['/iletisim', '/banka-hesap-no', '/indir'];
+      return paths.some(p => pathname.startsWith(p));
+  }, [pathname]);
+
+
   const renderAnnouncementsList = () => {
     if (isLoadingAnnouncements) {
       return (
@@ -405,14 +422,14 @@ export default function Header() {
             <NavigationMenuList>
               <NavigationMenuItem>
                 <Link href="/arama/firmalar" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                  <NavigationMenuLink active={isFirmalarActive} className={navigationMenuTriggerStyle()}>
                     Firmalar
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <Link href="/hakkimizda" legacyBehavior passHref>
-                  <NavigationMenuTrigger>Hakkımızda</NavigationMenuTrigger>
+                  <NavigationMenuTrigger className={cn(isHakkimizdaActive && 'bg-accent text-accent-foreground')}>Hakkımızda</NavigationMenuTrigger>
                 </Link>
                 <NavigationMenuContent>
                   <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
@@ -433,7 +450,7 @@ export default function Header() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuTrigger>Üyelerimiz</NavigationMenuTrigger>
+                <NavigationMenuTrigger className={cn(isUyelerimizActive && 'bg-accent text-accent-foreground')}>Üyelerimiz</NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] lg:w-[600px] md:grid-cols-2">
                     {COMPANY_CATEGORIES.map((category) => (
@@ -450,7 +467,7 @@ export default function Header() {
               </NavigationMenuItem>
                             
               <NavigationMenuItem>
-                <NavigationMenuTrigger>Bize Ulaşın</NavigationMenuTrigger>
+                <NavigationMenuTrigger className={cn(isBizeUlasinActive && 'bg-accent text-accent-foreground')}>Bize Ulaşın</NavigationMenuTrigger>
                 <NavigationMenuContent>
                     <ul className="grid w-[300px] gap-3 p-4 md:w-[400px]">
                       <ListItem href="/iletisim" title="İletişim">
