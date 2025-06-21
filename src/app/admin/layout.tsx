@@ -19,7 +19,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isSettingsRouteActive = useMemo(() => pathname.startsWith('/admin/settings'), [pathname]);
+  // Updated to exclude the moved pages from highlighting the "Ayarlar" group
+  const isSettingsRouteActive = useMemo(() => {
+    return pathname.startsWith('/admin/settings') && 
+           !pathname.startsWith('/admin/settings/memberships') && 
+           !pathname.startsWith('/admin/settings/announcements');
+  }, [pathname]);
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsRouteActive);
 
   const isUsersRouteActive = useMemo(() => pathname.startsWith('/admin/users'), [pathname]);
@@ -177,6 +183,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             )}
 
             <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings/memberships')} tooltip={{content: "Üyelikler", side: "right"}}>
+                <Link href="/admin/settings/memberships">
+                  <Star /> <span>Üyelikler</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings/announcements')} tooltip={{content: "Duyurular", side: "right"}}>
+                <Link href="/admin/settings/announcements">
+                  <Megaphone /> <span>Duyurular</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
               <SidebarMenuButton 
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)} 
                 isActive={isSettingsRouteActive} 
@@ -187,7 +209,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 {isSettingsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </SidebarMenuButton>
             </SidebarMenuItem>
-
             {isSettingsOpen && (
               <>
                 <SidebarMenuItem className="pl-4">
@@ -212,13 +233,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/memberships'} tooltip={{content: "Üyelikler", side: "right"}}>
-                    <Link href="/admin/settings/memberships">
-                      <Star size={18}/> <span className="text-sm">Üyelikler</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem className="pl-4">
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/cargo-types'} tooltip={{content: "Yük Cinsleri", side: "right"}}>
                     <Link href="/admin/settings/cargo-types">
                       <Boxes size={18}/> <span className="text-sm">Yük Cinsleri</span>
@@ -229,13 +243,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings/transport-types'} tooltip={{content: "Taşımacılık Türleri", side: "right"}}>
                     <Link href="/admin/settings/transport-types">
                       <RouteIcon size={18}/> <span className="text-sm">Taşımacılık Türleri</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/announcements'} tooltip={{content: "Duyurular", side: "right"}}>
-                    <Link href="/admin/settings/announcements">
-                      <Megaphone size={18}/> <span className="text-sm">Duyurular</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
