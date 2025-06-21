@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting, CompanyNote } from '@/types';
@@ -72,7 +72,9 @@ export default function UsersPage() {
 
   const [isViewNotesModalOpen, setIsViewNotesModalOpen] = useState(false);
   const [notesForViewing, setNotesForViewing] = useState<CompanyNote[]>([]);
+  const [isNotesLoading, setIsNotesLoading] = useState(false);
   const [viewingCompany, setViewingCompany] = useState<CompanyUserProfile | null>(null);
+  const [noteFilter, setNoteFilter] = useState<'all' | 'note' | 'payment'>('all');
 
 
   const fetchUsers = useCallback(async (isLoadMore = false) => {
@@ -311,6 +313,7 @@ export default function UsersPage() {
         title: noteContent.title,
         content: noteContent.content,
         author: 'Admin',
+        type: 'note',
     });
     if (success) {
         toast({ title: "Başarılı", description: "Not eklendi." });
@@ -367,6 +370,7 @@ export default function UsersPage() {
       title: noteTitle,
       content: noteContentText,
       author: 'Admin',
+      type: 'payment',
     });
     
     if (noteSuccess) {
@@ -388,12 +392,20 @@ export default function UsersPage() {
 
   const handleViewNotes = async (company: CompanyUserProfile) => {
     setViewingCompany(company);
-    setIsLoading(true);
+    setNoteFilter('all');
+    setIsNotesLoading(true);
+    setIsViewNotesModalOpen(true);
     const notes = await getCompanyNotes(company.id);
     setNotesForViewing(notes);
-    setIsLoading(false);
-    setIsViewNotesModalOpen(true);
+    setIsNotesLoading(false);
   };
+  
+  const filteredNotesForViewing = useMemo(() => {
+    if (noteFilter === 'all') {
+        return notesForViewing;
+    }
+    return notesForViewing.filter(note => note.type === noteFilter);
+  }, [notesForViewing, noteFilter]);
 
 
   const renderUserTable = (userList: CompanyUserProfile[]) => (
@@ -895,33 +907,46 @@ export default function UsersPage() {
                 </AlertDialogContent>
             </AlertDialog>
             
-            <Dialog open={isViewNotesModalOpen} onOpenChange={setIsViewNotesModalOpen}>
-                <DialogContent className="sm:max-w-2xl">
+            <Dialog open={isViewNotesModalOpen} onOpenChange={(open) => { setIsViewNotesModalOpen(open); if (!open) setNoteFilter('all'); }}>
+                <DialogContent className="sm:max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>"{viewingCompany?.name}" İçin Notlar</DialogTitle>
                         <DialogDescription>
-                            Bu firma için kaydedilmiş tüm yönetici notları.
+                            Bu firma için kaydedilmiş tüm yönetici notları ve ödeme kayıtları.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="max-h-[60vh] overflow-y-auto p-1">
-                        {isLoading ? (
+
+                     <div className="flex items-center gap-2 border-b pb-4">
+                        <Button size="sm" variant={noteFilter === 'all' ? 'default' : 'ghost'} onClick={() => setNoteFilter('all')}>Tümü</Button>
+                        <Button size="sm" variant={noteFilter === 'note' ? 'default' : 'ghost'} onClick={() => setNoteFilter('note')}>Notlar</Button>
+                        <Button size="sm" variant={noteFilter === 'payment' ? 'default' : 'ghost'} onClick={() => setNoteFilter('payment')}>Ödemeler</Button>
+                    </div>
+
+                    <div className="max-h-[50vh] overflow-y-auto p-1 -mx-1 pr-3">
+                        {isNotesLoading ? (
                             <div className="flex justify-center items-center h-24">
                                 <Loader2 className="h-6 w-6 animate-spin"/>
                             </div>
-                        ) : notesForViewing.length > 0 ? (
+                        ) : filteredNotesForViewing.length > 0 ? (
                             <div className="space-y-4">
-                                {notesForViewing.map(note => (
+                                {filteredNotesForViewing.map(note => (
                                     <div key={note.id} className="p-4 border rounded-lg bg-muted/30">
-                                        <h4 className="font-semibold text-md">{note.title}</h4>
-                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{note.content}</p>
+                                        <h4 className="font-semibold text-md flex items-center gap-2">
+                                            {note.type === 'payment' ? <CreditCard className="h-4 w-4 text-green-600" /> : <StickyNote className="h-4 w-4 text-blue-600" />}
+                                            {note.title}
+                                        </h4>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-2">{note.content}</p>
                                         <p className="text-xs text-muted-foreground/70 mt-3 text-right">
                                             {format(parseISO(note.createdAt), "dd MMMM yyyy, HH:mm", { locale: tr })}
+                                            {note.author && ` - ${note.author}`}
                                         </p>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-center text-muted-foreground py-8">Bu firma için kayıtlı not bulunmamaktadır.</p>
+                            <p className="text-center text-muted-foreground py-8">
+                                {noteFilter === 'all' ? 'Bu firma için kayıtlı not bulunmamaktadır.' : `Bu firma için kayıtlı ${noteFilter === 'note' ? 'not' : 'ödeme'} bulunmamaktadır.`}
+                            </p>
                         )}
                     </div>
                     <DialogFooter>

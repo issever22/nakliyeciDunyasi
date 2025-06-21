@@ -1,4 +1,5 @@
 
+
 import type {
   CARGO_TYPES,
   VEHICLES_NEEDED,
@@ -242,6 +243,7 @@ export interface CompanyNote {
   content: string;
   createdAt: string; // ISO string
   author?: string; // Name of admin who wrote it
+  type?: 'note' | 'payment';
 }
 
 export interface Message {

@@ -30,6 +30,7 @@ const convertToCompanyNote = (docData: DocumentData, id: string): CompanyNote =>
     content: data.content || '',
     author: data.author || 'Admin',
     createdAt: createdAtStr,
+    type: data.type || 'note', // Default to 'note' for older notes
   };
 };
 
@@ -52,6 +53,7 @@ export const addCompanyNote = async (companyId: string, data: Omit<CompanyNote, 
     const notesRef = collection(db, USERS_COLLECTION, companyId, NOTES_SUBCOLLECTION);
     const docRef = await addDoc(notesRef, {
         ...data,
+        type: data.type || 'note', // Save with type, default to 'note'
         createdAt: Timestamp.fromDate(new Date()),
     });
     return docRef.id;
