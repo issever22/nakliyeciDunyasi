@@ -44,6 +44,7 @@ function AddCompanyForm() {
     contactFullName: searchParams.get('name') || '',
     mobilePhone: searchParams.get('phone') || '',
     companyType: 'local',
+    addressCountry: 'TR',
     addressCity: '',
     fullAddress: '',
     workingMethods: [],
@@ -89,24 +90,30 @@ function AddCompanyForm() {
   };
 
   useEffect(() => {
-    const city = formData.addressCity;
-    if (city && TURKISH_CITIES.includes(city as TurkishCity)) {
-      setAvailableDistricts(DISTRICTS_BY_CITY_TR[city as TurkishCity] || []);
+    if (formData.addressCountry === 'TR') {
+        const city = formData.addressCity;
+        if (city && TURKISH_CITIES.includes(city as TurkishCity)) {
+        setAvailableDistricts(DISTRICTS_BY_CITY_TR[city as TurkishCity] || []);
+        } else {
+        setAvailableDistricts([]);
+        }
     } else {
-      setAvailableDistricts([]);
+        setAvailableDistricts([]);
+        setFormData(prev => ({...prev, addressCity: ''}));
     }
+
     if (!availableDistricts.includes(formData.addressDistrict || '')) {
       setFormData(prev => ({ ...prev, addressDistrict: '' }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.addressCity]);
+  }, [formData.addressCity, formData.addressCountry]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormSubmitting(true);
 
     const requiredFields: (keyof CompanyRegisterData)[] = [
-        'name', 'username', 'email', 'password', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCity', 'fullAddress'
+        'name', 'username', 'email', 'password', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCountry', 'addressCity', 'fullAddress'
     ];
 
     for (const field of requiredFields) {
@@ -134,6 +141,7 @@ function AddCompanyForm() {
             contactFullName: formData.contactFullName!,
             mobilePhone: formData.mobilePhone!,
             companyType: formData.companyType!,
+            addressCountry: formData.addressCountry!,
             addressCity: formData.addressCity!,
             fullAddress: formData.fullAddress!,
             preferredCities: formData.preferredCities?.filter(c => c) || [],
@@ -270,24 +278,33 @@ function AddCompanyForm() {
                 <div className="border-t pt-6 space-y-4">
                     <h3 className="font-medium text-md flex items-center gap-2"><MapPin size={18}/> Adres Bilgileri</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="addressCity">Adres İl (*)</Label>
-                        <Select value={formData.addressCity} onValueChange={(v) => handleSelectChange('addressCity', v)} required>
-                            <SelectTrigger id="addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
-                            <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <div className="space-y-2">
+                            <Label htmlFor="addressCountry">Adres Ülke (*)</Label>
+                            <Select value={formData.addressCountry} onValueChange={(v) => handleSelectChange('addressCountry', v)} required>
+                                <SelectTrigger id="addressCountry"><SelectValue placeholder="Ülke seçin..." /></SelectTrigger>
+                                <SelectContent>{COUNTRIES.filter(c=>c.code !== 'OTHER').map(country => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="addressCity">Adres İl (*)</Label>
+                            <Select value={formData.addressCity} onValueChange={(v) => handleSelectChange('addressCity', v)} required disabled={formData.addressCountry !== 'TR'}>
+                                <SelectTrigger id="addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
+                                <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="addressDistrict">Adres İlçe</Label>
-                        <Select value={formData.addressDistrict} onValueChange={(v) => handleSelectChange('addressDistrict', v)} disabled={!availableDistricts.length}>
-                            <SelectTrigger id="addressDistrict"><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
-                            <SelectContent>{availableDistricts.map(district => <SelectItem key={district} value={district}>{district}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="fullAddress">Açık Adres (*)</Label>
-                        <Textarea id="fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={formData.fullAddress || ''} onChange={handleInputChange} required />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="addressDistrict">Adres İlçe</Label>
+                            <Select value={formData.addressDistrict} onValueChange={(v) => handleSelectChange('addressDistrict', v)} disabled={!availableDistricts.length}>
+                                <SelectTrigger id="addressDistrict"><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
+                                <SelectContent>{availableDistricts.map(district => <SelectItem key={district} value={district}>{district}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="fullAddress">Açık Adres (*)</Label>
+                            <Textarea id="fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={formData.fullAddress || ''} onChange={handleInputChange} required />
+                        </div>
                     </div>
                 </div>
             </CardContent>

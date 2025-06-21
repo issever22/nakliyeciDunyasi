@@ -41,10 +41,13 @@ export default function CompanyRegisterForm() {
   const [website, setWebsite] = useState('');
   const [companyDescription, setCompanyDescription] = useState('');
   const [companyType, setCompanyType] = useState<CompanyUserType | ''>('');
+  
+  const [addressCountry, setAddressCountry] = useState<CountryCode | string>('TR');
   const [addressCity, setAddressCity] = useState<TurkishCity | string>('');
   const [addressDistrict, setAddressDistrict] = useState('');
   const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
   const [fullAddress, setFullAddress] = useState('');
+  
   const [workingMethods, setWorkingMethods] = useState<WorkingMethodType[]>([]);
   const [workingRoutes, setWorkingRoutes] = useState<WorkingRouteType[]>([]);
   
@@ -55,21 +58,23 @@ export default function CompanyRegisterForm() {
   const [agreement, setAgreement] = useState(false);
 
   useEffect(() => {
-    if (TURKISH_CITIES.includes(addressCity as TurkishCity)) {
+    if (addressCountry === 'TR' && TURKISH_CITIES.includes(addressCity as TurkishCity)) {
       setAvailableDistricts(DISTRICTS_BY_CITY_TR[addressCity as TurkishCity] || []);
     } else {
       setAvailableDistricts([]);
     }
     setAddressDistrict('');
-  }, [addressCity]);
+  }, [addressCity, addressCountry]);
+
+
+  const handleAddressCountryChange = (country: CountryCode | string) => {
+    setAddressCountry(country);
+    setAddressCity('');
+    setAddressDistrict('');
+  };
 
   const handleAddressCityChange = (city: TurkishCity | string) => {
     setAddressCity(city);
-    if (TURKISH_CITIES.includes(city as TurkishCity)) {
-      setAvailableDistricts(DISTRICTS_BY_CITY_TR[city as TurkishCity] || []);
-    } else {
-      setAvailableDistricts([]);
-    }
     setAddressDistrict('');
   };
 
@@ -120,7 +125,7 @@ export default function CompanyRegisterForm() {
       toast({ title: "Hata", description: "Lütfen Firma Kategorisi seçin.", variant: "destructive" });
       return;
     }
-    if (!username || !companyTitle || !contactFullName || !mobilePhone || !email || !addressCity || !fullAddress || !password) {
+    if (!username || !companyTitle || !contactFullName || !mobilePhone || !email || !addressCountry || !addressCity || !fullAddress || !password) {
        toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları (*) doldurun.", variant: "destructive" });
        return;
     }
@@ -147,6 +152,7 @@ export default function CompanyRegisterForm() {
         website: website || undefined,
         companyDescription: companyDescription || undefined,
         companyType: companyType as CompanyUserType,
+        addressCountry: addressCountry,
         addressCity,
         addressDistrict: addressDistrict || undefined,
         fullAddress,
@@ -322,12 +328,24 @@ export default function CompanyRegisterForm() {
              <h3 className="font-medium text-md flex items-center gap-2"><MapPin size={18}/> Adres Bilgileri</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label htmlFor="company-addressCountry">Adres Ülke (*)</Label>
+                <Select value={addressCountry} onValueChange={handleAddressCountryChange} required>
+                  <SelectTrigger id="company-addressCountry"><SelectValue placeholder="Ülke seçin..." /></SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.filter(c => c.code !== 'OTHER').map(country => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="company-addressCity">Adres İl (*)</Label>
-                <Select value={addressCity} onValueChange={handleAddressCityChange} required>
+                <Select value={addressCity} onValueChange={handleAddressCityChange} required disabled={addressCountry !== 'TR'}>
                   <SelectTrigger id="company-addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
                   <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
                 </Select>
+                 {addressCountry !== 'TR' && <p className="text-xs text-muted-foreground">İl seçimi sadece Türkiye için geçerlidir.</p>}
               </div>
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="company-addressDistrict">Adres İlçe</Label>
                 <Select value={addressDistrict} onValueChange={setAddressDistrict} disabled={!availableDistricts.length}>
@@ -335,10 +353,10 @@ export default function CompanyRegisterForm() {
                   <SelectContent>{availableDistricts.map(district => <SelectItem key={district} value={district}>{district}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="company-fullAddress">Açık Adres (*)</Label>
-              <Textarea id="company-fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={fullAddress} onChange={(e) => setFullAddress(e.target.value)} required />
+               <div className="space-y-2">
+                <Label htmlFor="company-fullAddress">Açık Adres (*)</Label>
+                <Textarea id="company-fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={fullAddress} onChange={(e) => setFullAddress(e.target.value)} required />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -440,5 +458,3 @@ export default function CompanyRegisterForm() {
     </form>
   );
 }
-
-    

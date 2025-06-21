@@ -55,6 +55,7 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
     website: data.website || undefined,
     companyDescription: data.companyDescription || undefined,
     companyType: data.companyType || 'local',
+    addressCountry: data.addressCountry || 'TR',
     addressCity: data.addressCity || '',
     addressDistrict: data.addressDistrict || undefined,
     fullAddress: data.fullAddress || '',
@@ -176,6 +177,9 @@ export async function getPaginatedCompanies(options: {
     if (filters.category) {
       queryConstraints.push(where('category', '==', filters.category));
     }
+    if (filters.country) {
+      queryConstraints.push(where('addressCountry', '==', filters.country));
+    }
     if (filters.city) {
       queryConstraints.push(where('addressCity', '==', filters.city));
     }
@@ -261,7 +265,7 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
 
     const companyData = profileDataFromForm as Omit<CompanyRegisterData, 'password' | 'isActive'>;
 
-    if (!companyData.username || !companyData.name || !companyData.category || !companyData.contactFullName || !companyData.mobilePhone || !companyData.companyType || !companyData.addressCity || !companyData.fullAddress) {
+    if (!companyData.username || !companyData.name || !companyData.category || !companyData.contactFullName || !companyData.mobilePhone || !companyData.companyType || !companyData.addressCountry || !companyData.addressCity || !companyData.fullAddress) {
         return { profile: null, error: "Lütfen tüm zorunlu alanları doldurun." };
     }
 
@@ -283,6 +287,7 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
       website: companyData.website || undefined,
       companyDescription: companyData.companyDescription || undefined,
       companyType: companyData.companyType,
+      addressCountry: companyData.addressCountry,
       addressCity: companyData.addressCity,
       addressDistrict: companyData.addressDistrict || undefined,
       fullAddress: companyData.fullAddress,

@@ -176,13 +176,18 @@ export default function UsersPage() {
   }, [editingUser]);
 
   useEffect(() => {
-    const city = currentFormData.addressCity;
-    if (city && TURKISH_CITIES.includes(city as TurkishCity)) {
-      setAvailableDistricts(DISTRICTS_BY_CITY_TR[city as TurkishCity] || []);
+    if (currentFormData.addressCountry === 'TR') {
+        const city = currentFormData.addressCity;
+        if (city && TURKISH_CITIES.includes(city as TurkishCity)) {
+        setAvailableDistricts(DISTRICTS_BY_CITY_TR[city as TurkishCity] || []);
+        } else {
+        setAvailableDistricts([]);
+        }
     } else {
-      setAvailableDistricts([]);
+        setAvailableDistricts([]);
+        setCurrentFormData(prev => ({...prev, addressCity: ''}))
     }
-  }, [currentFormData.addressCity]);
+  }, [currentFormData.addressCity, currentFormData.addressCountry]);
 
   useEffect(() => {
     if (currentFormData.addressDistrict && !availableDistricts.includes(currentFormData.addressDistrict)) {
@@ -200,7 +205,7 @@ export default function UsersPage() {
     e.preventDefault();
     if (!editingUser) return;
     
-    const requiredFields: (keyof CompanyUserProfile)[] = ['name', 'email', 'username', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCity', 'fullAddress', 'password'];
+    const requiredFields: (keyof CompanyUserProfile)[] = ['name', 'email', 'username', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCountry', 'addressCity', 'fullAddress', 'password'];
     for (const field of requiredFields) {
         const value = (currentFormData as any)[field];
         if (!value || (typeof value === 'string' && !value.trim())) {
@@ -706,23 +711,32 @@ export default function UsersPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
+                            <Label htmlFor="edit-addressCountry">Adres Ülke (*)</Label>
+                            <Select value={currentFormData.addressCountry} onValueChange={(v) => setCurrentFormData(prev => ({...prev, addressCountry: v}))} required>
+                                <SelectTrigger id="edit-addressCountry"><SelectValue placeholder="Ülke seçin..." /></SelectTrigger>
+                                <SelectContent>{COUNTRIES.filter(c=>c.code !== 'OTHER').map(country => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
                             <Label htmlFor="edit-addressCity">Adres İl (*)</Label>
-                            <Select value={currentFormData.addressCity} onValueChange={(v) => setCurrentFormData(prev => ({...prev, addressCity: v, addressDistrict: ''}))} required>
+                            <Select value={currentFormData.addressCity} onValueChange={(v) => setCurrentFormData(prev => ({...prev, addressCity: v, addressDistrict: ''}))} required disabled={currentFormData.addressCountry !== 'TR'}>
                                 <SelectTrigger id="edit-addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
                                 <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
-                         <div className="space-y-1.5">
+                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
                             <Label htmlFor="edit-addressDistrict">Adres İlçe</Label>
                             <Select value={currentFormData.addressDistrict} onValueChange={(v) => setCurrentFormData(prev => ({...prev, addressDistrict: v}))} disabled={!availableDistricts.length}>
                                 <SelectTrigger id="edit-addressDistrict"><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
                                 <SelectContent>{availableDistricts.map(district => <SelectItem key={district} value={district}>{district}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="edit-fullAddress">Açık Adres (*)</Label>
-                        <Textarea id="edit-fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={currentFormData.fullAddress} onChange={(e) => setCurrentFormData(prev => ({...prev, fullAddress: e.target.value}))} required />
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-fullAddress">Açık Adres (*)</Label>
+                            <Textarea id="edit-fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={currentFormData.fullAddress} onChange={(e) => setCurrentFormData(prev => ({...prev, fullAddress: e.target.value}))} required />
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -985,7 +999,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-
-
-

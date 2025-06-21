@@ -31,6 +31,7 @@ function CompaniesContent() {
     searchTerm: initialQuery,
     category: '',
     city: '',
+    country: '',
   });
 
   const fetchCompanies = useCallback(async (isLoadMore = false) => {

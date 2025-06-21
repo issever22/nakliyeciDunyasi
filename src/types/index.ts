@@ -133,6 +133,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   website?: string;
   companyDescription?: string;
   companyType: CompanyUserType;
+  addressCountry: CountryCode | string;
   addressCity: TurkishCity | string;
   addressDistrict?: string;
   fullAddress: string;
@@ -168,6 +169,7 @@ export interface CompanyRegisterData extends BaseRegisterData {
   website?: string;
   companyDescription?: string;
   companyType: CompanyUserType;
+  addressCountry: CountryCode | string;
   addressCity: TurkishCity | string;
   addressDistrict?: string;
   fullAddress: string;
@@ -282,4 +284,5 @@ export type CompanyFilterOptions = {
     searchTerm: string;
     category: string;
     city: string;
+    country?: string;
 };

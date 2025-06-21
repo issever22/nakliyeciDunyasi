@@ -36,6 +36,7 @@ export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, 
   const [companyDescription, setCompanyDescription] = useState(companyUser.companyDescription || '');
   const [companyType, setCompanyType] = useState<CompanyUserType>(companyUser.companyType);
   
+  const [addressCountry, setAddressCountry] = useState<CountryCode | string>(companyUser.addressCountry || 'TR');
   const [addressCity, setAddressCity] = useState<TurkishCity | string>(companyUser.addressCity);
   const [addressDistrict, setAddressDistrict] = useState(companyUser.addressDistrict || '');
   const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
@@ -56,6 +57,7 @@ export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, 
       setUsername(companyUser.username);
       setCompanyDescription(companyUser.companyDescription || '');
       setCompanyType(companyUser.companyType);
+      setAddressCountry(companyUser.addressCountry || 'TR');
       setAddressCity(companyUser.addressCity);
       setAddressDistrict(companyUser.addressDistrict || '');
       setFullAddress(companyUser.fullAddress);
@@ -67,15 +69,15 @@ export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, 
   }, [companyUser, isOpen]);
 
   useEffect(() => {
-    if (TURKISH_CITIES.includes(addressCity as TurkishCity)) {
-      setAvailableDistricts(DISTRICTS_BY_CITY_TR[addressCity as TurkishCity] || []);
+    if (addressCountry === 'TR' && TURKISH_CITIES.includes(addressCity as TurkishCity)) {
+        setAvailableDistricts(DISTRICTS_BY_CITY_TR[addressCity as TurkishCity] || []);
     } else {
-      setAvailableDistricts([]);
+        setAvailableDistricts([]);
     }
     if (!availableDistricts.includes(addressDistrict)) {
       setAddressDistrict('');
     }
-  }, [addressCity, availableDistricts, addressDistrict]);
+  }, [addressCity, addressCountry, availableDistricts, addressDistrict]);
 
 
   const handleMultiCheckboxChange = (
@@ -111,8 +113,8 @@ export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, 
     e.preventDefault();
     setIsSubmitting(true);
 
-    if (!username || !addressCity || !fullAddress || !companyType) {
-        toast({title: "Hata", description: "Kullanıcı Adı, Adres İl, Açık Adres ve Firma Türü zorunludur.", variant: "destructive"});
+    if (!username || !addressCountry || !addressCity || !fullAddress || !companyType) {
+        toast({title: "Hata", description: "Kullanıcı Adı, Adres Ülke/İl, Açık Adres ve Firma Türü zorunludur.", variant: "destructive"});
         setIsSubmitting(false);
         return;
     }
@@ -121,6 +123,7 @@ export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, 
       username,
       companyDescription: companyDescription || undefined,
       companyType,
+      addressCountry,
       addressCity,
       addressDistrict: addressDistrict || undefined,
       fullAddress,
@@ -179,13 +182,25 @@ export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, 
 
             <h3 className="text-md font-semibold border-t pt-4">Adres Bilgileri</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                    <Label htmlFor="edit-addressCity">Adres İl (*)</Label>
-                    <Select value={addressCity} onValueChange={(v) => setAddressCity(v as TurkishCity)} required>
-                    <SelectTrigger id="edit-addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
-                    <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
-                    </Select>
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-addressCountry">Adres Ülke (*)</Label>
+                <Select value={addressCountry} onValueChange={(v) => { setAddressCountry(v); setAddressCity(''); setAddressDistrict(''); }} required>
+                  <SelectTrigger id="edit-addressCountry"><SelectValue placeholder="Ülke seçin..." /></SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.filter(c => c.code !== 'OTHER').map(country => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                  <Label htmlFor="edit-addressCity">Adres İl (*)</Label>
+                  <Select value={addressCity} onValueChange={(v) => setAddressCity(v as TurkishCity)} required disabled={addressCountry !== 'TR'}>
+                  <SelectTrigger id="edit-addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
+                  <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
+                  </Select>
+                  {addressCountry !== 'TR' && <p className="text-xs text-muted-foreground">İl seçimi sadece Türkiye için geçerlidir.</p>}
+              </div>
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="edit-addressDistrict">Adres İlçe</Label>
                     <Select value={addressDistrict} onValueChange={setAddressDistrict} disabled={!availableDistricts.length}>
@@ -193,10 +208,10 @@ export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, 
                     <SelectContent>{availableDistricts.map(district => <SelectItem key={district} value={district}>{district}</SelectItem>)}</SelectContent>
                     </Select>
                 </div>
-            </div>
-            <div className="space-y-1.5">
-                <Label htmlFor="edit-fullAddress">Açık Adres (*)</Label>
-                <Textarea id="edit-fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={fullAddress} onChange={(e) => setFullAddress(e.target.value)} required />
+                <div className="space-y-1.5">
+                    <Label htmlFor="edit-fullAddress">Açık Adres (*)</Label>
+                    <Textarea id="edit-fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={fullAddress} onChange={(e) => setFullAddress(e.target.value)} required />
+                </div>
             </div>
 
             <h3 className="text-md font-semibold border-t pt-4">Çalışma Alanları</h3>
