@@ -12,7 +12,7 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
-import { parseISO, isValid, max, isAfter } from 'date-fns';
+import { parseISO, isValid, isAfter } from 'date-fns';
 
 
 export const getActiveSponsorCompanyIds = async (): Promise<Set<string>> => {
@@ -62,7 +62,7 @@ export const addSponsorshipsToUser = async (
     if (!userDocSnap.exists()) {
       return { success: false, message: "Seçilen firma bulunamadı.", addedCount: 0, skippedCount: 0 };
     }
-    const userData = userDocSnap.data() as CompanyUserProfile;
+    const userData = userDocSnap.data();
     const existingSponsorships: SponsorshipLocation[] = userData.sponsorships || [];
     const existingSponsorshipsSet = new Set(existingSponsorships.map(s => `${s.type}:${s.name}`));
 
