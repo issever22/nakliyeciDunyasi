@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PhoneCall, Send, Star, Loader2 } from 'lucide-react';
+import { PhoneCall, Send, Star, Loader2, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -104,16 +104,18 @@ export default function MembershipCTA() {
                 </CardHeader>
                 <CardContent className="text-center">
                      <p className="text-muted-foreground mb-6">
-                        Tek bir tıkla üyelik talebinizi bize iletin. Mevcut firma bilgilerinizle bir talep oluşturalım ve üyelik uzmanlarımız size özel tekliflerle en kısa sürede ulaşsın.
+                        Tek bir tıkla üyelik talebinizi bize iletin veya doğrudan bizimle iletişime geçin. Uzmanlarımız size özel tekliflerle en kısa sürede ulaşsın.
                     </p>
-                    <Button onClick={handleDirectRequestSubmit} size="lg" disabled={isSubmitting}>
-                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        <PhoneCall className="mr-2 h-5 w-5"/> Sizi Arayalım
-                    </Button>
+                    <div className="flex flex-col sm:flex-row justify-center gap-4">
+                        <Button onClick={handleDirectRequestSubmit} size="lg" disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            <PhoneCall className="mr-2 h-5 w-5"/> Sizi Arayalım
+                        </Button>
+                        <Button asChild size="lg" variant="outline">
+                           <Link href="/iletisim"><Phone className="mr-2 h-5 w-5"/> Siz Bizi Arayın</Link>
+                        </Button>
+                    </div>
                 </CardContent>
-                 <CardFooter className="justify-center">
-                     <p className="text-xs text-muted-foreground">veya <Link href="/auth/kayit" className="text-primary hover:underline">yeni bir firma hesabı oluşturun</Link>.</p>
-                 </CardFooter>
             </Card>
         </div>
     )
