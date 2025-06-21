@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -44,7 +45,7 @@ export default function BankAccountPage() {
           </div>
           <div className="relative h-64 md:h-full hidden md:block">
             <Image
-              src="https://placehold.co/800x400.png"
+              src="https://issever.co/wp-content/uploads/2025/06/nakliye-kamyon.svg"
               alt="Banka işlemleri illüstrasyonu"
               layout="fill"
               objectFit="cover"
