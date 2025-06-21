@@ -201,7 +201,6 @@ export type DurationUnit = 'Gün' | 'Ay' | 'Yıl';
 export interface MembershipSetting {
   id: string;
   name: string;
-  price: number;
   duration: number;
   durationUnit: DurationUnit;
   features: string[];

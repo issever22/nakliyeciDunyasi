@@ -20,7 +20,6 @@ const convertToMembershipSetting = (docData: DocumentData, id: string): Membersh
   return {
     id,
     name: docData.name || '',
-    price: docData.price || 0,
     duration: docData.duration || 1,
     durationUnit: docData.durationUnit || 'Ay',
     features: Array.isArray(docData.features) ? docData.features : [],
@@ -31,7 +30,7 @@ const convertToMembershipSetting = (docData: DocumentData, id: string): Membersh
 
 export const getAllMemberships = async (): Promise<MembershipSetting[]> => {
   try {
-    const q = query(collection(db, MEMBERSHIPS_COLLECTION), orderBy('price', 'asc'));
+    const q = query(collection(db, MEMBERSHIPS_COLLECTION), orderBy('duration', 'asc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => convertToMembershipSetting(doc.data(), doc.id));
   } catch (error) {

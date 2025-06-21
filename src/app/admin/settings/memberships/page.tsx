@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit, Trash2, Search, Star, BadgeDollarSign, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Star, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { MembershipSetting, DurationUnit } from '@/types';
 import { getAllMemberships, addMembership, updateMembership, deleteMembership } from '@/services/membershipsService';
@@ -28,7 +28,7 @@ export default function MembershipsPage() {
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingMembership, setEditingMembership] = useState<MembershipSetting | null>(null);
   
-  const [currentFormData, setCurrentFormData] = useState<{ name: string; price: string; duration: string; durationUnit: DurationUnit; features: string; isActive: boolean; description: string }>({ name: '', price: '', duration: '', durationUnit: 'Ay', features: '', isActive: true, description: '' });
+  const [currentFormData, setCurrentFormData] = useState<{ name: string; duration: string; durationUnit: DurationUnit; features: string; isActive: boolean; description: string }>({ name: '', duration: '', durationUnit: 'Ay', features: '', isActive: true, description: '' });
 
   const fetchMemberships = useCallback(async () => {
     setIsLoading(true);
@@ -45,7 +45,6 @@ export default function MembershipsPage() {
     if (editingMembership) {
       setCurrentFormData({
         name: editingMembership.name,
-        price: String(editingMembership.price),
         duration: String(editingMembership.duration),
         durationUnit: editingMembership.durationUnit,
         features: editingMembership.features.join('\n'),
@@ -53,7 +52,7 @@ export default function MembershipsPage() {
         description: editingMembership.description || '',
       });
     } else {
-      setCurrentFormData({ name: '', price: '', duration: '', durationUnit: 'Ay', features: '', isActive: true, description: '' });
+      setCurrentFormData({ name: '', duration: '', durationUnit: 'Ay', features: '', isActive: true, description: '' });
     }
   }, [editingMembership, isAddEditDialogOpen]);
 
@@ -69,16 +68,11 @@ export default function MembershipsPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const priceNum = parseFloat(currentFormData.price);
     const durationNum = parseInt(currentFormData.duration, 10);
 
     if (!currentFormData.name.trim()) {
         toast({ title: "Hata", description: "Üyelik adı boş bırakılamaz.", variant: "destructive" });
         return;
-    }
-    if (isNaN(priceNum) || priceNum < 0) {
-      toast({ title: "Hata", description: "Geçerli bir fiyat girin.", variant: "destructive" });
-      return;
     }
     if (isNaN(durationNum) || durationNum <= 0) {
       toast({ title: "Hata", description: "Geçerli bir süre girin.", variant: "destructive" });
@@ -90,7 +84,6 @@ export default function MembershipsPage() {
 
     const membershipData: Omit<MembershipSetting, 'id'> = {
       name: currentFormData.name,
-      price: priceNum,
       duration: durationNum,
       durationUnit: currentFormData.durationUnit,
       features: featuresArray,
@@ -168,7 +161,6 @@ export default function MembershipsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[150px]">Paket Adı</TableHead>
-                  <TableHead className="w-[100px]">Fiyat</TableHead>
                   <TableHead className="w-[120px]">Süre</TableHead>
                   <TableHead className="min-w-[200px]">Özellikler</TableHead>
                   <TableHead className="w-[100px] text-center">Aktif</TableHead>
@@ -179,7 +171,6 @@ export default function MembershipsPage() {
                 {filteredMemberships.length > 0 ? filteredMemberships.map((mem) => (
                   <TableRow key={mem.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{mem.name}</TableCell>
-                    <TableCell>{mem.price} TL</TableCell>
                     <TableCell>{mem.duration} {mem.durationUnit}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       <ul className="list-disc list-inside">
@@ -223,7 +214,7 @@ export default function MembershipsPage() {
                   </TableRow>
                 )) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Kayıtlı üyelik paketi bulunamadı.'}
                     </TableCell>
                   </TableRow>
@@ -252,11 +243,7 @@ export default function MembershipsPage() {
                 <Label htmlFor="memName" className="font-medium">Paket Adı (*)</Label>
                 <Input id="memName" value={currentFormData.name} onChange={(e) => setCurrentFormData({...currentFormData, name: e.target.value})} placeholder="Örn: Premium Üyelik" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5 sm:col-span-1">
-                  <Label htmlFor="memPrice" className="font-medium">Fiyat (TL) (*)</Label>
-                  <Input id="memPrice" type="number" value={currentFormData.price} onChange={(e) => setCurrentFormData({...currentFormData, price: e.target.value})} placeholder="Örn: 99" />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5 sm:col-span-1">
                   <Label htmlFor="memDuration" className="font-medium">Süre (*)</Label>
                   <Input id="memDuration" type="number" value={currentFormData.duration} onChange={(e) => setCurrentFormData({...currentFormData, duration: e.target.value})} placeholder="Örn: 1" />

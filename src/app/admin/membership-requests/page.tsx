@@ -112,7 +112,6 @@ export default function MembershipRequestsPage() {
                 newEndDate.setDate(newEndDate.getDate() + pkg.duration);
             }
           setMembershipEndDate(newEndDate);
-          setMembershipFee(String(pkg.price));
       }
   }
 
@@ -127,6 +126,7 @@ export default function MembershipRequestsPage() {
           const fee = parseFloat(membershipFee);
           if(isNaN(fee) || fee < 0) {
                toast({ title: "Hata", description: "Geçerli bir ücret girin.", variant: "destructive" });
+               setIsSubmitting(false);
                return;
           }
 
@@ -295,7 +295,7 @@ export default function MembershipRequestsPage() {
                             <Select onValueChange={handleMembershipPackageSelect} required>
                                 <SelectTrigger><SelectValue placeholder="Paket seçin..."/></SelectTrigger>
                                 <SelectContent>
-                                    {membershipOptions.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.name} ({opt.price} TL / {opt.duration} {opt.durationUnit})</SelectItem>)}
+                                    {membershipOptions.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.name} ({opt.duration} {opt.durationUnit})</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
