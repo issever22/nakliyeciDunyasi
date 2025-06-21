@@ -31,13 +31,15 @@ const formatWhatsAppNumber = (phone: string) => {
 
 
 function ListingDetailContent() {
-    const { isAuthenticated, loading } = useAuth();
+    const { user, loading } = useAuth();
     const params = useParams();
     const listingId = params.id as string;
     
     const [listing, setListing] = useState<Freight | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const isMember = user?.membershipStatus && user.membershipStatus !== 'Yok';
 
     useEffect(() => {
         if (!listingId) {
@@ -84,7 +86,7 @@ function ListingDetailContent() {
         );
     }
     
-    if (!isAuthenticated) {
+    if (!isMember) {
         return <MembershipCTA />;
     }
     

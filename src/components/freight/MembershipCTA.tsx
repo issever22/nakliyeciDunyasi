@@ -26,6 +26,7 @@ export default function MembershipCTA() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // This effect is for the guest form, pre-filling if a user happens to be logged in but the non-member card isn't shown for some reason.
     if (isAuthenticated && user) {
         const companyUser = user as CompanyUserProfile;
         setName(companyUser.contactFullName || companyUser.name);
@@ -35,7 +36,7 @@ export default function MembershipCTA() {
     }
   }, [user, isAuthenticated]);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleGuestFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!name || !phone || !details) {
         toast({ title: "Eksik Bilgi", description: "Lütfen Ad Soyad, Telefon ve Talep Detayları alanlarını doldurun.", variant: "destructive" });
@@ -66,6 +67,58 @@ export default function MembershipCTA() {
     }
   };
 
+  const handleDirectRequestSubmit = async () => {
+    if (!user) return;
+    setIsSubmitting(true);
+    try {
+        const result = await addMembershipRequest({
+            name: user.contactFullName || user.name,
+            phone: user.mobilePhone || 'Belirtilmedi',
+            details: `"${user.name}" firmasından otomatik üyelik talebi.`,
+            email: user.email,
+            companyName: user.companyTitle || user.name,
+            userId: user.id
+        });
+        if (result.success) {
+            toast({ title: "Talebiniz Alındı!", description: "Üyelik temsilcimiz en kısa sürede sizinle iletişime geçecektir." });
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error: any) {
+        toast({ title: "Hata", description: error.message || "Talep gönderilirken bir sorun oluştu.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  if (isAuthenticated && user) {
+    return (
+        <div className="max-w-4xl mx-auto py-12">
+            <Card className="shadow-2xl border-primary/20 bg-gradient-to-br from-card to-muted/20">
+                <CardHeader className="text-center items-center">
+                    <Star className="h-16 w-16 text-primary mb-4" />
+                    <CardTitle className="text-3xl font-bold text-primary">Sayın {user.name}, Ayrıcalıklara Sahip Olun!</CardTitle>
+                    <CardDescription className="max-w-2xl mx-auto text-lg text-muted-foreground">
+                        Bu ilanın detaylarını ve iletişim bilgilerini görmek, platformdaki tüm fırsatlardan yararlanmak için üyeliğinizi şimdi başlatın.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center">
+                     <p className="text-muted-foreground mb-6">
+                        Tek bir tıkla üyelik talebinizi bize iletin. Mevcut firma bilgilerinizle bir talep oluşturalım ve üyelik uzmanlarımız size özel tekliflerle en kısa sürede ulaşsın.
+                    </p>
+                    <Button onClick={handleDirectRequestSubmit} size="lg" disabled={isSubmitting}>
+                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        <PhoneCall className="mr-2 h-5 w-5"/> Sizi Arayalım
+                    </Button>
+                </CardContent>
+                 <CardFooter className="justify-center">
+                     <p className="text-xs text-muted-foreground">veya <Link href="/auth/kayit" className="text-primary hover:underline">yeni bir firma hesabı oluşturun</Link>.</p>
+                 </CardFooter>
+            </Card>
+        </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto py-12">
       <Card className="shadow-2xl border-primary/20 bg-gradient-to-br from-card to-muted/20">
@@ -82,7 +135,7 @@ export default function MembershipCTA() {
             <p className="text-sm text-muted-foreground">
                 Aşağıdaki formu doldurun, üyelik uzmanlarımız size en uygun paketler hakkında bilgi vermek için en kısa sürede ulaşsın.
             </p>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleGuestFormSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="cta-name">Ad Soyad (*)</Label>
