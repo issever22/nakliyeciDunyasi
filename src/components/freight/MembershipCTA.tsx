@@ -32,7 +32,7 @@ export default function MembershipCTA() {
         setName(companyUser.contactFullName || companyUser.name);
         setPhone(companyUser.mobilePhone || '');
         setEmail(companyUser.email || '');
-        setCompanyName(companyUser.companyTitle || companyUser.name);
+        setCompanyName(companyUser.companyTitle || user.name);
     }
   }, [user, isAuthenticated]);
 
