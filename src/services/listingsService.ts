@@ -141,7 +141,7 @@ export const getPaginatedAdminListings = async (
 
     if (error.code === 'failed-precondition') {
         errorMessage = error.message || "Eksik Firestore dizini. Lütfen sunucu konsolunu kontrol edin.";
-        const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
             indexCreationUrl = match[0];
@@ -170,7 +170,7 @@ export const getListingsByUserId = async (userId: string): Promise<{ listings: F
 
     if (error.code === 'failed-precondition') {
         errorMessage = error.message || "Eksik Firestore dizini (kullanıcı ilanları). Lütfen sunucu konsolunu kontrol edin.";
-        const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
             indexCreationUrl = match[0];
@@ -251,7 +251,7 @@ export const getListings = async (
 
     if (error.code === 'failed-precondition') {
         errorMessage = error.message || "Eksik Firestore dizini. Lütfen sunucu konsolunu kontrol edin.";
-        const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
             indexCreationUrl = match[0];
@@ -344,5 +344,3 @@ export const deleteListing = async (id: string): Promise<boolean> => {
     return false;
   }
 };
-
-    

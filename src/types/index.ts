@@ -7,7 +7,6 @@ import type {
   WEIGHT_UNITS,
   SHIPMENT_SCOPES,
   FREIGHT_TYPES,
-  // RESIDENTIAL_TRANSPORT_TYPES, // This was removed as it's derived from settings
   RESIDENTIAL_PLACE_TYPES,
   RESIDENTIAL_ELEVATOR_STATUSES,
   RESIDENTIAL_FLOOR_LEVELS,
@@ -27,8 +26,7 @@ export type WeightUnit = typeof WEIGHT_UNITS[number];
 export type ShipmentScope = typeof SHIPMENT_SCOPES[number];
 
 export type FreightType = typeof FREIGHT_TYPES[number];
-// export type ResidentialTransportType = typeof RESIDENTIAL_TRANSPORT_TYPES[number]; // This is now a string from settings
-export type ResidentialTransportType = string; // From settingsTransportTypes now
+export type ResidentialTransportType = string;
 export type ResidentialPlaceType = typeof RESIDENTIAL_PLACE_TYPES[number];
 export type ResidentialElevatorStatus = typeof RESIDENTIAL_ELEVATOR_STATUSES[number];
 export type ResidentialFloorLevel = typeof RESIDENTIAL_FLOOR_LEVELS[number];
@@ -106,6 +104,13 @@ export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
 export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
 export type MembershipStatus = 'Yok' | 'Standart' | 'Premium';
 
+export interface SponsorshipLocation {
+  type: 'country' | 'city';
+  name: string; // Country code or City name
+  startDate: string; // ISO string
+  endDate?: string; // ISO string
+}
+
 interface BaseUserProfile {
   id: string;
   email: string;
@@ -140,6 +145,8 @@ export interface CompanyUserProfile extends BaseUserProfile {
   membershipEndDate?: string; 
   ownedVehicles: string[];
   authDocuments: string[];
+  sponsorships?: SponsorshipLocation[];
+  sponsorshipExpiryDate?: string; // ISO String of the latest expiry date for querying
 }
 
 export type UserProfile = CompanyUserProfile; 
@@ -241,21 +248,6 @@ export interface AdminNoteSetting {
   createdDate: string; 
   lastModifiedDate: string; 
   isImportant: boolean;
-}
-
-export type SponsorEntityType = 'country' | 'city';
-export interface Sponsor {
-  id: string;
-  companyId: string;
-  name: string;
-  logoUrl?: string;
-  linkUrl?: string;
-  entityType: SponsorEntityType;
-  entityName: string; 
-  startDate: string; 
-  endDate?: string; 
-  isActive: boolean;
-  createdAt: string; 
 }
 
 export type FreightFilterOptions = {

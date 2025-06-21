@@ -25,10 +25,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const isUsersRouteActive = useMemo(() => pathname.startsWith('/admin/users'), [pathname]);
   const [isUsersOpen, setIsUsersOpen] = useState(isUsersRouteActive);
 
-  const isSponsorsRouteActive = useMemo(() => pathname.startsWith('/admin/sponsors'), [pathname]);
-  const [isSponsorsOpen, setIsSponsorsOpen] = useState(isSponsorsRouteActive);
-
-
   useEffect(() => {
     if (typeof window === 'undefined') {
       setIsLoading(true); 
@@ -54,10 +50,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
      if (isUsersRouteActive && !isUsersOpen) {
       setIsUsersOpen(true);
     }
-    if (isSponsorsRouteActive && !isSponsorsOpen) {
-      setIsSponsorsOpen(true);
-    }
-  }, [isSettingsRouteActive, isSettingsOpen, isUsersRouteActive, isUsersOpen, isSponsorsRouteActive, isSponsorsOpen]);
+  }, [isSettingsRouteActive, isSettingsOpen, isUsersRouteActive, isUsersOpen]);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -147,34 +140,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </SidebarMenuItem>
 
              <SidebarMenuItem>
-              <SidebarMenuButton 
-                onClick={() => setIsSponsorsOpen(!isSponsorsOpen)} 
-                isActive={isSponsorsRouteActive} 
-                tooltip={{content: "Sponsorlar", side: "right"}}
-                className="w-full flex justify-between items-center" 
-              >
-                <div className="flex items-center gap-2"><Award /> <span>Sponsorlar</span></div>
-                {isSponsorsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            {isSponsorsOpen && (
-              <>
-                <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/sponsors'} tooltip={{content: "Sponsor Listesi", side: "right"}}>
-                    <Link href="/admin/sponsors">
-                      <List size={18}/> <span className="text-sm">Sponsor Listesi</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/sponsors/add'} tooltip={{content: "Sponsor Ekle", side: "right"}}>
-                    <Link href="/admin/sponsors/add">
-                      <PlusCircle size={18}/> <span className="text-sm">Sponsor Ekle</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </>
-            )}
+                <SidebarMenuButton asChild isActive={pathname === '/admin/sponsors/add'} tooltip={{content: "Sponsor Ekle", side: "right"}}>
+                <Link href="/admin/sponsors/add">
+                    <Award /> <span>Sponsor Ekle</span>
+                </Link>
+                </SidebarMenuButton>
+             </SidebarMenuItem>
             
             <SidebarMenuItem>
               <SidebarMenuButton 

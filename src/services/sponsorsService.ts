@@ -1,81 +1,38 @@
 
 'use server';
 import { db } from '@/lib/firebase';
-import type { Sponsor, SponsorEntityType } from '@/types';
+import type { CompanyUserProfile, SponsorshipLocation } from '@/types';
 import { 
   collection, 
-  addDoc, 
-  getDocs, 
   doc, 
   updateDoc, 
-  deleteDoc, 
-  query, 
-  orderBy, 
   Timestamp,
-  DocumentData,
   getDoc,
+  query,
   where,
-  writeBatch
+  getDocs,
 } from 'firebase/firestore';
-import { parseISO, isValid } from 'date-fns';
+import { parseISO, isValid, max, isAfter } from 'date-fns';
 
-const SPONSORS_COLLECTION = 'sponsors';
-
-const convertToSponsor = (docData: DocumentData, id: string): Sponsor => {
-  const data = { ...docData };
-  
-  if (data.startDate && data.startDate instanceof Timestamp) {
-    data.startDate = data.startDate.toDate().toISOString();
-  } else {
-    console.warn(`[sponsorsService] Sponsor ${id}: startDate is not a Timestamp or is missing. Original:`, data.startDate);
-    data.startDate = new Date().toISOString(); // fallback, as startDate is mandatory
-  }
-
-  if (data.endDate && data.endDate instanceof Timestamp) {
-    data.endDate = data.endDate.toDate().toISOString();
-  } else {
-    console.warn(`[sponsorsService] Sponsor ${id}: endDate is not a Timestamp or is missing. Original:`, data.endDate);
-    data.endDate = undefined; // endDate is optional
-  }
-
-  if (data.createdAt && data.createdAt instanceof Timestamp) {
-    data.createdAt = data.createdAt.toDate().toISOString();
-  } else {
-    console.warn(`[sponsorsService] Sponsor ${id}: createdAt is not a Timestamp or is missing. Defaulting. Original:`, data.createdAt);
-    data.createdAt = new Date().toISOString(); // fallback
-  }
-  
-  data.isActive = data.isActive === undefined ? true : data.isActive;
-
-  return {
-    id,
-    ...data,
-  } as Sponsor;
-};
 
 export const getActiveSponsorCompanyIds = async (): Promise<Set<string>> => {
     try {
-        const sponsorsRef = collection(db, SPONSORS_COLLECTION);
-        const today = Timestamp.fromDate(new Date());
+        const usersRef = collection(db, 'users');
+        const today = Timestamp.now();
 
-        const q = query(
-            sponsorsRef,
-            where('isActive', '==', true),
-            where('startDate', '<=', today)
-        );
+        // Firestore cannot do an OR query on two different fields.
+        // We need to fetch users whose sponsorship has not expired OR is indefinite (null).
+        const q1 = query(usersRef, where('sponsorshipExpiryDate', '>=', today));
+        const q2 = query(usersRef, where('sponsorshipExpiryDate', '==', null));
+        
+        const [snapshot1, snapshot2] = await Promise.all([
+            getDocs(q1),
+            getDocs(q2)
+        ]);
 
-        const querySnapshot = await getDocs(q);
         const sponsorIds = new Set<string>();
-
-        querySnapshot.docs.forEach(doc => {
-            const sponsor = doc.data();
-            const endDate = sponsor.endDate ? sponsor.endDate.toDate() : null;
-
-            // Add to set if there's no end date or if the end date is in the future
-            if (!endDate || endDate >= new Date()) {
-                sponsorIds.add(sponsor.companyId);
-            }
-        });
+        snapshot1.docs.forEach(doc => sponsorIds.add(doc.id));
+        snapshot2.docs.forEach(doc => sponsorIds.add(doc.id));
 
         return sponsorIds;
     } catch (error) {
@@ -85,54 +42,12 @@ export const getActiveSponsorCompanyIds = async (): Promise<Set<string>> => {
 };
 
 
-export const getAllSponsors = async (): Promise<Sponsor[]> => {
-  try {
-    const sponsorsRef = collection(db, SPONSORS_COLLECTION);
-    const q = query(sponsorsRef, orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => convertToSponsor(doc.data(), doc.id));
-  } catch (error) {
-    console.error("Error fetching sponsors: ", error);
-    return [];
-  }
-};
-
-export const addSponsor = async (sponsorData: Omit<Sponsor, 'id' | 'createdAt'>): Promise<string | null> => {
-  try {
-    const dataToSave: any = {
-      ...sponsorData,
-      createdAt: Timestamp.fromDate(new Date()),
-      isActive: sponsorData.isActive === undefined ? true : sponsorData.isActive,
-    };
-
-    if (sponsorData.startDate && isValid(parseISO(sponsorData.startDate))) {
-        dataToSave.startDate = Timestamp.fromDate(parseISO(sponsorData.startDate));
-    } else {
-        // startDate is mandatory per type, should ideally throw error or handle
-        console.error("[sponsorsService] addSponsor: Invalid or missing startDate.");
-        return null; 
-    }
-
-    if (sponsorData.endDate && isValid(parseISO(sponsorData.endDate))) {
-        dataToSave.endDate = Timestamp.fromDate(parseISO(sponsorData.endDate));
-    } else {
-        dataToSave.endDate = null; // endDate is optional, Firestore handles null
-    }
-
-    const docRef = await addDoc(collection(db, SPONSORS_COLLECTION), dataToSave);
-    return docRef.id;
-  } catch (error) {
-    console.error("Error adding sponsor: ", error);
-    return null;
-  }
-};
-
-export const addSponsorshipsBatch = async (
+export const addSponsorshipsToUser = async (
   companyId: string,
   countryCodes: string[],
   cityNames: string[],
-  startDate: string,
-  endDate?: string
+  startDateStr: string,
+  endDateStr?: string
 ): Promise<{ success: boolean; message: string; addedCount: number; skippedCount: number }> => {
   if (!companyId) {
     return { success: false, message: "Firma seçimi zorunludur.", addedCount: 0, skippedCount: 0 };
@@ -142,125 +57,72 @@ export const addSponsorshipsBatch = async (
   }
 
   try {
-    const companyDocRef = doc(db, 'users', companyId);
-    const companyDocSnap = await getDoc(companyDocRef);
-    if (!companyDocSnap.exists()) {
+    const userDocRef = doc(db, 'users', companyId);
+    const userDocSnap = await getDoc(userDocRef);
+    if (!userDocSnap.exists()) {
       return { success: false, message: "Seçilen firma bulunamadı.", addedCount: 0, skippedCount: 0 };
     }
-    const companyData = companyDocSnap.data();
+    const userData = userDocSnap.data() as CompanyUserProfile;
+    const existingSponsorships: SponsorshipLocation[] = userData.sponsorships || [];
+    const existingSponsorshipsSet = new Set(existingSponsorships.map(s => `${s.type}:${s.name}`));
 
-    // Fetch existing sponsorships for this company
-    const sponsorsRef = collection(db, SPONSORS_COLLECTION);
-    const q = query(sponsorsRef, where('companyId', '==', companyId));
-    const existingSponsorsSnapshot = await getDocs(q);
-    const existingSponsorships = new Set(
-      existingSponsorsSnapshot.docs.map(d => `${d.data().entityType}:${d.data().entityName}`)
-    );
-
-    const batch = writeBatch(db);
     let addedCount = 0;
-    let skippedCount = 0;
+    
+    const newSponsorships: SponsorshipLocation[] = [];
 
-    const sponsorBase = {
-      companyId: companyId,
-      name: companyData.name || 'Bilinmeyen Firma',
-      logoUrl: companyData.logoUrl || undefined,
-      linkUrl: companyData.website || undefined,
-      startDate: Timestamp.fromDate(parseISO(startDate)),
-      endDate: endDate ? Timestamp.fromDate(parseISO(endDate)) : null,
-      isActive: true,
-      createdAt: Timestamp.fromDate(new Date()),
-    };
+    countryCodes.forEach(code => {
+        if (!existingSponsorshipsSet.has(`country:${code}`)) {
+            newSponsorships.push({ type: 'country', name: code, startDate: startDateStr, endDate: endDateStr });
+            addedCount++;
+        }
+    });
 
-    // Add country sponsorships
-    for (const code of countryCodes) {
-      if (!existingSponsorships.has(`country:${code}`)) {
-        const newSponsorDocRef = doc(collection(db, SPONSORS_COLLECTION));
-        batch.set(newSponsorDocRef, {
-          ...sponsorBase,
-          entityType: 'country',
-          entityName: code,
-        });
-        addedCount++;
-      } else {
-        skippedCount++;
-      }
+    cityNames.forEach(name => {
+        if (!existingSponsorshipsSet.has(`city:${name}`)) {
+            newSponsorships.push({ type: 'city', name: name, startDate: startDateStr, endDate: endDateStr });
+            addedCount++;
+        }
+    });
+
+    if (addedCount === 0) {
+        return { success: true, message: 'Seçilen tüm sponsorluklar zaten mevcut, yeni kayıt eklenmedi.', addedCount: 0, skippedCount: countryCodes.length + cityNames.length };
     }
 
-    // Add city sponsorships
-    for (const name of cityNames) {
-      if (!existingSponsorships.has(`city:${name}`)) {
-        const newSponsorDocRef = doc(collection(db, SPONSORS_COLLECTION));
-        batch.set(newSponsorDocRef, {
-          ...sponsorBase,
-          entityType: 'city',
-          entityName: name,
-        });
-        addedCount++;
-      } else {
-        skippedCount++;
-      }
-    }
+    const allSponsorships = [...existingSponsorships, ...newSponsorships];
 
-    if (addedCount > 0) {
-      await batch.commit();
+    // Calculate the latest expiry date
+    let latestExpiry: Date | null = null;
+    let hasIndefiniteSponsorship = false;
+
+    for (const sp of allSponsorships) {
+        if (!sp.endDate) {
+            hasIndefiniteSponsorship = true;
+            break; // If one is indefinite, the overall expiry is indefinite (null)
+        }
+        const currentEndDate = parseISO(sp.endDate);
+        if (isValid(currentEndDate)) {
+            if (!latestExpiry || isAfter(currentEndDate, latestExpiry)) {
+                latestExpiry = currentEndDate;
+            }
+        }
     }
     
-    let message = '';
-    if (addedCount > 0) message += `${addedCount} yeni sponsorluk eklendi. `;
-    if (skippedCount > 0) message += `${skippedCount} mevcut sponsorluk atlandı.`;
-    if (addedCount === 0 && skippedCount > 0) message = 'Seçilen tüm sponsorluklar zaten mevcut, yeni kayıt eklenmedi.';
-    if (addedCount === 0 && skippedCount === 0) message = 'Eklenecek yeni sponsorluk bulunamadı.';
+    // If there is an indefinite sponsorship, the expiry date is null.
+    // Otherwise, it's the latest date found.
+    const newExpiryDate = hasIndefiniteSponsorship ? null : (latestExpiry ? Timestamp.fromDate(latestExpiry) : null);
 
+    await updateDoc(userDocRef, {
+        sponsorships: allSponsorships,
+        sponsorshipExpiryDate: newExpiryDate
+    });
+
+    let message = `${addedCount} yeni sponsorluk eklendi.`;
+    const skippedCount = countryCodes.length + cityNames.length - addedCount;
+    if (skippedCount > 0) message += ` ${skippedCount} mevcut sponsorluk atlandı.`;
 
     return { success: true, message, addedCount, skippedCount };
   } catch (error) {
-    console.error("Error adding sponsorships in batch: ", error);
+    console.error("Error adding sponsorships to user: ", error);
     return { success: false, message: "Sponsorluklar eklenirken bir hata oluştu.", addedCount: 0, skippedCount: 0 };
-  }
-};
-
-export const updateSponsor = async (id: string, sponsorData: Partial<Omit<Sponsor, 'id' | 'createdAt'>>): Promise<boolean> => {
-  try {
-    const docRef = doc(db, SPONSORS_COLLECTION, id);
-    const dataToUpdate: any = { ...sponsorData };
-
-    if (dataToUpdate.hasOwnProperty('startDate')) {
-      if (dataToUpdate.startDate && typeof dataToUpdate.startDate === 'string' && isValid(parseISO(dataToUpdate.startDate))) {
-        dataToUpdate.startDate = Timestamp.fromDate(parseISO(dataToUpdate.startDate));
-      } else {
-          // startDate is mandatory, so if it's invalid/null during update, it's problematic.
-          // Depending on business logic, either disallow update or remove field.
-          console.warn(`[sponsorsService] updateSponsor: Invalid or missing startDate for sponsor ${id}. Field not updated or set to null based on logic.`);
-          delete dataToUpdate.startDate; // Or set to a valid default if applicable
-      }
-    }
-    if (dataToUpdate.hasOwnProperty('endDate')) {
-      if (dataToUpdate.endDate && typeof dataToUpdate.endDate === 'string' && isValid(parseISO(dataToUpdate.endDate))) {
-        dataToUpdate.endDate = Timestamp.fromDate(parseISO(dataToUpdate.endDate));
-      } else {
-        dataToUpdate.endDate = null; 
-      }
-    }
-    
-    delete dataToUpdate.id;
-    delete dataToUpdate.createdAt;
-
-    await updateDoc(docRef, dataToUpdate);
-    return true;
-  } catch (error) {
-    console.error("Error updating sponsor: ", error);
-    return false;
-  }
-};
-
-export const deleteSponsor = async (id: string): Promise<boolean> => {
-  try {
-    const docRef = doc(db, SPONSORS_COLLECTION, id);
-    await deleteDoc(docRef);
-    return true;
-  } catch (error) {
-    console.error("Error deleting sponsor: ", error);
-    return false;
   }
 };

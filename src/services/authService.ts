@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory, CompanyFilterOptions } from '@/types';
+import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory, CompanyFilterOptions, SponsorshipLocation } from '@/types';
 import {
   collection,
   doc,
@@ -30,16 +30,14 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
   const data = { ...docData };
 
   const isCompanyByRole = data.role === 'company';
-  const isCompanyByHeuristic = !data.role && (data.companyTitle || data.username); // Heuristic for old data
-
-  if (!isCompanyByRole && !isCompanyByHeuristic) {
+  if (!isCompanyByRole) {
     return null;
   }
 
   const roleToAssign: 'company' = 'company';
   const displayName = data.companyTitle || data.name; 
 
-  const companyProfileBase: Omit<CompanyUserProfile, 'createdAt' | 'membershipEndDate'> = {
+  const companyProfileBase: Omit<CompanyUserProfile, 'createdAt' | 'membershipEndDate' | 'sponsorshipExpiryDate'> = {
     id,
     email: data.email || '',
     password: data.password || '', 
@@ -67,6 +65,7 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
     membershipStatus: data.membershipStatus || 'Yok',
     ownedVehicles: Array.isArray(data.ownedVehicles) ? data.ownedVehicles : [],
     authDocuments: Array.isArray(data.authDocuments) ? data.authDocuments : [],
+    sponsorships: Array.isArray(data.sponsorships) ? data.sponsorships : [],
   };
 
   let createdAtStr: string;
@@ -83,10 +82,18 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
     membershipEndDateStr = undefined;
   }
 
+  let sponsorshipExpiryDateStr: string | undefined = undefined;
+  if (data.sponsorshipExpiryDate && data.sponsorshipExpiryDate instanceof Timestamp) {
+    sponsorshipExpiryDateStr = data.sponsorshipExpiryDate.toDate().toISOString();
+  } else if (data.sponsorshipExpiryDate === null || data.sponsorshipExpiryDate === undefined) {
+    sponsorshipExpiryDateStr = undefined;
+  }
+
   return {
     ...companyProfileBase,
     createdAt: createdAtStr,
     membershipEndDate: membershipEndDateStr,
+    sponsorshipExpiryDate: sponsorshipExpiryDateStr
   };
 };
 
@@ -141,7 +148,7 @@ export async function getPaginatedAdminUsers(options: {
 
     if (error.code === 'failed-precondition') {
         errorMessage = error.message || "Eksik Firestore dizini. Lütfen sunucu konsolunu kontrol edin.";
-        const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
             indexCreationUrl = match[0];
@@ -208,7 +215,7 @@ export async function getPaginatedCompanies(options: {
 
     if (error.code === 'failed-precondition') {
         errorMessage = error.message || "Gerekli veritabanı dizini eksik. Lütfen sunucu loglarını kontrol edin.";
-        const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
             indexCreationUrl = match[0];
@@ -262,7 +269,7 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
         return { profile: null, error: "Lütfen tüm zorunlu alanları doldurun." };
     }
 
-    const finalProfileDataForFirestore: Omit<CompanyUserProfile, 'id' | 'membershipEndDate' | 'createdAt'> & { password: string, membershipEndDate?: Timestamp | null, createdAt: Timestamp } = {
+    const finalProfileDataForFirestore: Omit<CompanyUserProfile, 'id' | 'membershipEndDate' | 'createdAt' | 'sponsorships' | 'sponsorshipExpiryDate'> & { password: string, membershipEndDate?: Timestamp | null, createdAt: Timestamp } = {
       email: companyData.email,
       role: 'company', 
       name: companyData.name,
@@ -328,7 +335,7 @@ export async function getAllUserProfiles(): Promise<CompanyUserProfile[]> {
     console.error("[authService.ts - getAllUserProfiles] Error fetching all user profiles from Firestore: ", error);
      if (error.code === 'failed-precondition') {
           const errorMessage = error.message || "Eksik Firestore dizini (admin kullanıcı listesi - muhtemelen createdAt). Lütfen sunucu konsolunu kontrol edin.";
-          const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+          const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
           const match = errorMessage.match(urlRegex);
           if (match && match[0]) {
               const indexCreationUrl = match[0];
@@ -361,7 +368,7 @@ export async function getCompanyProfilesByCategory(categoryValue: CompanyCategor
     console.error(`[authService.ts - getCompanyProfilesByCategory] Error fetching profiles for category ${categoryValue}: `, error);
     if (error.code === 'failed-precondition') {
       const errorMessage = error.message || `Eksik Firestore dizini (getCompanyProfilesByCategory - ${categoryValue}). Lütfen sunucu konsolunu kontrol edin.`;
-      const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+      const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
       const match = errorMessage.match(urlRegex);
       if (match && match[0]) {
           const indexCreationUrl = match[0];
@@ -395,6 +402,14 @@ export async function updateUserProfile(uid: string, data: Partial<CompanyUserPr
         updateData.membershipEndDate = null;
       } else {
          delete updateData.membershipEndDate;
+      }
+    }
+    
+    if (updateData.hasOwnProperty('sponsorshipExpiryDate')) {
+      if (updateData.sponsorshipExpiryDate && typeof updateData.sponsorshipExpiryDate === 'string' && isValid(parseISO(updateData.sponsorshipExpiryDate))) {
+        updateData.sponsorshipExpiryDate = Timestamp.fromDate(parseISO(updateData.sponsorshipExpiryDate));
+      } else {
+        updateData.sponsorshipExpiryDate = null;
       }
     }
 
