@@ -17,11 +17,10 @@ export default function AboutUsPage() {
           </div>
           <div className="relative h-64 md:h-full hidden md:block">
             <Image
-              src="https://placehold.co/600x400.png"
+              src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-hakkimizda.svg"
               alt="Hakkımızda illüstrasyonu"
               layout="fill"
               objectFit="cover"
-              data-ai-hint="logistics illustration"
             />
           </div>
         </div>
