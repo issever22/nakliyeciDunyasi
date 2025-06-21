@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import FreightCard from '@/components/freight/FreightCard';
 import FreightFilters from '@/components/freight/FreightFilters'; 
 import type { Freight, FreightFilterOptions } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, AlertTriangle, Loader2, SearchX } from 'lucide-react';
+import { PlusCircle, AlertTriangle, Loader2, SearchX, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import Image from 'next/image';
@@ -28,9 +28,11 @@ export default function HomePage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string>('all');
+
   const fetchFreights = useCallback(async (startAfterDoc: QueryDocumentSnapshot<DocumentData> | null = null, appliedFilters: FreightFilterOptions) => {
     const isLoadMore = !!startAfterDoc;
-    console.log(`[HomePage - fetchFreights] Called. IsLoadMore: ${isLoadMore}, StartAfterDoc exists: ${!!startAfterDoc}, Filters:`, appliedFilters);
     
     if (isLoadMore) {
       setIsLoadingMore(true);
@@ -51,46 +53,39 @@ export default function HomePage() {
 
       if (result.error) {
         console.error("[HomePage - fetchFreights] Error from getListings service:", result.error.message);
-        if (result.error.indexCreationUrl) {
-          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-          console.error("!!! TARAYICI KONSOLU - EKSİK FIRESTORE INDEX !!!");
-          console.error("!!! Düzeltmek için, aşağıdaki bağlantıyı ziyaret ederek bileşik dizini oluşturun:");
-          console.error(`!!! ${result.error.indexCreationUrl}`);
-          console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-          toast({
-            title: "Firestore Index Hatası",
-            description: `Eksik bir Firestore dizini var. Lütfen tarayıcı konsolundaki bağlantıyı kullanarak dizini oluşturun. URL: ${result.error.indexCreationUrl}`,
+        const errorMessage = result.error.indexCreationUrl 
+          ? `Eksik bir Firestore dizini var. Lütfen tarayıcı konsolundaki bağlantıyı kullanarak dizini oluşturun.`
+          : result.error.message;
+        toast({
+            title: "Veri Yükleme Hatası",
+            description: errorMessage,
             variant: "destructive",
-            duration: 20000 // Keep it open longer
-          });
-        } else {
-           toast({ title: "Veri Yükleme Hatası", description: result.error.message, variant: "destructive" });
+            duration: result.error.indexCreationUrl ? 20000 : 5000
+        });
+        if(result.error.indexCreationUrl) {
+            console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            console.error("!!! TARAYICI KONSOLU - EKSİK FIRESTORE INDEX !!!");
+            console.error(`!!! Düzeltmek için, aşağıdaki bağlantıyı ziyaret ederek bileşik dizini oluşturun: ${result.error.indexCreationUrl}`);
+            console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }
         setFetchError(result.error.message);
-        setFreights([]); // Clear freights on error
+        setFreights([]);
         setHasMore(false);
-        return; // Stop further processing
+        return;
       }
       
       const newFreights = result.freights;
       
-      console.log(`[HomePage - fetchFreights] getListings returned. New freights count: ${newFreights.length}. Next doc exists: ${!!result.newLastVisibleDoc}`);
-      
-      if (newFreights.length > 0) {
-        console.log('[HomePage - fetchFreights] First new freight data (converted):', JSON.stringify(newFreights[0], null, 2));
-      }
-
       setFreights(prev => isLoadMore ? [...prev, ...newFreights] : newFreights);
       setLastVisibleDoc(result.newLastVisibleDoc);
       setHasMore(!!result.newLastVisibleDoc && newFreights.length === PAGE_SIZE);
 
-    } catch (error) { // This catch block is for unexpected errors during the fetchFreights execution itself
+    } catch (error) { 
       console.error("[HomePage - fetchFreights] Unexpected error during fetch operation:", error);
       const errorMsg = "İlanlar yüklenirken beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin.";
       setFetchError(errorMsg);
       toast({ title: "Beklenmedik Hata", description: errorMsg, variant: "destructive" });
     } finally {
-      console.log('[HomePage - fetchFreights] Finally block.');
       if (isLoadMore) {
         setIsLoadingMore(false);
       } else {
@@ -100,27 +95,50 @@ export default function HomePage() {
     }
   }, [toast]); 
 
+  const handleAdvancedFilterChange = useCallback((newFilters: FreightFilterOptions) => {
+    setCurrentFilters(newFilters);
+    setActiveQuickFilter('advanced');
+    setInitialLoadComplete(false);
+    setShowAdvancedFilters(false);
+  }, []);
+
+  const handleQuickFilterClick = useCallback((filterName: string) => {
+    let newFilters: FreightFilterOptions = { sortBy: 'newest' };
+
+    switch (filterName) {
+        case 'all':
+            newFilters = { sortBy: 'newest' };
+            break;
+        case 'today_all':
+            newFilters = { postedToday: true, sortBy: 'newest' };
+            break;
+        case 'today_domestic':
+            newFilters = { postedToday: true, freightType: 'Yük', shipmentScope: 'Yurt İçi', sortBy: 'newest' };
+            break;
+        case 'today_international':
+            newFilters = { postedToday: true, freightType: 'Yük', shipmentScope: 'Yurt Dışı', sortBy: 'newest' };
+            break;
+        case 'today_residential':
+            newFilters = { postedToday: true, freightType: 'Evden Eve', sortBy: 'newest' };
+            break;
+        case 'continuous':
+            newFilters = { isContinuousLoad: true, freightType: 'Yük', sortBy: 'newest' };
+            break;
+        case 'today_empty_vehicle':
+            newFilters = { postedToday: true, freightType: 'Boş Araç', sortBy: 'newest' };
+            break;
+    }
+    
+    setActiveQuickFilter(filterName);
+    setCurrentFilters(newFilters);
+    setInitialLoadComplete(false); 
+    setShowAdvancedFilters(false);
+  }, []);
+
   useEffect(() => {
-    console.log('[HomePage - useEffect[currentFilters]] Filters changed or initial load. Calling fetchFreights(null, currentFilters). Current Filters:', currentFilters);
     fetchFreights(null, currentFilters);
   }, [currentFilters, fetchFreights]);
 
-
-  const handleFilterChange = useCallback((newFilters: FreightFilterOptions) => {
-    console.log('[HomePage - handleFilterChange] New filters received:', newFilters);
-    setCurrentFilters(newFilters);
-    setInitialLoadComplete(false); 
-  }, []); 
-
-  const loadMoreFreights = () => {
-    console.log('[HomePage - loadMoreFreights] Called. HasMore:', hasMore, 'IsLoadingMore:', isLoadingMore, 'LastVisibleDoc:', !!lastVisibleDoc);
-    if (hasMore && !isLoadingMore && lastVisibleDoc) {
-      fetchFreights(lastVisibleDoc, currentFilters);
-    } else if (!lastVisibleDoc && hasMore && !isLoadingMore) {
-        console.warn("[HomePage - loadMoreFreights] Attempting to load more, but lastVisibleDoc is null. Fetching from beginning with current filters.");
-        fetchFreights(null, currentFilters); 
-    }
-  };
   
   const renderSkeletons = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
@@ -182,7 +200,26 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FreightFilters onFilterChange={handleFilterChange} isLoading={isLoading || isLoadingMore} />
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-foreground">Hızlı Filtreler</h2>
+        <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant={activeQuickFilter === 'today_all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_all')}>Bugün Yayınlanan Yükler</Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_domestic' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_domestic')}>Bugün Yayınlanan Yurtiçi Yükler</Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_international' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_international')}>Bugün Yayınlanan Yurtdışı Yükler</Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_residential' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_residential')}>Bugün Yayınlanan Evden Eve</Button>
+            <Button size="sm" variant={activeQuickFilter === 'continuous' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('continuous')}>Sürekli (Proje) Yükler</Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_empty_vehicle' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_empty_vehicle')}>Bugün Yayınlanan Boş Araçlar</Button>
+            <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={() => setShowAdvancedFilters(prev => !prev)}>
+                <Filter size={16} className="mr-2"/>
+                Gelişmiş Filtreleme
+            </Button>
+        </div>
+      </div>
+
+      {showAdvancedFilters && (
+        <FreightFilters onFilterChange={handleAdvancedFilterChange} isLoading={isLoading || isLoadingMore} />
+      )}
+
 
       <div className="pt-4">
         <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları</h2>
@@ -230,3 +267,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    

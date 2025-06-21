@@ -21,7 +21,7 @@ import {
   getDoc,
   type QueryConstraint,
 } from 'firebase/firestore';
-import { parseISO, isValid, formatISO } from 'date-fns';
+import { parseISO, isValid, formatISO, startOfDay } from 'date-fns';
 
 const LISTINGS_COLLECTION = 'listings';
 
@@ -201,6 +201,15 @@ export const getListings = async (
 
     queryConstraints.push(where('isActive', '==', true));
     
+    if (filters?.postedToday) {
+      const todayStart = startOfDay(new Date());
+      queryConstraints.push(where('postedAt', '>=', Timestamp.fromDate(todayStart)));
+    }
+
+    if (filters?.isContinuousLoad) {
+      queryConstraints.push(where('isContinuousLoad', '==', true));
+    }
+
     if (filters?.originCity) {
       queryConstraints.push(where('originCity', '==', filters.originCity));
     }
@@ -211,6 +220,7 @@ export const getListings = async (
       queryConstraints.push(where('freightType', '==', filters.freightType));
     }
     
+    // These filters only apply if the freightType is 'Yük' (or not specified)
     if (!filters?.freightType || filters.freightType === 'Yük') { 
         if (filters?.vehicleNeeded) {
           queryConstraints.push(where('vehicleNeeded', '==', filters.vehicleNeeded));
@@ -334,3 +344,5 @@ export const deleteListing = async (id: string): Promise<boolean> => {
     return false;
   }
 };
+
+    

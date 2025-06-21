@@ -265,6 +265,8 @@ export type FreightFilterOptions = {
   shipmentScope?: ShipmentScope;
   freightType?: FreightType;
   sortBy?: 'newest' | 'oldest';
+  postedToday?: boolean;
+  isContinuousLoad?: boolean;
 };
 
     
