@@ -246,6 +246,7 @@ export interface AdminNoteSetting {
 export type SponsorEntityType = 'country' | 'city';
 export interface Sponsor {
   id: string;
+  companyId: string;
   name: string;
   logoUrl?: string;
   linkUrl?: string;

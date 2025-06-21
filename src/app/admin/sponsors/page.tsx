@@ -20,9 +20,10 @@ import { PlusCircle, Edit, Trash2, Search, Award, CalendarIcon, Link as LinkIcon
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
-import type { Sponsor, SponsorEntityType } from '@/types';
+import type { Sponsor, SponsorEntityType, CompanyUserProfile } from '@/types';
 import { COUNTRIES, TURKISH_CITIES, type CountryCode, type TurkishCity } from '@/lib/locationData';
 import { getAllSponsors, addSponsor, updateSponsor, deleteSponsor } from '@/services/sponsorsService';
+import { getAllUserProfiles } from '@/services/authService';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const getCountryName = (code: string) => COUNTRIES.find(c => c.code === code)?.name || code;
@@ -30,13 +31,16 @@ const getCountryName = (code: string) => COUNTRIES.find(c => c.code === code)?.n
 export default function SponsorsPage() {
   const { toast } = useToast();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [companyUsers, setCompanyUsers] = useState<CompanyUserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [optionsLoading, setOptionsLoading] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{
+    companyId: string;
     name: string;
     logoUrl: string;
     linkUrl: string;
@@ -46,22 +50,34 @@ export default function SponsorsPage() {
     startDate?: Date;
     endDate?: Date;
     isActive: boolean;
-  }>({ name: '', logoUrl: '', linkUrl: '', entityType: 'country', selectedCountry: 'TR', selectedCity: '', startDate: undefined, endDate: undefined, isActive: true });
+  }>({ companyId: '', name: '', logoUrl: '', linkUrl: '', entityType: 'country', selectedCountry: 'TR', selectedCity: '', startDate: undefined, endDate: undefined, isActive: true });
 
-  const fetchSponsors = useCallback(async () => {
+  const fetchSponsorsAndCompanies = useCallback(async () => {
     setIsLoading(true);
-    const sponsorsFromDb = await getAllSponsors();
-    setSponsors(sponsorsFromDb);
+    setOptionsLoading(true);
+    try {
+      const [sponsorsFromDb, companiesFromDb] = await Promise.all([
+        getAllSponsors(),
+        getAllUserProfiles()
+      ]);
+      setSponsors(sponsorsFromDb);
+      setCompanyUsers(companiesFromDb.filter(u => u.isActive));
+    } catch (error) {
+      console.error("Error fetching sponsors or companies:", error);
+      toast({ title: "Hata", description: "Sponsorlar veya firmalar yüklenirken bir sorun oluştu.", variant: "destructive" });
+    }
     setIsLoading(false);
-  }, []);
+    setOptionsLoading(false);
+  }, [toast]);
 
   useEffect(() => {
-    fetchSponsors();
-  }, [fetchSponsors]);
+    fetchSponsorsAndCompanies();
+  }, [fetchSponsorsAndCompanies]);
 
   useEffect(() => {
     if (editingSponsor) {
       setCurrentFormData({
+        companyId: editingSponsor.companyId,
         name: editingSponsor.name,
         logoUrl: editingSponsor.logoUrl || '',
         linkUrl: editingSponsor.linkUrl || '',
@@ -73,7 +89,7 @@ export default function SponsorsPage() {
         isActive: editingSponsor.isActive,
       });
     } else {
-      setCurrentFormData({ name: '', logoUrl: '', linkUrl: '', entityType: 'country', selectedCountry: 'TR', selectedCity: '', startDate: undefined, endDate: undefined, isActive: true });
+      setCurrentFormData({ companyId: '', name: '', logoUrl: '', linkUrl: '', entityType: 'country', selectedCountry: 'TR', selectedCity: '', startDate: undefined, endDate: undefined, isActive: true });
     }
   }, [editingSponsor, isAddEditDialogOpen]);
 
@@ -87,10 +103,23 @@ export default function SponsorsPage() {
     setIsAddEditDialogOpen(true);
   };
 
+  const handleCompanySelect = (companyId: string) => {
+    const selectedCompany = companyUsers.find(c => c.id === companyId);
+    if (selectedCompany) {
+      setCurrentFormData(prev => ({
+        ...prev,
+        companyId: selectedCompany.id,
+        name: selectedCompany.name,
+        logoUrl: selectedCompany.logoUrl || '',
+        linkUrl: selectedCompany.website || '',
+      }));
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentFormData.name.trim()) {
-        toast({ title: "Hata", description: "Sponsor adı boş bırakılamaz.", variant: "destructive" });
+     if (!currentFormData.companyId) {
+        toast({ title: "Hata", description: "Lütfen sponsor olacak firmayı seçin.", variant: "destructive" });
         return;
     }
     if (!currentFormData.startDate) {
@@ -114,6 +143,7 @@ export default function SponsorsPage() {
     const entityName = currentFormData.entityType === 'country' ? currentFormData.selectedCountry : currentFormData.selectedCity;
 
     const sponsorData: Partial<Omit<Sponsor, 'id' | 'createdAt'>> = {
+      companyId: currentFormData.companyId,
       name: currentFormData.name,
       logoUrl: currentFormData.logoUrl || undefined,
       linkUrl: currentFormData.linkUrl || undefined,
@@ -128,7 +158,7 @@ export default function SponsorsPage() {
       const success = await updateSponsor(editingSponsor.id, sponsorData);
       if (success) {
         toast({ title: "Başarılı", description: "Sponsor güncellendi." });
-        fetchSponsors();
+        fetchSponsorsAndCompanies();
       } else {
         toast({ title: "Hata", description: "Sponsor güncellenemedi.", variant: "destructive" });
       }
@@ -136,7 +166,7 @@ export default function SponsorsPage() {
       const newSponsorId = await addSponsor(sponsorData as Omit<Sponsor, 'id' | 'createdAt'>);
       if (newSponsorId) {
         toast({ title: "Başarılı", description: "Yeni sponsor eklendi." });
-        fetchSponsors();
+        fetchSponsorsAndCompanies();
       } else {
         toast({ title: "Hata", description: "Yeni sponsor eklenemedi.", variant: "destructive" });
       }
@@ -149,7 +179,7 @@ export default function SponsorsPage() {
     const success = await deleteSponsor(id);
     if (success) {
       toast({ title: "Başarılı", description: "Sponsor silindi.", variant: "destructive" });
-      fetchSponsors();
+      fetchSponsorsAndCompanies();
     } else {
       toast({ title: "Hata", description: "Sponsor silinemedi.", variant: "destructive" });
     }
@@ -278,24 +308,33 @@ export default function SponsorsPage() {
             <DialogHeader>
               <DialogTitle>{editingSponsor ? 'Sponsoru Düzenle' : 'Yeni Sponsor Ekle'}</DialogTitle>
               <DialogDescription>
-                 {editingSponsor ? `"${editingSponsor.name}" sponsorunun bilgilerini güncelleyin.` : 'Yeni bir sponsor için gerekli bilgileri girin.'}
+                 {editingSponsor ? `"${editingSponsor.name}" sponsorunun bilgilerini güncelleyin.` : 'Sponsor olacak firmayı ve diğer bilgileri seçin.'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-6">
-              <div className="space-y-1.5">
-                <Label htmlFor="spName" className="font-medium">Sponsor Adı/Şirketi (*)</Label>
-                <Input id="spName" value={currentFormData.name} onChange={(e) => setCurrentFormData({...currentFormData, name: e.target.value})} placeholder="Sponsor firma adı" />
+               <div className="space-y-1.5">
+                <Label htmlFor="spCompany" className="font-medium">Sponsor Firma (*)</Label>
+                <Select
+                  value={currentFormData.companyId}
+                  onValueChange={handleCompanySelect}
+                  disabled={optionsLoading || !!editingSponsor}
+                >
+                  <SelectTrigger id="spCompany">
+                    <SelectValue placeholder={optionsLoading ? "Firmalar Yükleniyor..." : "Firma seçin..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companyUsers.length > 0 ? (
+                        companyUsers.map(company => (
+                            <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+                        ))
+                    ) : (
+                        <div className="p-4 text-sm text-muted-foreground">Sponsor olabilecek aktif firma bulunamadı.</div>
+                    )}
+                  </SelectContent>
+                </Select>
+                {editingSponsor && <p className="text-xs text-muted-foreground">Sponsor firma düzenleme sırasında değiştirilemez.</p>}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                    <Label htmlFor="spLogoUrl" className="font-medium">Logo URL</Label>
-                    <Input id="spLogoUrl" value={currentFormData.logoUrl} onChange={(e) => setCurrentFormData({...currentFormData, logoUrl: e.target.value})} placeholder="https://.../logo.png" />
-                </div>
-                <div className="space-y-1.5">
-                    <Label htmlFor="spLinkUrl" className="font-medium">Link URL</Label>
-                    <Input id="spLinkUrl" value={currentFormData.linkUrl} onChange={(e) => setCurrentFormData({...currentFormData, linkUrl: e.target.value})} placeholder="https://sponsor.com" />
-                </div>
-              </div>
+
               <div className="space-y-2">
                 <Label className="font-medium">Sponsor Olunan Varlık Tipi (*)</Label>
                 <RadioGroup 
@@ -349,7 +388,7 @@ export default function SponsorsPage() {
                         </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={currentFormData.startDate} onSelect={(date) => setCurrentFormData({...currentFormData, startDate: date})} initialFocus locale={tr} />
+                        <Calendar mode="single" selected={currentFormData.startDate} onSelect={(date) => setCurrentFormData({...currentFormData, startDate: date || undefined})} initialFocus locale={tr} />
                         </PopoverContent>
                     </Popover>
                 </div>
@@ -363,7 +402,7 @@ export default function SponsorsPage() {
                         </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={currentFormData.endDate} onSelect={(date) => setCurrentFormData({...currentFormData, endDate: date})} initialFocus locale={tr} />
+                        <Calendar mode="single" selected={currentFormData.endDate} onSelect={(date) => setCurrentFormData({...currentFormData, endDate: date || undefined})} initialFocus locale={tr} />
                         </PopoverContent>
                     </Popover>
                 </div>
@@ -375,10 +414,10 @@ export default function SponsorsPage() {
             </div>
             <DialogFooter>
                  <DialogClose asChild>
-                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting || optionsLoading}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
-                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting || optionsLoading}>
+                {(formSubmitting || optionsLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingSponsor ? 'Değişiklikleri Kaydet' : 'Sponsor Ekle'}
               </Button>
             </DialogFooter>
