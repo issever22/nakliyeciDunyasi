@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { Freight, FreightFilterOptions, FreightCreationData, FreightUpdateData, EmptyVehicleListing } from '@/types';
+import type { Freight, FreightFilterOptions, FreightCreationData, FreightUpdateData, EmptyVehicleListing, FreightType } from '@/types';
 import {
   collection,
   addDoc,
@@ -154,7 +154,7 @@ export const getPaginatedAdminListings = async (
 };
 
 
-export const getListingsByUserId = async (userId: string, options: { onlyActive?: boolean } = {}): Promise<{ listings: Freight[]; error?: { message: string; indexCreationUrl?: string } }> => {
+export const getListingsByUserId = async (userId: string, options: { onlyActive?: boolean; freightType?: FreightType } = {}): Promise<{ listings: Freight[]; error?: { message: string; indexCreationUrl?: string } }> => {
    if (userId.startsWith(GUEST_USER_ID_PREFIX)) {
     return { listings: [] }; // Guests cannot have "my listings" page
   }
@@ -166,6 +166,10 @@ export const getListingsByUserId = async (userId: string, options: { onlyActive?
     
     if (options.onlyActive) {
         queryConstraints.push(where('isActive', '==', true));
+    }
+    
+    if (options.freightType) {
+        queryConstraints.push(where('freightType', '==', options.freightType));
     }
 
     queryConstraints.push(orderBy('postedAt', 'desc'));

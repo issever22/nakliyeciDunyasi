@@ -57,7 +57,7 @@ function CompanyProfileContent() {
             try {
                 const [companyProfile, listingsResult] = await Promise.all([
                     getUserProfile(companyId),
-                    getListingsByUserId(companyId, { onlyActive: true })
+                    getListingsByUserId(companyId, { onlyActive: true, freightType: 'Boş Araç' })
                 ]);
 
                 if (!companyProfile || !companyProfile.isActive) {
@@ -173,7 +173,7 @@ function CompanyProfileContent() {
                  <Tabs defaultValue="about" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="about"><Info className="mr-2 h-4 w-4"/>Firma Hakkında</TabsTrigger>
-                        <TabsTrigger value="listings"><ListChecks className="mr-2 h-4 w-4"/>Aktif İlanları ({listings.length})</TabsTrigger>
+                        <TabsTrigger value="listings"><ListChecks className="mr-2 h-4 w-4"/>Boş Araç İlanları ({listings.length})</TabsTrigger>
                     </TabsList>
                     <TabsContent value="about" className="mt-4">
                         <Card>
@@ -196,8 +196,8 @@ function CompanyProfileContent() {
                             <Card className="text-center py-10">
                                  <CardContent>
                                     <ListChecks className="mx-auto h-12 w-12 text-muted-foreground mb-4"/>
-                                    <h3 className="text-lg font-semibold">Aktif İlan Bulunmuyor</h3>
-                                    <p className="text-muted-foreground mt-1">Bu firmanın şu anda aktif bir ilanı yok.</p>
+                                    <h3 className="text-lg font-semibold">Aktif Boş Araç İlanı Bulunmuyor</h3>
+                                    <p className="text-muted-foreground mt-1">Bu firmanın şu anda aktif bir boş araç ilanı yok.</p>
                                  </CardContent>
                             </Card>
                         )}
