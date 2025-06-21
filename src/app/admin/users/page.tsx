@@ -17,16 +17,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode } from '@/types';
+import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { COMPANY_CATEGORIES, COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES, MEMBERSHIP_STATUS_OPTIONS } from '@/lib/constants';
+import { COMPANY_CATEGORIES, COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR } from '@/lib/locationData';
 import { 
   getAllUserProfiles, 
   updateUserProfile,
   deleteUserProfile,
 } from '@/services/authService'; 
+import { getAllMemberships } from '@/services/membershipsService';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,17 +52,33 @@ export default function UsersPage() {
   
   const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile>>({});
   const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
+  
+  const [membershipOptions, setMembershipOptions] = useState<MembershipSetting[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(true);
 
-  const fetchUsers = useCallback(async () => {
+
+  const fetchUsersAndOptions = useCallback(async () => {
     setIsLoading(true);
-    const usersFromDb = await getAllUserProfiles();
-    setAllCompanyUsers(usersFromDb);
+    setOptionsLoading(true);
+    try {
+        const [usersFromDb, membershipsFromDb] = await Promise.all([
+            getAllUserProfiles(),
+            getAllMemberships()
+        ]);
+        setAllCompanyUsers(usersFromDb);
+        setMembershipOptions(membershipsFromDb.filter(m => m.isActive));
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({ title: "Hata", description: "Kullanıcılar veya üyelik seçenekleri yüklenirken bir sorun oluştu.", variant: "destructive" });
+    }
     setIsLoading(false);
-  }, []);
+    setOptionsLoading(false);
+  }, [toast]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    fetchUsersAndOptions();
+  }, [fetchUsersAndOptions]);
+
 
   useEffect(() => {
     if (editingUser) {
@@ -139,10 +156,14 @@ export default function UsersPage() {
     
     const { id, createdAt, email, role, ...updateData } = dataToSubmit; 
     
+    if (!updateData.password || updateData.password.trim() === '') {
+        delete updateData.password;
+    }
+    
     const success = await updateUserProfile(editingUser.id, updateData as Partial<CompanyUserProfile>);
     if (success) {
       toast({ title: "Başarılı", description: "Firma profili güncellendi." });
-      fetchUsers();
+      fetchUsersAndOptions();
     } else {
       toast({ title: "Hata", description: "Firma profili güncellenemedi.", variant: "destructive" });
     }
@@ -155,7 +176,7 @@ export default function UsersPage() {
     const success = await deleteUserProfile(id); 
     if (success) {
       toast({ title: "Başarılı", description: "Firma profili silindi.", variant: "destructive" });
-      fetchUsers();
+      fetchUsersAndOptions();
     } else {
       toast({ title: "Hata", description: "Firma profili silinemedi.", variant: "destructive" });
     }
@@ -570,10 +591,17 @@ export default function UsersPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label htmlFor="edit-membershipStatus">Üyelik Durumu</Label>
-                            <Select value={currentFormData.membershipStatus || 'Yok'} onValueChange={(value) => setCurrentFormData(prev => ({...prev, membershipStatus: value as CompanyUserProfile['membershipStatus']}))}>
-                                <SelectTrigger id="edit-membershipStatus"><SelectValue /></SelectTrigger>
+                            <Select 
+                                value={currentFormData.membershipStatus || 'Yok'} 
+                                onValueChange={(value) => setCurrentFormData(prev => ({...prev, membershipStatus: value as CompanyUserProfile['membershipStatus']}))}
+                                disabled={optionsLoading}
+                            >
+                                <SelectTrigger id="edit-membershipStatus">
+                                    <SelectValue placeholder={optionsLoading ? "Yükleniyor..." : "Üyelik durumu seçin"}/>
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {MEMBERSHIP_STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                    <SelectItem value="Yok">Yok</SelectItem>
+                                    {membershipOptions.map(opt => <SelectItem key={opt.id} value={opt.name}>{opt.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -621,3 +649,4 @@ export default function UsersPage() {
     </div>
   );
 }
+
