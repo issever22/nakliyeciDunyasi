@@ -160,9 +160,9 @@ export default function SponsorsListPage() {
                 />
             </div>
             <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-                <Button size="sm" variant={filterType === 'all' ? 'secondary' : 'ghost'} onClick={() => setFilterType('all')} className="h-8 px-3">Tümü</Button>
-                <Button size="sm" variant={filterType === 'country' ? 'secondary' : 'ghost'} onClick={() => setFilterType('country')} className="h-8 px-3">Sadece Ülke</Button>
-                <Button size="sm" variant={filterType === 'city' ? 'secondary' : 'ghost'} onClick={() => setFilterType('city')} className="h-8 px-3">Sadece Şehir</Button>
+                <Button size="sm" variant={filterType === 'all' ? 'default' : 'ghost'} onClick={() => setFilterType('all')} className="h-8 px-3">Tümü</Button>
+                <Button size="sm" variant={filterType === 'country' ? 'default' : 'ghost'} onClick={() => setFilterType('country')} className="h-8 px-3">Sadece Ülke</Button>
+                <Button size="sm" variant={filterType === 'city' ? 'default' : 'ghost'} onClick={() => setFilterType('city')} className="h-8 px-3">Sadece Şehir</Button>
             </div>
           </div>
           <div className="rounded-md border overflow-x-auto">
