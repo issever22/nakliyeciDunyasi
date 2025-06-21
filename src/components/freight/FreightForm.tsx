@@ -175,7 +175,7 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
       loadingDate: format(loadingDate, "yyyy-MM-dd"),
       isContinuousLoad,
       shipmentScope: determinedShipmentScope,
-      isActive: true, 
+      isActive: false, // Default to inactive for admin approval
       // userId and postedBy will be added by the parent onSubmitSuccess handler
       postedBy: '', // Placeholder, will be overridden
     };
@@ -425,5 +425,3 @@ export default function FreightForm({ onSubmitSuccess, initialData }: FreightFor
     </form>
   );
 }
-
-    

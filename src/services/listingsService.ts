@@ -110,18 +110,39 @@ export const getPaginatedAdminListings = async (
   options: {
     lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;
     pageSize?: number;
+    filters?: {
+      type: FreightType | 'all';
+      status: 'active' | 'inactive' | 'all';
+      searchTerm: string;
+    }
   } = {}
 ): Promise<{ 
   listings: Freight[]; 
   newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null; 
   error?: { message: string; indexCreationUrl?: string } 
 }> => {
-  const { lastVisibleDoc = null, pageSize = 15 } = options; 
+  const { lastVisibleDoc = null, pageSize = 15, filters = { type: 'all', status: 'all', searchTerm: '' } } = options;
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
     const queryConstraints: QueryConstraint[] = [];
 
-    queryConstraints.push(orderBy('postedAt', 'desc'));
+    // NOTE: Firestore does not support full-text search. This search is a basic "starts with" on companyName.
+    if (filters.searchTerm) {
+        const searchTerm = filters.searchTerm;
+        queryConstraints.push(where('companyName', '>=', searchTerm));
+        queryConstraints.push(where('companyName', '<=', searchTerm + '\uf8ff'));
+    }
+
+    if (filters.type && filters.type !== 'all') {
+        queryConstraints.push(where('freightType', '==', filters.type));
+    }
+    if (filters.status && filters.status !== 'all') {
+        queryConstraints.push(where('isActive', '==', filters.status === 'active'));
+    }
+
+    // If searching, order by companyName. Otherwise, order by date.
+    // Combining inequality filters (like search) with order by on a different field requires a composite index.
+    queryConstraints.push(orderBy(filters.searchTerm ? 'companyName' : 'postedAt', 'desc'));
     
     if (lastVisibleDoc) {
       queryConstraints.push(startAfter(lastVisibleDoc));
@@ -136,11 +157,12 @@ export const getPaginatedAdminListings = async (
     
     return { listings, newLastVisibleDoc: newLastDoc };
   } catch (error: any) {
+    console.error("[listingsService.ts - getPaginatedAdminListings] Error:", error);
     let errorMessage = "İlanlar yüklenirken bilinmeyen bir hata oluştu.";
     let indexCreationUrl: string | undefined = undefined;
 
     if (error.code === 'failed-precondition') {
-        errorMessage = error.message || "Eksik Firestore dizini. Lütfen sunucu konsolunu kontrol edin.";
+        errorMessage = error.message || "Eksik Firestore dizini. Lütfen tarayıcı konsolunu kontrol edin.";
         const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
@@ -265,7 +287,7 @@ export const getListings = async (
 
     if (error.code === 'failed-precondition') {
         errorMessage = error.message || "Eksik Firestore dizini. Lütfen sunucu konsolunu kontrol edin.";
-        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
             indexCreationUrl = match[0];
@@ -283,7 +305,10 @@ export const getListingById = async (id: string): Promise<Freight | null> => {
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const listing = convertToFreight(docSnap.data() as DocumentData, docSnap.id);
-      return listing;
+      // Only return if it's active
+      if (listing.isActive) {
+        return listing;
+      }
     }
     return null;
   } catch (error) {

@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon, Repeat, Truck, Home, Loader2, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Package as PackageIcon, CalendarIcon, Repeat, Truck, Home, Loader2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
@@ -105,7 +105,6 @@ export default function AdminListingsPage() {
   const [hasMore, setHasMore] = useState(true);
   const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<Freight | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -119,6 +118,12 @@ export default function AdminListingsPage() {
   const [cargoTypeOptions, setCargoTypeOptions] = useState<CargoTypeSetting[]>([]);
   const [residentialTransportTypeOptions, setResidentialTransportTypeOptions] = useState<TransportTypeSetting[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(true);
+
+  const [filters, setFilters] = useState({
+    type: 'all' as FreightType | 'all',
+    status: 'all' as 'active' | 'inactive' | 'all',
+    searchTerm: '',
+  });
 
   const fetchFormOptions = useCallback(async () => {
     setOptionsLoading(true);
@@ -152,9 +157,29 @@ export default function AdminListingsPage() {
       const result = await getPaginatedAdminListings({ 
         lastVisibleDoc: isLoadMore ? lastVisibleDoc : null, 
         pageSize: PAGE_SIZE,
+        filters: filters,
       });
 
-      if (result.error) throw new Error(result.error.message);
+      if (result.error) {
+         console.error("[AdminListingsPage] Error from getPaginatedAdminListings:", result.error.message);
+         const errorMessage = result.error.indexCreationUrl
+           ? `Eksik bir Firestore dizini var. Lütfen tarayıcı konsolundaki bağlantıyı kullanarak dizini oluşturun.`
+           : result.error.message;
+        
+        toast({
+            title: "Veri Yükleme Hatası",
+            description: errorMessage,
+            variant: "destructive",
+            duration: result.error.indexCreationUrl ? 20000 : 5000
+        });
+        if(result.error.indexCreationUrl) {
+            console.error(`!!! EKSİK FIRESTORE INDEX (Admin İlanlar): ${result.error.indexCreationUrl}`);
+        }
+        setFetchError(errorMessage);
+        setAllListings([]);
+        setHasMore(false);
+        throw new Error(errorMessage);
+      }
       
       const newFreights = result.listings;
       setAllListings(prev => isLoadMore ? [...prev, ...newFreights] : newFreights);
@@ -162,10 +187,10 @@ export default function AdminListingsPage() {
       setHasMore(!!result.newLastVisibleDoc);
 
     } catch (error: any) {
-      console.error("Failed to fetch admin listings:", error);
-      const errorMessage = error.message || "İlanlar yüklenirken bir sorun oluştu.";
-      setFetchError(errorMessage);
-      toast({ title: "Hata", description: errorMessage, variant: "destructive" });
+      if (!fetchError) { // Avoid double-setting error state
+        console.error("Failed to fetch admin listings:", error);
+        setFetchError(error.message || "İlanlar yüklenirken bir sorun oluştu.");
+      }
     } finally {
        if (isLoadMore) {
         setIsLoadingMore(false);
@@ -173,13 +198,22 @@ export default function AdminListingsPage() {
         setIsLoading(false);
       }
     }
-  }, [toast, lastVisibleDoc]);
+  }, [toast, filters, fetchError]); // depends on filters now
 
   useEffect(() => {
-    fetchListings(false);
     fetchFormOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
+  useEffect(() => {
+    // This effect triggers a refetch whenever filters change.
+    // It resets pagination state before fetching.
+    setLastVisibleDoc(null);
+    setHasMore(true);
+    fetchListings(false); // isLoadMore is false to start from the beginning
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
+
 
   const handleRefreshAndRefetch = () => {
     setLastVisibleDoc(null);
@@ -336,20 +370,6 @@ export default function AdminListingsPage() {
     }
   };
 
-  const filteredListings = useMemo(() => {
-    if (!searchTerm) return allListings;
-    return allListings.filter(listing => {
-      const searchTermLower = searchTerm.toLowerCase();
-      return (
-        listing.id.toLowerCase().includes(searchTermLower) ||
-        (listing.companyName && listing.companyName.toLowerCase().includes(searchTermLower)) ||
-        (listing.freightType && listing.freightType.toLowerCase().includes(searchTermLower)) ||
-        (listing.originCity && (listing.originCity as string).toLowerCase().includes(searchTermLower)) ||
-        (listing.destinationCity && (listing.destinationCity as string).toLowerCase().includes(searchTermLower))
-      );
-    });
-  }, [allListings, searchTerm]);
-
   const renderCityInput = (country: CountryCode | string | undefined, city: string | TurkishCity | undefined, setCity: (city: string | TurkishCity) => void, type: 'origin' | 'destination') => {
     if (country === 'TR') {
       return (
@@ -408,17 +428,38 @@ export default function AdminListingsPage() {
           <CardDescription>Mevcut yük ilanlarını yönetin, yenilerini ekleyin veya düzenleyin.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="İlan ara (ID, Firma, Tip)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 w-full"
-              />
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Ara (Firma Adı, ID...)"
+                  value={filters.searchTerm}
+                  onChange={(e) => setFilters(prev => ({...prev, searchTerm: e.target.value}))}
+                  className="pl-8 w-full"
+                />
+              </div>
+              <Select value={filters.type} onValueChange={(v) => setFilters(prev => ({ ...prev, type: v as any }))}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="İlan Tipi"/>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Tipler</SelectItem>
+                  {FREIGHT_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filters.status} onValueChange={(v) => setFilters(prev => ({...prev, status: v as any}))}>
+                 <SelectTrigger className="w-full sm:w-[170px]">
+                  <SelectValue placeholder="Durum"/>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Durumlar</SelectItem>
+                  <SelectItem value="active">Onaylı (Aktif)</SelectItem>
+                  <SelectItem value="inactive">Onay Bekleyen</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90" disabled={optionsLoading}>
+            <Button onClick={handleAddNew} className="w-full md:w-auto bg-primary hover:bg-primary/90" disabled={optionsLoading}>
               {optionsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni İlan Ekle
             </Button>
@@ -435,6 +476,7 @@ export default function AdminListingsPage() {
                 <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
                 <h3 className="text-lg font-semibold text-destructive-foreground mb-2">İlanlar Yüklenemedi</h3>
                 <p className="text-sm text-destructive-foreground/80 px-4">{fetchError}</p>
+                 <p className="text-xs text-destructive-foreground/70 mt-1 px-4">Eksik bir Firestore dizini olabilir. Lütfen tarayıcı konsolunu kontrol edin.</p>
                 <Button onClick={handleRefreshAndRefetch} variant="destructive" className="mt-4">Tekrar Dene</Button>
             </div>
           ) : (
@@ -447,12 +489,12 @@ export default function AdminListingsPage() {
                   <TableHead className="min-w-[180px]">İlan Veren</TableHead>
                   <TableHead className="min-w-[200px] hidden md:table-cell">Güzergah</TableHead>
                   <TableHead className="w-[130px] hidden sm:table-cell">Yükleme Tarihi</TableHead>
-                  <TableHead className="w-[100px] text-center">Aktif</TableHead>
+                  <TableHead className="w-[100px] text-center">Durum</TableHead>
                   <TableHead className="w-[120px] text-right">Eylemler</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredListings.length > 0 ? filteredListings.map((listing) => (
+                {allListings.length > 0 ? allListings.map((listing) => (
                   <TableRow key={listing.id} className="hover:bg-muted/50">
                     <TableCell className="font-mono text-xs truncate" title={listing.id}>{listing.id.substring(0,10)}...</TableCell>
                     <TableCell>
@@ -469,8 +511,9 @@ export default function AdminListingsPage() {
                         : 'Geçersiz Tarih'}
                     </TableCell>
                     <TableCell className="text-center">
-                       <Badge variant={listing.isActive ? "default" : "outline"} className={listing.isActive ? "bg-green-100 text-green-700 border-green-300" : "bg-red-100 text-red-700 border-red-300"}>
-                        {listing.isActive ? 'Evet' : 'Hayır'}
+                       <Badge variant={listing.isActive ? "default" : "outline"} className={listing.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-yellow-500/10 text-yellow-700 border-yellow-400"}>
+                          {listing.isActive ? <CheckCircle size={14} className="inline mr-1"/> : <XCircle size={14} className="inline mr-1"/>}
+                          {listing.isActive ? 'Onaylı' : 'Onay Bekliyor'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -505,7 +548,7 @@ export default function AdminListingsPage() {
                 )) : (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                      {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Kayıtlı ilan bulunamadı.'}
+                      {filters.searchTerm ? `"${filters.searchTerm}" için sonuç bulunamadı.` : 'Filtrelerle eşleşen ilan bulunamadı.'}
                     </TableCell>
                   </TableRow>
                 )}
