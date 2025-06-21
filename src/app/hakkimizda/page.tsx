@@ -28,20 +28,22 @@ export default function AboutUsPage() {
 
       {/* Main Content Section */}
       <section className="container mx-auto px-4">
-        <div className="grid md:grid-cols-12 gap-8 items-start">
-          <div className="md:col-span-4">
-            <h2 className="text-3xl font-bold text-primary mb-2">Farklı ve Özgün</h2>
-            <p className="text-muted-foreground">
-              Geleneksel nakliye süreçlerinin zorluklarını ortadan kaldırarak, teknolojiyi herkesin hizmetine sunuyoruz.
-            </p>
-          </div>
-          <div className="md:col-span-8 space-y-4 text-lg text-foreground/80">
-            <p>
-              <strong>Nakliyeci Dünyası</strong> olarak, eşya taşıma deneyimini yeniden tanımlayarak, sizlerin en değerli varlıklarını sorunsuz, güvenli ve uygun fiyatlı bir şekilde yer değiştirmelerini sağlamak için buradayız!
-            </p>
-            <p>
-              Amacımız, modern çağın getirdiği kolaylık ve teknolojiyi lojistik sektörüne entegre ederek, hem yük sahipleri hem de nakliyeciler için şeffaf, verimli ve güvenilir bir pazar yeri oluşturmaktır. Geleneksel yöntemlerin karmaşıklığını ve belirsizliğini bir kenara bırakın; şimdi dijital dönüşümün getirdiği kolaylıklarla tanışmanın tam zamanı!
-            </p>
+        <div className="bg-[#f1f5fd] dark:bg-muted/30 rounded-xl shadow-lg p-8 md:p-12">
+          <div className="grid md:grid-cols-12 gap-8 items-start">
+            <div className="md:col-span-4">
+              <h2 className="text-3xl font-bold text-primary mb-2">Farklı ve Özgün</h2>
+              <p className="text-muted-foreground">
+                Geleneksel nakliye süreçlerinin zorluklarını ortadan kaldırarak, teknolojiyi herkesin hizmetine sunuyoruz.
+              </p>
+            </div>
+            <div className="md:col-span-8 space-y-4 text-lg text-foreground/80">
+              <p>
+                <strong>Nakliyeci Dünyası</strong> olarak, eşya taşıma deneyimini yeniden tanımlayarak, sizlerin en değerli varlıklarını sorunsuz, güvenli ve uygun fiyatlı bir şekilde yer değiştirmelerini sağlamak için buradayız!
+              </p>
+              <p>
+                Amacımız, modern çağın getirdiği kolaylık ve teknolojiyi lojistik sektörüne entegre ederek, hem yük sahipleri hem de nakliyeciler için şeffaf, verimli ve güvenilir bir pazar yeri oluşturmaktır. Geleneksel yöntemlerin karmaşıklığını ve belirsizliğini bir kenara bırakın; şimdi dijital dönüşümün getirdiği kolaylıklarla tanışmanın tam zamanı!
+              </p>
+            </div>
           </div>
         </div>
       </section>
