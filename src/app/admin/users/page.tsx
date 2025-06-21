@@ -113,10 +113,14 @@ export default function UsersPage() {
     } else {
       setAvailableDistricts([]);
     }
+  }, [currentFormData.addressCity]);
+
+  // Effect to reset district if it's no longer valid after city change
+  useEffect(() => {
     if (currentFormData.addressDistrict && !availableDistricts.includes(currentFormData.addressDistrict)) {
       setCurrentFormData(prev => ({ ...prev, addressDistrict: '' }));
     }
-  }, [currentFormData.addressCity, currentFormData.addressDistrict, availableDistricts]);
+  }, [availableDistricts, currentFormData.addressDistrict]);
 
 
   const handleEdit = (user: CompanyUserProfile) => {
@@ -647,5 +651,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-
