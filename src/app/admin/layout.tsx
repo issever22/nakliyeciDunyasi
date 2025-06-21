@@ -153,6 +153,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </SidebarMenuItem>
             
             <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings/memberships')} tooltip={{content: "Üyelikler", side: "right"}}>
+                <Link href="/admin/settings/memberships">
+                  <Star /> <span>Üyelikler</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings/announcements')} tooltip={{content: "Duyurular", side: "right"}}>
+                <Link href="/admin/settings/announcements">
+                  <Megaphone /> <span>Duyurular</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
               <SidebarMenuButton 
                 onClick={() => setIsSponsorsOpen(!isSponsorsOpen)} 
                 isActive={isSponsorsRouteActive} 
@@ -181,22 +197,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 </SidebarMenuItem>
               </>
             )}
-
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings/memberships')} tooltip={{content: "Üyelikler", side: "right"}}>
-                <Link href="/admin/settings/memberships">
-                  <Star /> <span>Üyelikler</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings/announcements')} tooltip={{content: "Duyurular", side: "right"}}>
-                <Link href="/admin/settings/announcements">
-                  <Megaphone /> <span>Duyurular</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
 
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/messages')} tooltip={{content: "Mesajlar", side: "right"}}>
