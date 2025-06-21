@@ -11,7 +11,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { addSponsorshipsToUser } from '@/services/sponsorsService';
+import { addSponsorshipsToUser } from '@/services/authService';
 import { getAllUserProfiles } from '@/services/authService';
 import { COUNTRIES, TURKISH_CITIES } from '@/lib/locationData';
 import type { CompanyUserProfile } from '@/types';
@@ -92,7 +92,7 @@ export default function AddSponsorPage() {
 
       if (result.success) {
         toast({ title: "Başarılı", description: result.message });
-        router.push('/admin/users'); // Redirect to users page to see the updated profile
+        router.push('/admin/sponsors'); // Redirect to sponsors list page
       } else {
         throw new Error(result.message);
       }
@@ -110,7 +110,7 @@ export default function AddSponsorPage() {
         <CardTitle className="text-2xl flex items-center gap-2"><Award className="h-6 w-6 text-primary" /> Yeni Sponsorluk Ekle</CardTitle>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="outline" asChild className="w-full sm:w-auto">
-            <Link href="/admin/users">İptal</Link>
+            <Link href="/admin/sponsors">İptal</Link>
           </Button>
           <Button type="submit" disabled={formSubmitting || optionsLoading} className="w-full sm:w-auto">
             {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -122,7 +122,7 @@ export default function AddSponsorPage() {
       <Card>
         <CardHeader>
           <CardTitle>Sponsor Firma</CardTitle>
-          <CardDescription>Sponsor olarak işaretlenecek firmayı seçin.</CardDescription>
+          <CardDescription>Sponsor olarak işaretlenecek firmayı seçin. Mevcut sponsorlukları varsa üzerine eklenecektir.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="space-y-1.5 max-w-md">
@@ -225,7 +225,7 @@ export default function AddSponsorPage() {
 
        <CardFooter className="flex flex-col sm:flex-row justify-end gap-2 p-0 pt-4">
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/admin/users">İptal</Link>
+          <Link href="/admin/sponsors">İptal</Link>
         </Button>
         <Button type="submit" disabled={formSubmitting || optionsLoading} className="w-full sm:w-auto">
           {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

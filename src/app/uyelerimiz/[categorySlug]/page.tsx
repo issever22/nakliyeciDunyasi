@@ -4,8 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { CompanyUserProfile, CompanyCategory, CompanyCategoryDetail } from '@/types';
-import { getCompanyProfilesByCategory } from '@/services/authService';
-import { getActiveSponsorCompanyIds } from '@/services/sponsorsService';
+import { getCompanyProfilesByCategory, getActiveSponsorCompanyIds } from '@/services/authService';
 import { COMPANY_CATEGORIES } from '@/lib/constants';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';

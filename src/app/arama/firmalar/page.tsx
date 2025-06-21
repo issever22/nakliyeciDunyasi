@@ -4,8 +4,7 @@
 import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CompanyUserProfile, CompanyFilterOptions } from '@/types';
-import { getPaginatedCompanies } from '@/services/authService';
-import { getActiveSponsorCompanyIds } from '@/services/sponsorsService';
+import { getPaginatedCompanies, getActiveSponsorCompanyIds } from '@/services/authService';
 import CompanyCard from '@/components/company/CompanyCard';
 import CompanyFilters from '@/components/company/CompanyFilters';
 import { Skeleton } from '@/components/ui/skeleton';
