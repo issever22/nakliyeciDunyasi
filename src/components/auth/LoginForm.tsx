@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation'; 
 
 export default function LoginForm() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -22,7 +22,7 @@ export default function LoginForm() {
     event.preventDefault();
     setIsLoading(true);
     try {
-      const userProfile = await login(email, password);
+      const userProfile = await login(identifier, password);
       if (userProfile) {
         toast({
           title: "Başarılı Giriş",
@@ -33,7 +33,7 @@ export default function LoginForm() {
         // This case might not be reached if login always throws for failures
         toast({
           title: "Giriş Başarısız",
-          description: "E-posta veya şifre hatalı. Lütfen tekrar deneyin.",
+          description: "E-posta/kullanıcı adı veya şifre hatalı. Lütfen tekrar deneyin.",
           variant: "destructive",
         });
       }
@@ -52,18 +52,18 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="email">E-posta Adresi</Label>
+        <Label htmlFor="identifier">E-posta veya Kullanıcı Adı</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
-            id="email"
-            type="email"
-            placeholder="ornek@eposta.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            id="identifier"
+            type="text"
+            placeholder="E-posta veya kullanıcı adı"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             required
             className="pl-10"
-            autoComplete="email"
+            autoComplete="username"
           />
         </div>
       </div>
@@ -90,5 +90,3 @@ export default function LoginForm() {
     </form>
   );
 }
-
-    

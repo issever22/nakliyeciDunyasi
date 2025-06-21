@@ -13,9 +13,11 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase'; // db needed for querying users
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 
+const USER_SESSION_KEY = 'nakliyeci-dunyasi-session-user';
+
 interface AuthContextType {
   user: CompanyUserProfile | null; 
-  login: (email: string, pass: string) => Promise<CompanyUserProfile | null>;
+  login: (identifier: string, pass: string) => Promise<CompanyUserProfile | null>;
   register: (data: CompanyRegisterData) => Promise<CompanyUserProfile | null>; 
   logout: () => Promise<void>;
   loading: boolean;
@@ -26,27 +28,48 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<CompanyUserProfile | null>(null); 
-  const [loading, setLoading] = useState(false); // No initial loading from onAuthStateChanged
+  const [loading, setLoading] = useState(true); // Start as true
   const router = useRouter();
   const { toast } = useToast();
 
-  // onAuthStateChanged useEffect removed
+  useEffect(() => {
+    try {
+      const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
+      if (storedUserJson) {
+        const storedUser = JSON.parse(storedUserJson);
+        setUser(storedUser);
+      }
+    } catch (error) {
+      console.error("Failed to parse user from localStorage", error);
+      localStorage.removeItem(USER_SESSION_KEY);
+    } finally {
+      setLoading(false); // Set loading to false after checking storage
+    }
+  }, []);
 
-  const login = useCallback(async (email: string, pass: string): Promise<CompanyUserProfile | null> => {
+  const login = useCallback(async (identifier: string, pass: string): Promise<CompanyUserProfile | null> => {
     setLoading(true);
     try {
-      const usersRef = collection(db, "users"); // Ensure "users" matches your Firestore collection name
-      const q = query(usersRef, where("email", "==", email), limit(1));
-      const querySnapshot = await getDocs(q);
+      const usersRef = collection(db, "users");
+      
+      // Try to find user by email first
+      const emailQuery = query(usersRef, where("email", "==", identifier), limit(1));
+      let querySnapshot = await getDocs(emailQuery);
+
+      // If not found by email, try by username
+      if (querySnapshot.empty) {
+          const usernameQuery = query(usersRef, where("username", "==", identifier), limit(1));
+          querySnapshot = await getDocs(usernameQuery);
+      }
 
       if (querySnapshot.empty) {
-        throw new Error("Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı.");
+        throw new Error("Kullanıcı bulunamadı.");
       }
 
       const userDoc = querySnapshot.docs[0];
-      const userData = userDoc.data() as CompanyUserProfile; // Assume it includes password
+      const userData = userDoc.data() as CompanyUserProfile;
 
-      if (userData.password !== pass) { // Plaintext password comparison
+      if (userData.password !== pass) {
         throw new Error("Hatalı şifre.");
       }
       
@@ -54,20 +77,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Giriş yapılan hesap bir firma hesabı değil.");
       }
       
-      // Fetch full profile to ensure all fields are up-to-date as per convertToUserProfile logic
       const profile = await getUserProfileServerAction(userDoc.id);
       if (profile) {
         setUser(profile);
+        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(profile));
         return profile;
       } else {
-        // This case should ideally not happen if the query found a user with matching email and role
         throw new Error("Kullanıcı profili yüklenemedi veya geçersiz.");
       }
     } catch(error: any) {
       console.error("Custom login error:", error);
-      // Re-throw to be caught by LoginForm
-      if (error.message === "Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı." || error.message === "Hatalı şifre.") {
-          throw new Error("E-posta veya şifre hatalı.");
+      if (error.message === "Kullanıcı bulunamadı." || error.message === "Hatalı şifre.") {
+          throw new Error("E-posta/kullanıcı adı veya şifre hatalı.");
       }
       throw error; 
     } finally {
@@ -77,15 +98,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = useCallback(async (data: CompanyRegisterData): Promise<CompanyUserProfile | null> => {
     setLoading(true);
-    if (!data.password) { // Password is now mandatory for custom auth
+    if (!data.password) {
         setLoading(false);
         toast({ title: "Kayıt Hatası", description: "Şifre zorunludur.", variant: "destructive" });
         throw new Error("Şifre zorunludur.");
     }
     try {
-      const result = await createCompanyUserServerAction(data); // createCompanyUserServerAction now handles ID and password
+      const result = await createCompanyUserServerAction(data);
       if (result.profile) {
         setUser(result.profile); 
+        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(result.profile));
         return result.profile;
       } else {
         throw new Error(result.error || "Firma profili oluşturulamadı.");
@@ -99,11 +121,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   const logout = useCallback(async () => {
-    setLoading(true); // Optional: show loading during logout
+    setLoading(true);
     try {
       setUser(null); 
-      // No Firebase signOut needed
-      router.push('/auth/giris'); // Or homepage
+      localStorage.removeItem(USER_SESSION_KEY);
+      router.push('/auth/giris');
     } catch (error: any) {
       console.error("Logout error (custom):", error);
       toast({ title: "Çıkış Hatası", description: error.message, variant: "destructive"});
@@ -112,7 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [router, toast]);
   
-  const isAuthenticated = !!user; // Simpler check now
+  const isAuthenticated = !!user;
 
   return (
     <AuthContext.Provider value={{ user, login, register, logout, loading, isAuthenticated }}>
@@ -134,7 +156,6 @@ export const useRequireAuth = (redirectUrl = '/auth/giris') => {
   const router = useRouter();
 
   useEffect(() => {
-    // If loading is complete (not during initial app load or async auth op) and user is not authenticated
     if (!loading && !isAuthenticated) {
       router.push(redirectUrl);
     }
@@ -142,5 +163,3 @@ export const useRequireAuth = (redirectUrl = '/auth/giris') => {
 
   return { user, loading, isAuthenticated }; 
 };
-
-    
