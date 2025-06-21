@@ -22,106 +22,64 @@ import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
 import type { Sponsor, SponsorEntityType, CompanyUserProfile } from '@/types';
 import { COUNTRIES, TURKISH_CITIES, type CountryCode, type TurkishCity } from '@/lib/locationData';
-import { getAllSponsors, addSponsor, updateSponsor, deleteSponsor } from '@/services/sponsorsService';
-import { getAllUserProfiles } from '@/services/authService';
+import { getAllSponsors, updateSponsor, deleteSponsor } from '@/services/sponsorsService';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 const getCountryName = (code: string) => COUNTRIES.find(c => c.code === code)?.name || code;
 
 export default function SponsorsPage() {
   const { toast } = useToast();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
-  const [companyUsers, setCompanyUsers] = useState<CompanyUserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [optionsLoading, setOptionsLoading] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | null>(null);
   
   const [currentFormData, setCurrentFormData] = useState<{
-    companyId: string;
-    name: string;
-    logoUrl: string;
-    linkUrl: string;
-    entityType: SponsorEntityType;
-    selectedCountry: CountryCode | string;
-    selectedCity: TurkishCity | string;
     startDate?: Date;
     endDate?: Date;
     isActive: boolean;
-  }>({ companyId: '', name: '', logoUrl: '', linkUrl: '', entityType: 'country', selectedCountry: 'TR', selectedCity: '', startDate: undefined, endDate: undefined, isActive: true });
+  }>({ startDate: undefined, endDate: undefined, isActive: true });
 
-  const fetchSponsorsAndCompanies = useCallback(async () => {
+  const fetchSponsors = useCallback(async () => {
     setIsLoading(true);
-    setOptionsLoading(true);
     try {
-      const [sponsorsFromDb, companiesFromDb] = await Promise.all([
-        getAllSponsors(),
-        getAllUserProfiles()
-      ]);
+      const sponsorsFromDb = await getAllSponsors();
       setSponsors(sponsorsFromDb);
-      setCompanyUsers(companiesFromDb.filter(u => u.isActive));
     } catch (error) {
-      console.error("Error fetching sponsors or companies:", error);
-      toast({ title: "Hata", description: "Sponsorlar veya firmalar yüklenirken bir sorun oluştu.", variant: "destructive" });
+      console.error("Error fetching sponsors:", error);
+      toast({ title: "Hata", description: "Sponsorlar yüklenirken bir sorun oluştu.", variant: "destructive" });
     }
     setIsLoading(false);
-    setOptionsLoading(false);
   }, [toast]);
 
   useEffect(() => {
-    fetchSponsorsAndCompanies();
-  }, [fetchSponsorsAndCompanies]);
+    fetchSponsors();
+  }, [fetchSponsors]);
 
   useEffect(() => {
     if (editingSponsor) {
       setCurrentFormData({
-        companyId: editingSponsor.companyId,
-        name: editingSponsor.name,
-        logoUrl: editingSponsor.logoUrl || '',
-        linkUrl: editingSponsor.linkUrl || '',
-        entityType: editingSponsor.entityType,
-        selectedCountry: editingSponsor.entityType === 'country' ? editingSponsor.entityName as CountryCode : 'TR',
-        selectedCity: editingSponsor.entityType === 'city' ? editingSponsor.entityName as TurkishCity : '',
         startDate: editingSponsor.startDate && isValid(parseISO(editingSponsor.startDate)) ? parseISO(editingSponsor.startDate) : undefined,
         endDate: editingSponsor.endDate && isValid(parseISO(editingSponsor.endDate)) ? parseISO(editingSponsor.endDate) : undefined,
         isActive: editingSponsor.isActive,
       });
     } else {
-      setCurrentFormData({ companyId: '', name: '', logoUrl: '', linkUrl: '', entityType: 'country', selectedCountry: 'TR', selectedCity: '', startDate: undefined, endDate: undefined, isActive: true });
+      setCurrentFormData({ startDate: undefined, endDate: undefined, isActive: true });
     }
-  }, [editingSponsor, isAddEditDialogOpen]);
-
-  const handleAddNew = () => {
-    setEditingSponsor(null);
-    setIsAddEditDialogOpen(true);
-  };
+  }, [editingSponsor, isEditDialogOpen]);
 
   const handleEdit = (sponsor: Sponsor) => {
     setEditingSponsor(sponsor);
-    setIsAddEditDialogOpen(true);
-  };
-
-  const handleCompanySelect = (companyId: string) => {
-    const selectedCompany = companyUsers.find(c => c.id === companyId);
-    if (selectedCompany) {
-      setCurrentFormData(prev => ({
-        ...prev,
-        companyId: selectedCompany.id,
-        name: selectedCompany.name,
-        logoUrl: selectedCompany.logoUrl || '',
-        linkUrl: selectedCompany.website || '',
-      }));
-    }
+    setIsEditDialogOpen(true);
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-     if (!currentFormData.companyId) {
-        toast({ title: "Hata", description: "Lütfen sponsor olacak firmayı seçin.", variant: "destructive" });
-        return;
-    }
+    if (!editingSponsor) return;
+
     if (!currentFormData.startDate) {
         toast({ title: "Hata", description: "Başlangıç tarihi zorunludur.", variant: "destructive" });
         return;
@@ -130,75 +88,32 @@ export default function SponsorsPage() {
         toast({ title: "Hata", description: "Bitiş tarihi başlangıç tarihinden önce olamaz.", variant: "destructive" });
         return;
     }
-    if (currentFormData.entityType === 'country' && !currentFormData.selectedCountry) {
-        toast({ title: "Hata", description: "Lütfen sponsor olunacak ülkeyi seçin.", variant: "destructive" });
-        return;
-    }
-    if (currentFormData.entityType === 'city' && !currentFormData.selectedCity) {
-        toast({ title: "Hata", description: "Lütfen sponsor olunacak şehri seçin.", variant: "destructive" });
-        return;
-    }
+
     setFormSubmitting(true);
 
-    const entityName = currentFormData.entityType === 'country' ? currentFormData.selectedCountry : currentFormData.selectedCity;
-    
-    // Check for duplicates before submitting
-    if (!editingSponsor) { // Only check for duplicates when creating a new one
-      const isDuplicate = sponsors.some(sp => 
-        sp.companyId === currentFormData.companyId && 
-        sp.entityName === entityName &&
-        sp.entityType === currentFormData.entityType
-      );
-      if (isDuplicate) {
-        toast({
-          title: "Mükerrer Kayıt",
-          description: `"${currentFormData.name}" firması zaten "${entityName}" için bir sponsor.`,
-          variant: "destructive"
-        });
-        setFormSubmitting(false);
-        return;
-      }
-    }
-
-
-    const sponsorData: Partial<Omit<Sponsor, 'id' | 'createdAt'>> = {
-      companyId: currentFormData.companyId,
-      name: currentFormData.name,
-      logoUrl: currentFormData.logoUrl || undefined,
-      linkUrl: currentFormData.linkUrl || undefined,
-      entityType: currentFormData.entityType,
-      entityName: entityName,
+    const sponsorData: Partial<Omit<Sponsor, 'id' | 'createdAt' | 'companyId' | 'name' | 'logoUrl' | 'linkUrl' | 'entityType' | 'entityName'>> = {
       startDate: format(currentFormData.startDate, "yyyy-MM-dd"),
       endDate: currentFormData.endDate ? format(currentFormData.endDate, "yyyy-MM-dd") : undefined,
       isActive: currentFormData.isActive,
     };
 
-    if (editingSponsor) {
-      const success = await updateSponsor(editingSponsor.id, sponsorData);
-      if (success) {
-        toast({ title: "Başarılı", description: "Sponsor güncellendi." });
-        fetchSponsorsAndCompanies();
-      } else {
-        toast({ title: "Hata", description: "Sponsor güncellenemedi.", variant: "destructive" });
-      }
+    const success = await updateSponsor(editingSponsor.id, sponsorData);
+    if (success) {
+      toast({ title: "Başarılı", description: "Sponsor güncellendi." });
+      fetchSponsors();
     } else {
-      const newSponsorId = await addSponsor(sponsorData as Omit<Sponsor, 'id' | 'createdAt'>);
-      if (newSponsorId) {
-        toast({ title: "Başarılı", description: "Yeni sponsor eklendi." });
-        fetchSponsorsAndCompanies();
-      } else {
-        toast({ title: "Hata", description: "Yeni sponsor eklenemedi.", variant: "destructive" });
-      }
+      toast({ title: "Hata", description: "Sponsor güncellenemedi.", variant: "destructive" });
     }
+
     setFormSubmitting(false);
-    setIsAddEditDialogOpen(false);
+    setIsEditDialogOpen(false);
   };
 
   const handleDelete = async (id: string) => {
     const success = await deleteSponsor(id);
     if (success) {
       toast({ title: "Başarılı", description: "Sponsor silindi.", variant: "destructive" });
-      fetchSponsorsAndCompanies();
+      fetchSponsors();
     } else {
       toast({ title: "Hata", description: "Sponsor silinemedi.", variant: "destructive" });
     }
@@ -233,8 +148,10 @@ export default function SponsorsPage() {
                 className="pl-8 w-full"
               />
             </div>
-            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
-              <PlusCircle className="mr-2 h-4 w-4" /> Yeni Sponsor Ekle
+            <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+              <Link href="/admin/sponsors/add">
+                <PlusCircle className="mr-2 h-4 w-4" /> Yeni Sponsor Ekle
+              </Link>
             </Button>
           </div>
             {isLoading ? (
@@ -318,84 +235,29 @@ export default function SponsorsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isAddEditDialogOpen} onOpenChange={(isOpen) => {
-          setIsAddEditDialogOpen(isOpen);
+      <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
+          setIsEditDialogOpen(isOpen);
           if (!isOpen) setEditingSponsor(null);
       }}>
         <DialogContent className="sm:max-w-lg">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>{editingSponsor ? 'Sponsoru Düzenle' : 'Yeni Sponsor Ekle'}</DialogTitle>
+              <DialogTitle>Sponsorluğu Düzenle</DialogTitle>
               <DialogDescription>
-                 {editingSponsor ? `"${editingSponsor.name}" sponsorunun bilgilerini güncelleyin.` : 'Sponsor olacak firmayı ve diğer bilgileri seçin.'}
+                 {editingSponsor ? `"${editingSponsor.name}" firmasının "${editingSponsor.entityName}" sponsorluğunun bilgilerini güncelleyin.` : ''}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-6">
-               <div className="space-y-1.5">
-                <Label htmlFor="spCompany" className="font-medium">Sponsor Firma (*)</Label>
-                <Select
-                  value={currentFormData.companyId}
-                  onValueChange={handleCompanySelect}
-                  disabled={optionsLoading || !!editingSponsor}
-                >
-                  <SelectTrigger id="spCompany">
-                    <SelectValue placeholder={optionsLoading ? "Firmalar Yükleniyor..." : "Firma seçin..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companyUsers.length > 0 ? (
-                        companyUsers.map(company => (
-                            <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
-                        ))
-                    ) : (
-                        <div className="p-4 text-sm text-muted-foreground">Sponsor olabilecek aktif firma bulunamadı.</div>
-                    )}
-                  </SelectContent>
-                </Select>
-                {editingSponsor && <p className="text-xs text-muted-foreground">Sponsor firma düzenleme sırasında değiştirilemez.</p>}
+              
+              <div className="space-y-1.5">
+                <Label>Sponsor Firma (Değiştirilemez)</Label>
+                <Input value={editingSponsor?.name || ''} disabled />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Sponsor Olunan Yer (Değiştirilemez)</Label>
+                <Input value={editingSponsor?.entityType === 'country' ? getCountryName(editingSponsor.entityName) : editingSponsor?.entityName} disabled />
               </div>
 
-              <div className="space-y-2">
-                <Label className="font-medium">Sponsor Olunan Varlık Tipi (*)</Label>
-                <RadioGroup 
-                    value={currentFormData.entityType} 
-                    onValueChange={(value: SponsorEntityType) => setCurrentFormData({...currentFormData, entityType: value})} 
-                    className="flex gap-4"
-                >
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="country" id="spEntityTypeCountry" />
-                        <Label htmlFor="spEntityTypeCountry">Ülke</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="city" id="spEntityTypeCity" />
-                        <Label htmlFor="spEntityTypeCity">Şehir</Label>
-                    </div>
-                </RadioGroup>
-              </div>
-
-              {currentFormData.entityType === 'country' && (
-                <div className="space-y-1.5">
-                    <Label htmlFor="spCountry" className="font-medium">Sponsor Olunan Ülke (*)</Label>
-                    <Select value={currentFormData.selectedCountry} onValueChange={(value: CountryCode | string) => setCurrentFormData({...currentFormData, selectedCountry: value})}>
-                    <SelectTrigger id="spCountry"><SelectValue placeholder="Ülke seçin..." /></SelectTrigger>
-                    <SelectContent>
-                        {COUNTRIES.filter(c => c.code !== 'OTHER').map(country => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}
-                    </SelectContent>
-                    </Select>
-                </div>
-              )}
-
-              {currentFormData.entityType === 'city' && (
-                <div className="space-y-1.5">
-                    <Label htmlFor="spCity" className="font-medium">Sponsor Olunan Şehir (*)</Label>
-                    <Select value={currentFormData.selectedCity} onValueChange={(value: TurkishCity | string) => setCurrentFormData({...currentFormData, selectedCity: value})}>
-                    <SelectTrigger id="spCity"><SelectValue placeholder="Şehir seçin..." /></SelectTrigger>
-                    <SelectContent>
-                        {TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
-                    </SelectContent>
-                    </Select>
-                </div>
-              )}
-            
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="spStartDate" className="font-medium">Başlangıç Tarihi (*)</Label>
@@ -433,11 +295,11 @@ export default function SponsorsPage() {
             </div>
             <DialogFooter>
                  <DialogClose asChild>
-                    <Button type="button" variant="outline" disabled={formSubmitting || optionsLoading}>İptal</Button>
+                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
                 </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting || optionsLoading}>
-                {(formSubmitting || optionsLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingSponsor ? 'Değişiklikleri Kaydet' : 'Sponsor Ekle'}
+              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
+                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Değişiklikleri Kaydet
               </Button>
             </DialogFooter>
           </form>

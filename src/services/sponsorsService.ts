@@ -13,7 +13,9 @@ import {
   orderBy, 
   Timestamp,
   DocumentData,
-  getDoc
+  getDoc,
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { parseISO, isValid } from 'date-fns';
 
@@ -90,6 +92,99 @@ export const addSponsor = async (sponsorData: Omit<Sponsor, 'id' | 'createdAt'>)
   } catch (error) {
     console.error("Error adding sponsor: ", error);
     return null;
+  }
+};
+
+export const addSponsorshipsBatch = async (
+  companyId: string,
+  countryCodes: string[],
+  cityNames: string[],
+  startDate: string,
+  endDate?: string
+): Promise<{ success: boolean; message: string; addedCount: number; skippedCount: number }> => {
+  if (!companyId) {
+    return { success: false, message: "Firma seçimi zorunludur.", addedCount: 0, skippedCount: 0 };
+  }
+  if (countryCodes.length === 0 && cityNames.length === 0) {
+    return { success: false, message: "En az bir ülke veya şehir seçilmelidir.", addedCount: 0, skippedCount: 0 };
+  }
+
+  try {
+    const companyDocRef = doc(db, 'users', companyId);
+    const companyDocSnap = await getDoc(companyDocRef);
+    if (!companyDocSnap.exists()) {
+      return { success: false, message: "Seçilen firma bulunamadı.", addedCount: 0, skippedCount: 0 };
+    }
+    const companyData = companyDocSnap.data();
+
+    // Fetch existing sponsorships for this company
+    const sponsorsRef = collection(db, SPONSORS_COLLECTION);
+    const q = query(sponsorsRef, where('companyId', '==', companyId));
+    const existingSponsorsSnapshot = await getDocs(q);
+    const existingSponsorships = new Set(
+      existingSponsorsSnapshot.docs.map(d => `${d.data().entityType}:${d.data().entityName}`)
+    );
+
+    const batch = writeBatch(db);
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    const sponsorBase = {
+      companyId: companyId,
+      name: companyData.name || 'Bilinmeyen Firma',
+      logoUrl: companyData.logoUrl || undefined,
+      linkUrl: companyData.website || undefined,
+      startDate: Timestamp.fromDate(parseISO(startDate)),
+      endDate: endDate ? Timestamp.fromDate(parseISO(endDate)) : null,
+      isActive: true,
+      createdAt: Timestamp.fromDate(new Date()),
+    };
+
+    // Add country sponsorships
+    for (const code of countryCodes) {
+      if (!existingSponsorships.has(`country:${code}`)) {
+        const newSponsorDocRef = doc(collection(db, SPONSORS_COLLECTION));
+        batch.set(newSponsorDocRef, {
+          ...sponsorBase,
+          entityType: 'country',
+          entityName: code,
+        });
+        addedCount++;
+      } else {
+        skippedCount++;
+      }
+    }
+
+    // Add city sponsorships
+    for (const name of cityNames) {
+      if (!existingSponsorships.has(`city:${name}`)) {
+        const newSponsorDocRef = doc(collection(db, SPONSORS_COLLECTION));
+        batch.set(newSponsorDocRef, {
+          ...sponsorBase,
+          entityType: 'city',
+          entityName: name,
+        });
+        addedCount++;
+      } else {
+        skippedCount++;
+      }
+    }
+
+    if (addedCount > 0) {
+      await batch.commit();
+    }
+    
+    let message = '';
+    if (addedCount > 0) message += `${addedCount} yeni sponsorluk eklendi. `;
+    if (skippedCount > 0) message += `${skippedCount} mevcut sponsorluk atlandı.`;
+    if (addedCount === 0 && skippedCount > 0) message = 'Seçilen tüm sponsorluklar zaten mevcut, yeni kayıt eklenmedi.';
+    if (addedCount === 0 && skippedCount === 0) message = 'Eklenecek yeni sponsorluk bulunamadı.';
+
+
+    return { success: true, message, addedCount, skippedCount };
+  } catch (error) {
+    console.error("Error adding sponsorships in batch: ", error);
+    return { success: false, message: "Sponsorluklar eklenirken bir hata oluştu.", addedCount: 0, skippedCount: 0 };
   }
 };
 
