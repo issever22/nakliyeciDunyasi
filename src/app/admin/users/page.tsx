@@ -74,6 +74,7 @@ export default function UsersPage() {
       }
       setCurrentFormData({
         ...editingUser,
+        password: '', // Always start with an empty password field for editing
         membershipEndDate: membershipEndDateToSet,
         workingMethods: editingUser.workingMethods || [],
         workingRoutes: editingUser.workingRoutes || [],
@@ -110,13 +111,17 @@ export default function UsersPage() {
     e.preventDefault();
     if (!editingUser) return;
     
-    // Basic validation
     const requiredFields = ['name', 'email', 'username', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCity', 'fullAddress'];
     for (const field of requiredFields) {
         if (!(currentFormData as any)[field]) {
             toast({ title: "Eksik Bilgi", description: `Lütfen zorunlu alanları (*) doldurun. Eksik alan: ${field}`, variant: "destructive" });
             return;
         }
+    }
+    
+    if (currentFormData.password && currentFormData.password.length < 6) {
+        toast({ title: "Hata", description: "Yeni şifre en az 6 karakter olmalıdır.", variant: "destructive" });
+        return;
     }
     setFormSubmitting(true);
 
@@ -132,7 +137,7 @@ export default function UsersPage() {
     dataToSubmit.preferredCities = (dataToSubmit.preferredCities || []).filter((c: string) => c);
     dataToSubmit.preferredCountries = (dataToSubmit.preferredCountries || []).filter((c: string) => c);
     
-    const { id, createdAt, password, email, role, ...updateData } = dataToSubmit; 
+    const { id, createdAt, email, role, ...updateData } = dataToSubmit; 
     
     const success = await updateUserProfile(editingUser.id, updateData as Partial<CompanyUserProfile>);
     if (success) {
@@ -409,17 +414,21 @@ export default function UsersPage() {
                             <p className="text-xs text-muted-foreground">E-posta adresi değiştirilemez.</p>
                         </div>
                         <div className="space-y-1.5">
-                            <Label htmlFor="edit-category">Firma Kategorisi (*)</Label>
-                            <Select 
-                                value={currentFormData.category} 
-                                onValueChange={(value) => setCurrentFormData(prev => ({...prev, category: value as CompanyCategory}))}
-                            >
-                                <SelectTrigger id="edit-category"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {COMPANY_CATEGORIES.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="edit-password">Yeni Şifre (Değiştirmek için doldurun)</Label>
+                            <Input id="edit-password" type="password" value={currentFormData.password || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} placeholder="Boş bırakırsanız değişmez"/>
                         </div>
+                    </div>
+                     <div className="space-y-1.5">
+                        <Label htmlFor="edit-category">Firma Kategorisi (*)</Label>
+                        <Select 
+                            value={currentFormData.category} 
+                            onValueChange={(value) => setCurrentFormData(prev => ({...prev, category: value as CompanyCategory}))}
+                        >
+                            <SelectTrigger id="edit-category"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {COMPANY_CATEGORIES.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
             </Card>
@@ -585,7 +594,7 @@ export default function UsersPage() {
                                         onSelect={(date) => {
                                             setCurrentFormData(prev => ({...prev, membershipEndDate: date}));
                                         }}
-                                        disabled={(date) => date > new Date()}
+                                        disabled={(date) => date < new Date()}
                                         initialFocus
                                     />
                                 </PopoverContent>
@@ -593,16 +602,17 @@ export default function UsersPage() {
                         </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="edit-isActive" checked={currentFormData.isActive === true} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
-                        <Label htmlFor="edit-isActive">Firma Onayı</Label>
+                        <Switch id="edit-isActive" checked={currentFormData.isActive === true} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
+                        <Label htmlFor="edit-isActive">Firma Onayı (Aktif/Pasif)</Label>
                     </div>
                 </CardContent>
             </Card>
             </div>
 
-            <DialogFooter className="p-6 pt-4 border-t">
+            <DialogFooter className="p-6 pt-4 border-t sticky bottom-0 bg-background">
+              <DialogClose asChild><Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button></DialogClose>
               <Button type="submit" disabled={formSubmitting}>
-                {formSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Kaydediliyor...</> : 'Kaydet'}
+                {formSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Kaydediliyor...</> : 'Değişiklikleri Kaydet'}
               </Button>
             </DialogFooter>
           </form>

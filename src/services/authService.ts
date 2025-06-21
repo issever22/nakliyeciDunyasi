@@ -215,7 +215,6 @@ export async function getAllUserProfiles(): Promise<CompanyUserProfile[]> {
               console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
               console.error("!!! ADMIN ALL USERS - MISSING FIRESTORE INDEX !!!");
               console.error(`!!! Index URL: ${indexCreationUrl}`);
-              console.error("!!! Likely involves field: 'createdAt' (descending).");
               console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
           }
      }
@@ -275,10 +274,14 @@ export async function updateUserProfile(uid: string, data: Partial<CompanyUserPr
     const updateData: any = { ...data };
 
     delete updateData.id;
-    delete updateData.password;
     delete updateData.email;
     delete updateData.role; 
     delete updateData.createdAt;
+
+    // Conditionally handle password: only include it in the update if it's a non-empty string.
+    if (!updateData.password || updateData.password.trim() === '') {
+        delete updateData.password;
+    }
 
     if (updateData.hasOwnProperty('name')) {
         updateData.companyTitle = updateData.name;

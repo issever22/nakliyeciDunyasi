@@ -130,3 +130,5 @@ export const WORKING_ROUTES = [
 ] as const;
 
 export const EMPTY_VEHICLE_SERVICE_TYPES = ['Komple', 'Parsiyel', 'Tonajlı'] as const;
+
+export const MEMBERSHIP_STATUS_OPTIONS = ['Yok', 'Standart', 'Premium'] as const;
