@@ -6,21 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { addSponsorshipsBatch } from '@/services/sponsorsService'; // New batch service
+import { addSponsorshipsBatch } from '@/services/sponsorsService';
 import { getAllUserProfiles } from '@/services/authService';
 import { COUNTRIES, TURKISH_CITIES } from '@/lib/locationData';
 import type { CompanyUserProfile } from '@/types';
-import { Loader2, PlusCircle, Award, CalendarIcon, Building, CheckSquare, Search, Globe, MapPin, X } from 'lucide-react';
+import { Loader2, PlusCircle, Award, CalendarIcon, Building, CheckSquare, Search, Globe, MapPin, X, ChevronsUpDown, Check } from 'lucide-react';
 import Link from 'next/link';
-import { format, isValid } from "date-fns";
+import { format } from "date-fns";
 import { tr } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 export default function AddSponsorPage() {
   const { toast } = useToast();
@@ -36,6 +37,7 @@ export default function AddSponsorPage() {
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   
   const [citySearchTerm, setCitySearchTerm] = useState('');
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>();
@@ -140,18 +142,52 @@ export default function AddSponsorPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
               <Label htmlFor="spCompany" className="font-medium">Sponsor Firma (*)</Label>
-              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId} disabled={optionsLoading}>
-                <SelectTrigger id="spCompany"><SelectValue placeholder={optionsLoading ? "Firmalar Yükleniyor..." : "Firma seçin..."} /></SelectTrigger>
-                <SelectContent>
-                  {companyUsers.length > 0 ? (
-                    companyUsers.map(company => (
-                      <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
-                    ))
-                  ) : (
-                    <div className="p-4 text-sm text-muted-foreground">Sponsor olabilecek aktif firma bulunamadı.</div>
-                  )}
-                </SelectContent>
-              </Select>
+               <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={popoverOpen}
+                    className="w-full justify-between font-normal"
+                    disabled={optionsLoading}
+                  >
+                    {optionsLoading
+                      ? "Firmalar Yükleniyor..."
+                      : selectedCompanyId
+                      ? companyUsers.find((company) => company.id === selectedCompanyId)?.name
+                      : "Firma seçin..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput placeholder="Firma ara..." />
+                    <CommandList>
+                      <CommandEmpty>Firma bulunamadı.</CommandEmpty>
+                      <CommandGroup>
+                        {companyUsers.map((company) => (
+                          <CommandItem
+                            key={company.id}
+                            value={company.name}
+                            onSelect={() => {
+                              setSelectedCompanyId(company.id === selectedCompanyId ? '' : company.id);
+                              setPopoverOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedCompanyId === company.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {company.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div></div>
           </div>
