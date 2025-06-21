@@ -423,7 +423,6 @@ export default function UsersPage() {
             <TableHead className="w-[60px] px-2"></TableHead>
             <TableHead className="min-w-[180px]">Firma Adı</TableHead>
             <TableHead className="min-w-[150px] hidden md:table-cell">Kategori</TableHead>
-            <TableHead className="min-w-[180px] hidden lg:table-cell">E-posta</TableHead>
             <TableHead className="min-w-[120px] hidden md:table-cell">Üyelik</TableHead>
             <TableHead className="w-[100px] text-center hidden sm:table-cell">Durum</TableHead>
             <TableHead className="w-[120px] text-right">Eylemler</TableHead>
@@ -454,7 +453,6 @@ export default function UsersPage() {
                   <div className="text-xs text-muted-foreground">K.Adı: {user.username}</div>
               </TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="secondary" className="text-xs">{user.category}</Badge></TableCell>
-              <TableCell className="text-sm hidden lg:table-cell">{user.email}</TableCell>
               <TableCell className="hidden md:table-cell">
                   {getMembershipBadge(user.membershipStatus)}
                   <div className="text-xs text-muted-foreground mt-1">{calculateRemainingDays(user.membershipEndDate)}</div>
@@ -500,7 +498,7 @@ export default function UsersPage() {
             );
           }) : (
             <TableRow>
-              <TableCell colSpan={7} className="h-32 text-center">
+              <TableCell colSpan={6} className="h-32 text-center">
                 <ShieldAlert className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">
                   {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Filtrelerle eşleşen firma bulunamadı.'}
@@ -511,7 +509,7 @@ export default function UsersPage() {
         </TableBody>
         <TableFooter>
             <TableRow>
-              <TableCell colSpan={7} className="text-center">
+              <TableCell colSpan={6} className="text-center">
                 {isLoadingMore ? (
                     <Button disabled className="w-full sm:w-auto">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Yükleniyor...
