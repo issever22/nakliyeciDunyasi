@@ -499,15 +499,18 @@ export default function Header() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <form onSubmit={handleSearchSubmit} className="flex w-full max-w-xs items-center gap-2">
             <Input
               type="search"
               placeholder="Firmalarda ara..."
-              className="h-9 pl-9 w-full bg-muted/50 border-border"
+              className="h-9 bg-muted/50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <Button type="submit" size="icon" className="h-9 w-9 shrink-0">
+              <Search className="h-4 w-4" />
+              <span className="sr-only">Ara</span>
+            </Button>
           </form>
 
         </div>
