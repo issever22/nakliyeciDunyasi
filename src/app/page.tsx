@@ -26,7 +26,10 @@ import {
   Network,
   BadgePercent,
   ShieldCheck,
-  MousePointerClick
+  MousePointerClick,
+  Users,
+  MessageSquareText,
+  Star
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from '@/components/ui/card';
@@ -319,6 +322,38 @@ export default function HomePage() {
              )
           )
         }
+      </section>
+
+      <section>
+        <div className="bg-primary/5 rounded-xl p-8 border border-primary/10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            
+            <div className="flex flex-col items-center">
+              <Users className="h-10 w-10 text-primary mb-3" />
+              <h4 className="text-lg font-semibold text-muted-foreground">Firmalarımız</h4>
+              <p className="text-4xl font-bold text-primary mt-1">1,300+</p>
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <Truck className="h-10 w-10 text-primary mb-3" />
+              <h4 className="text-lg font-semibold text-muted-foreground">Tamamlanan Nakliye</h4>
+              <p className="text-4xl font-bold text-primary mt-1">12,340</p>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <MessageSquareText className="h-10 w-10 text-primary mb-3" />
+              <h4 className="text-lg font-semibold text-muted-foreground">Müşteri Yorumu</h4>
+              <p className="text-4xl font-bold text-primary mt-1">1,560</p>
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <Star className="h-10 w-10 text-primary mb-3" />
+              <h4 className="text-lg font-semibold text-muted-foreground">Memnuniyet</h4>
+              <p className="text-4xl font-bold text-primary mt-1">98%</p>
+            </div>
+
+          </div>
+        </div>
       </section>
 
       <section className="text-center">
