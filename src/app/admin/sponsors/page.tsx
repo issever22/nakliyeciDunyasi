@@ -141,6 +141,25 @@ export default function SponsorsPage() {
     setFormSubmitting(true);
 
     const entityName = currentFormData.entityType === 'country' ? currentFormData.selectedCountry : currentFormData.selectedCity;
+    
+    // Check for duplicates before submitting
+    if (!editingSponsor) { // Only check for duplicates when creating a new one
+      const isDuplicate = sponsors.some(sp => 
+        sp.companyId === currentFormData.companyId && 
+        sp.entityName === entityName &&
+        sp.entityType === currentFormData.entityType
+      );
+      if (isDuplicate) {
+        toast({
+          title: "Mükerrer Kayıt",
+          description: `"${currentFormData.name}" firması zaten "${entityName}" için bir sponsor.`,
+          variant: "destructive"
+        });
+        setFormSubmitting(false);
+        return;
+      }
+    }
+
 
     const sponsorData: Partial<Omit<Sponsor, 'id' | 'createdAt'>> = {
       companyId: currentFormData.companyId,
