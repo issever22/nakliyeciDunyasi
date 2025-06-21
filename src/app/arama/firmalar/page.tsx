@@ -5,7 +5,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CompanyUserProfile } from '@/types';
 import { searchCompanyProfilesByName } from '@/services/authService';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, SearchX } from 'lucide-react';
 import CompanyCard from '@/components/company/CompanyCard';
