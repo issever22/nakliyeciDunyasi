@@ -56,9 +56,9 @@ export default function CompanyFilters({ onFilterChange, initialSearchTerm = '',
   }, [searchTerm, category, city]);
 
   return (
-    <div className="p-6 bg-card border rounded-lg shadow-lg space-y-6 mb-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-        <div>
+    <div className="p-4 bg-card border rounded-lg shadow-md mb-8">
+      <div className="flex flex-col sm:flex-row flex-wrap items-end gap-3">
+        <div className="flex-grow w-full sm:w-auto">
           <Label htmlFor="company-search-input">Firma Adı</Label>
           <div className="relative mt-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -67,21 +67,21 @@ export default function CompanyFilters({ onFilterChange, initialSearchTerm = '',
               placeholder="Firma adıyla ara..." 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-9"
               disabled={isLoading}
             />
           </div>
         </div>
-        <div>
+        <div className="w-full sm:w-48">
           <Label htmlFor="company-category-filter">Kategori</Label>
            <div className="relative mt-1">
-            <List className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <List className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
              <Select
               value={category || ALL_OPTIONS_VALUE}
               onValueChange={(value) => setCategory(value === ALL_OPTIONS_VALUE ? '' : value)}
               disabled={isLoading}
             >
-              <SelectTrigger id="company-category-filter" className="w-full pl-9">
+              <SelectTrigger id="company-category-filter" className="w-full pl-9 h-9">
                 <SelectValue placeholder="Tüm Kategoriler" />
               </SelectTrigger>
               <SelectContent>
@@ -93,16 +93,16 @@ export default function CompanyFilters({ onFilterChange, initialSearchTerm = '',
             </Select>
            </div>
         </div>
-        <div>
+        <div className="w-full sm:w-48">
           <Label htmlFor="company-city-filter">Şehir</Label>
           <div className="relative mt-1">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
             <Select
                 value={city || ALL_OPTIONS_VALUE}
                 onValueChange={(value) => setCity(value === ALL_OPTIONS_VALUE ? '' : value)}
                 disabled={isLoading}
             >
-                <SelectTrigger id="company-city-filter" className="w-full pl-9">
+                <SelectTrigger id="company-city-filter" className="w-full pl-9 h-9">
                     <SelectValue placeholder="Tüm Şehirler" />
                 </SelectTrigger>
                 <SelectContent>
@@ -114,23 +114,22 @@ export default function CompanyFilters({ onFilterChange, initialSearchTerm = '',
             </Select>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t mt-4">
-        <Button onClick={handleApplyFilters} className="w-full sm:w-auto bg-primary hover:bg-primary/90 flex-grow" disabled={isLoading}>
-          <Filter size={18} className="mr-2" />
-          Filtrele
-        </Button>
-        <Button onClick={handleResetFilters} variant="outline" className="w-full sm:w-auto flex-grow" disabled={isLoading}>
-          <RotateCcw size={18} className="mr-2" />
-          Filtreleri Temizle
-        </Button>
+        <div className="flex gap-2">
+            <Button onClick={handleApplyFilters} size="sm" className="h-9" disabled={isLoading}>
+                <Filter size={16} className="mr-2" />
+                Filtrele
+            </Button>
+            <Button onClick={handleResetFilters} size="sm" variant="outline" className="h-9" disabled={isLoading}>
+                <RotateCcw size={16} />
+            </Button>
+        </div>
       </div>
     </div>
   );
 }
 
 const Label = ({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) => (
-  <label htmlFor={htmlFor} className="block text-sm font-medium text-muted-foreground">
+  <label htmlFor={htmlFor} className="block text-xs font-medium text-muted-foreground">
     {children}
   </label>
 );
