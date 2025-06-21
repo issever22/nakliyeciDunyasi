@@ -3,7 +3,7 @@
 
 import { useState, useEffect, type FormEvent, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -15,12 +15,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import type { CompanyUserProfile, CompanyCategory, CompanyRegisterData } from '@/types';
+import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { COMPANY_CATEGORIES } from '@/lib/constants';
+import { COMPANY_CATEGORIES, COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES, MEMBERSHIP_STATUS_OPTIONS } from '@/lib/constants';
+import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR } from '@/lib/locationData';
 import { 
   getAllUserProfiles, 
   updateUserProfile,
@@ -28,8 +29,14 @@ import {
 } from '@/services/authService'; 
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-const MEMBERSHIP_STATUS_OPTIONS = ['Yok', 'Standart', 'Premium'];
+
+const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
+const MAX_PREFERRED_LOCATIONS = 5;
+
 
 export default function UsersPage() {
   const { toast } = useToast();
@@ -43,6 +50,7 @@ export default function UsersPage() {
   const [showOnlyPendingApproval, setShowOnlyPendingApproval] = useState(false);
   
   const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile>>({});
+  const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -67,41 +75,49 @@ export default function UsersPage() {
       setCurrentFormData({
         ...editingUser,
         membershipEndDate: membershipEndDateToSet,
+        workingMethods: editingUser.workingMethods || [],
+        workingRoutes: editingUser.workingRoutes || [],
+        preferredCities: Array.from({ length: MAX_PREFERRED_LOCATIONS }).map((_, i) => editingUser.preferredCities?.[i] || ''),
+        preferredCountries: Array.from({ length: MAX_PREFERRED_LOCATIONS }).map((_, i) => editingUser.preferredCountries?.[i] || ''),
+        ownedVehicles: editingUser.ownedVehicles || [],
+        authDocuments: editingUser.authDocuments || [],
       });
     } else {
       setCurrentFormData({});
     }
-  }, [editingUser, isEditDialogOpen]);
+  }, [editingUser]);
+
+  // Effect for updating districts when city changes in the dialog
+  useEffect(() => {
+    const city = currentFormData.addressCity;
+    if (city && TURKISH_CITIES.includes(city as TurkishCity)) {
+      setAvailableDistricts(DISTRICTS_BY_CITY_TR[city as TurkishCity] || []);
+    } else {
+      setAvailableDistricts([]);
+    }
+    if (currentFormData.addressDistrict && !availableDistricts.includes(currentFormData.addressDistrict)) {
+      setCurrentFormData(prev => ({ ...prev, addressDistrict: '' }));
+    }
+  }, [currentFormData.addressCity, currentFormData.addressDistrict, availableDistricts]);
+
 
   const handleEdit = (user: CompanyUserProfile) => {
     setEditingUser(user);
     setIsEditDialogOpen(true);
   };
-
+  
   const handleEditSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingUser) return;
-    if (!currentFormData.name?.trim() || !currentFormData.email?.trim()) {
-        toast({ title: "Hata", description: "Firma Adı ve E-posta boş bırakılamaz.", variant: "destructive" });
-        return;
-    }
-    if (!currentFormData.username?.trim()) {
-        toast({ title: "Hata", description: "Kullanıcı Adı zorunludur.", variant: "destructive" });
-        return;
-    }
-     if (!currentFormData.category?.trim()) {
-        toast({ title: "Hata", description: "Firma Kategorisi zorunludur.", variant: "destructive" });
-        return;
-    }
-    if (!currentFormData.contactFullName?.trim()) {
-        toast({ title: "Hata", description: "Yetkili Adı Soyadı zorunludur.", variant: "destructive" });
-        return;
-    }
-    if (!currentFormData.mobilePhone?.trim()) {
-        toast({ title: "Hata", description: "Cep Telefonu zorunludur.", variant: "destructive" });
-        return;
-    }
     
+    // Basic validation
+    const requiredFields = ['name', 'email', 'username', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCity', 'fullAddress'];
+    for (const field of requiredFields) {
+        if (!(currentFormData as any)[field]) {
+            toast({ title: "Eksik Bilgi", description: `Lütfen zorunlu alanları (*) doldurun. Eksik alan: ${field}`, variant: "destructive" });
+            return;
+        }
+    }
     setFormSubmitting(true);
 
     const dataToSubmit: any = { ...currentFormData };
@@ -113,6 +129,8 @@ export default function UsersPage() {
     }
    
     dataToSubmit.name = dataToSubmit.companyTitle || dataToSubmit.name;
+    dataToSubmit.preferredCities = (dataToSubmit.preferredCities || []).filter((c: string) => c);
+    dataToSubmit.preferredCountries = (dataToSubmit.preferredCountries || []).filter((c: string) => c);
     
     const { id, createdAt, password, email, role, ...updateData } = dataToSubmit; 
     
@@ -174,6 +192,22 @@ export default function UsersPage() {
     if (status === 'Standart') return <Badge variant="default" className="bg-orange-500 hover:bg-orange-600 text-xs flex items-center gap-1"><Star size={12}/> Standart</Badge>;
     if (status === 'Premium') return <Badge variant="default" className="bg-purple-500 hover:bg-purple-600 text-xs flex items-center gap-1"><Star size={12}/> Premium</Badge>;
     return <Badge variant="outline" className="text-xs">{status}</Badge>;
+  };
+  
+  const handleDialogMultiCheckboxChange = (value: string, key: 'workingMethods' | 'workingRoutes') => {
+    const currentValues = currentFormData[key] || [];
+    const newValues = currentValues.includes(value as never)
+      ? currentValues.filter(item => item !== value)
+      : [...currentValues, value as never];
+    setCurrentFormData(prev => ({ ...prev, [key]: newValues }));
+  };
+
+  const handleDialogPreferredLocationChange = (index: number, value: string, type: 'city' | 'country') => {
+    const actualValue = value === CLEAR_SELECTION_VALUE ? '' : value;
+    const key = type === 'city' ? 'preferredCities' : 'preferredCountries';
+    const newLocations = [...(currentFormData[key] || Array(MAX_PREFERRED_LOCATIONS).fill(''))];
+    newLocations[index] = actualValue;
+    setCurrentFormData(prev => ({...prev, [key]: newLocations}));
   };
 
   const renderUserTable = (userList: CompanyUserProfile[]) => (
@@ -338,97 +372,237 @@ export default function UsersPage() {
           setIsEditDialogOpen(isOpen);
           if (!isOpen) setEditingUser(null);
       }}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0">
           <form onSubmit={handleEditSubmit}>
-            <DialogHeader>
+            <DialogHeader className="p-6 pb-4 border-b sticky top-0 bg-background z-10">
               <DialogTitle>Firma Profilini Düzenle</DialogTitle>
               <DialogDescription>
                  {editingUser ? `"${editingUser.name}" firmasının profilini güncelleyin.` : ''}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-6">
-                <>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="companyTitle" className="font-medium">Firma Adı (*)</Label>
-                    <Input id="companyTitle" value={currentFormData.companyTitle || currentFormData.name || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, name: e.target.value, companyTitle: e.target.value}))} placeholder="Firma resmi ünvanı" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="companyUsername" className="font-medium">Kullanıcı Adı (Login) (*)</Label>
-                    <Input id="companyUsername" value={currentFormData.username || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, username: e.target.value}))} placeholder="Firmanın giriş için kullanıcı adı" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="companyCategory" className="font-medium">Firma Kategorisi (*)</Label>
-                    <Select 
-                        value={currentFormData.category || 'Nakliyeci'} 
-                        onValueChange={(value) => setCurrentFormData(prev => ({...prev, category: value as CompanyCategory}))}
-                    >
-                    <SelectTrigger id="companyCategory"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        {COMPANY_CATEGORIES.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                    </SelectContent>
-                    </Select>
-                  </div>
-                   <div className="space-y-1.5">
-                    <Label htmlFor="companyContactFullName" className="font-medium">Yetkili Adı Soyadı (*)</Label>
-                    <Input id="companyContactFullName" value={currentFormData.contactFullName || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, contactFullName: e.target.value}))} placeholder="Firma yetkilisinin tam adı" />
-                  </div>
-                   <div className="space-y-1.5">
-                    <Label htmlFor="companyMobilePhone" className="font-medium">Cep Telefonu (*)</Label>
-                    <Input id="companyMobilePhone" value={currentFormData.mobilePhone || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, mobilePhone: e.target.value}))} placeholder="Yetkilinin cep telefonu" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="userEmail" className="font-medium">E-posta Adresi (*)</Label>
-                    <Input id="userEmail" type="email" value={currentFormData.email || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, email: e.target.value}))} placeholder="kullanici@example.com" disabled />
-                    <p className="text-xs text-muted-foreground">E-posta adresi değiştirilemez.</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="membershipStatus" className="font-medium">Üyelik Durumu</Label>
-                    <Select 
-                        value={currentFormData.membershipStatus || 'Yok'} 
-                        onValueChange={(value) => setCurrentFormData(prev => ({...prev, membershipStatus: value as CompanyUserProfile['membershipStatus']}))}
-                    >
-                    <SelectTrigger id="membershipStatus"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        {MEMBERSHIP_STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                    </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="membershipEndDate" className="font-medium">Üyelik Bitiş Tarihi</Label>
-                     <Popover>
-                        <PopoverTrigger asChild>
-                        <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!currentFormData.membershipEndDate && "text-muted-foreground"}`}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {currentFormData.membershipEndDate && isValid(new Date(currentFormData.membershipEndDate!))
-                                ? format(new Date(currentFormData.membershipEndDate!), "PPP", { locale: tr }) 
-                                : <span>Tarih seçin</span>}
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <Calendar 
-                                mode="single" 
-                                selected={currentFormData.membershipEndDate ? new Date(currentFormData.membershipEndDate!) : undefined} 
-                                onSelect={(date) => setCurrentFormData(prev => ({...prev, membershipEndDate: date ? date.toISOString().split('T')[0] : undefined}))} 
-                                initialFocus 
-                                locale={tr} 
-                            />
-                        </PopoverContent>
-                    </Popover>
-                  </div>
-                </>
+            
+            <div className="p-6 space-y-6">
               
-              <div className="flex items-center space-x-2 pt-2">
-                 <Switch id="userIsActive" checked={currentFormData.isActive === undefined ? true : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
-                <Label htmlFor="userIsActive" className="font-medium cursor-pointer">Firma Onay Durumu (Aktif/Pasif)</Label>
-              </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Giriş ve Temel Bilgiler</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="space-y-1.5">
+                        <Label htmlFor="edit-logoUrl">Logo URL'si</Label>
+                        <Input id="edit-logoUrl" value={currentFormData.logoUrl || ''} onChange={(e) => setCurrentFormData(prev => ({ ...prev, logoUrl: e.target.value }))} placeholder="https://.../logo.png" />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-companyTitle">Firma Adı (*)</Label>
+                            <Input id="edit-companyTitle" value={currentFormData.companyTitle || ''} onChange={(e) => setCurrentFormData(prev => ({ ...prev, name: e.target.value, companyTitle: e.target.value }))} required />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-username">Kullanıcı Adı (*)</Label>
+                            <Input id="edit-username" value={currentFormData.username || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, username: e.target.value}))} required />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-email">E-posta Adresi (*)</Label>
+                            <Input id="edit-email" type="email" value={currentFormData.email || ''} disabled />
+                            <p className="text-xs text-muted-foreground">E-posta adresi değiştirilemez.</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-category">Firma Kategorisi (*)</Label>
+                            <Select 
+                                value={currentFormData.category} 
+                                onValueChange={(value) => setCurrentFormData(prev => ({...prev, category: value as CompanyCategory}))}
+                            >
+                                <SelectTrigger id="edit-category"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {COMPANY_CATEGORIES.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>İletişim Bilgileri</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-contactFullName">Yetkili Adı Soyadı (*)</Label>
+                            <Input id="edit-contactFullName" value={currentFormData.contactFullName || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, contactFullName: e.target.value}))} required />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-mobilePhone">Cep Telefonu (*)</Label>
+                            <Input id="edit-mobilePhone" value={currentFormData.mobilePhone || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, mobilePhone: e.target.value}))} required />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-workPhone">İş Telefonu</Label>
+                            <Input id="edit-workPhone" value={currentFormData.workPhone || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, workPhone: e.target.value}))} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-fax">Fax</Label>
+                            <Input id="edit-fax" value={currentFormData.fax || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, fax: e.target.value}))} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-website">Web Sitesi</Label>
+                            <Input id="edit-website" value={currentFormData.website || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, website: e.target.value}))} />
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-companyDescription">Firma Tanıtım Yazısı</Label>
+                        <Textarea id="edit-companyDescription" value={currentFormData.companyDescription || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, companyDescription: e.target.value}))} rows={2} />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>Adres ve Firma Tipi</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="space-y-2">
+                        <Label className="font-medium">Firma Türü (*)</Label>
+                        <RadioGroup value={currentFormData.companyType} onValueChange={(value) => setCurrentFormData(prev => ({...prev, companyType: value as CompanyUserType}))} className="flex gap-4">
+                            {COMPANY_TYPES.map(type => (
+                            <div key={type.value} className="flex items-center space-x-2">
+                                <RadioGroupItem value={type.value} id={`edit-type-${type.value}`} />
+                                <Label htmlFor={`edit-type-${type.value}`} className="font-normal">{type.label}</Label>
+                            </div>
+                            ))}
+                        </RadioGroup>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-addressCity">Adres İl (*)</Label>
+                            <Select value={currentFormData.addressCity} onValueChange={(v) => setCurrentFormData(prev => ({...prev, addressCity: v, addressDistrict: ''}))} required>
+                                <SelectTrigger id="edit-addressCity"><SelectValue placeholder="İl seçin..." /></SelectTrigger>
+                                <SelectContent>{TURKISH_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-1.5">
+                            <Label htmlFor="edit-addressDistrict">Adres İlçe</Label>
+                            <Select value={currentFormData.addressDistrict} onValueChange={(v) => setCurrentFormData(prev => ({...prev, addressDistrict: v}))} disabled={!availableDistricts.length}>
+                                <SelectTrigger id="edit-addressDistrict"><SelectValue placeholder="İlçe seçin..." /></SelectTrigger>
+                                <SelectContent>{availableDistricts.map(district => <SelectItem key={district} value={district}>{district}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-fullAddress">Açık Adres (*)</Label>
+                        <Textarea id="edit-fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={currentFormData.fullAddress} onChange={(e) => setCurrentFormData(prev => ({...prev, fullAddress: e.target.value}))} required />
+                    </div>
+                </CardContent>
+            </Card>
+
+             <Card>
+                <CardHeader><CardTitle>Çalışma Alanları ve Tercihler</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    <div>
+                        <Label className="font-medium text-sm mb-2 block">Çalışma Şekli</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {WORKING_METHODS.map(method => (
+                            <div key={method.id} className="flex items-center space-x-2">
+                            <Checkbox id={`edit-wm-${method.id}`} checked={(currentFormData.workingMethods || []).includes(method.id as WorkingMethodType)} onCheckedChange={() => handleDialogMultiCheckboxChange(method.id, 'workingMethods')} />
+                            <Label htmlFor={`edit-wm-${method.id}`} className="font-normal text-sm">{method.label}</Label>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                    <div>
+                        <Label className="font-medium text-sm mb-2 block">Çalışma Yolu</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                        {WORKING_ROUTES.map(route => (
+                            <div key={route.id} className="flex items-center space-x-2">
+                            <Checkbox id={`edit-wr-${route.id}`} checked={(currentFormData.workingRoutes || []).includes(route.id as WorkingRouteType)} onCheckedChange={() => handleDialogMultiCheckboxChange(route.id, 'workingRoutes')} />
+                            <Label htmlFor={`edit-wr-${route.id}`} className="font-normal text-sm">{route.label}</Label>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                    <div className="border-t pt-4">
+                        <Label className="font-medium text-md mb-3 block">Tercih Edilen İller (En fazla {MAX_PREFERRED_LOCATIONS})</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {(currentFormData.preferredCities || []).map((city, index) => (
+                            <div key={`edit-city-${index}`} className="space-y-1.5">
+                                <Select value={city} onValueChange={(val) => handleDialogPreferredLocationChange(index, val, 'city')}>
+                                <SelectTrigger><SelectValue placeholder={`Şehir ${index + 1}`} /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={CLEAR_SELECTION_VALUE}>Seçimi Kaldır</SelectItem>
+                                    {TURKISH_CITIES.map(c => <SelectItem key={c} value={c} disabled={(currentFormData.preferredCities || []).includes(c) && city !== c}>{c}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                    <div className="border-t pt-4">
+                        <Label className="font-medium text-md mb-3 block">Tercih Edilen Ülkeler (En fazla {MAX_PREFERRED_LOCATIONS})</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {(currentFormData.preferredCountries || []).map((country, index) => (
+                            <div key={`edit-country-${index}`} className="space-y-1.5">
+                                <Select value={country} onValueChange={(val) => handleDialogPreferredLocationChange(index, val, 'country')}>
+                                <SelectTrigger><SelectValue placeholder={`Ülke ${index + 1}`} /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={CLEAR_SELECTION_VALUE}>Seçimi Kaldır</SelectItem>
+                                    {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code} disabled={(currentFormData.preferredCountries || []).includes(c.code) && country !== c.code}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+             <Card>
+                <CardHeader><CardTitle>Üyelik ve Durum</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-membershipStatus">Üyelik Durumu</Label>
+                            <Select value={currentFormData.membershipStatus || 'Yok'} onValueChange={(value) => setCurrentFormData(prev => ({...prev, membershipStatus: value as CompanyUserProfile['membershipStatus']}))}>
+                                <SelectTrigger id="edit-membershipStatus"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {MEMBERSHIP_STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-1.5">
+                            <Label htmlFor="edit-membershipEndDate">Üyelik Bitiş Tarihi</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!currentFormData.membershipEndDate && "text-muted-foreground"}`}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {currentFormData.membershipEndDate && isValid(new Date(currentFormData.membershipEndDate!)) ? format(new Date(currentFormData.membershipEndDate!), "PPP", { locale: tr }) : <span>Tarih seçin</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start" side="bottom">
+                                    <Calendar 
+                                        mode="single"
+                                        locale={tr}
+                                        selected={currentFormData.membershipEndDate ? new Date(currentFormData.membershipEndDate) : undefined}
+                                        onSelect={(date) => {
+                                            setCurrentFormData(prev => ({...prev, membershipEndDate: date}));
+                                        }}
+                                        disabled={(date) => date > new Date()}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="edit-isActive" checked={currentFormData.isActive === true} onCheckedChange={(checked) => setCurrentFormData(prev => ({...prev, isActive: checked}))} />
+                        <Label htmlFor="edit-isActive">Firma Onayı</Label>
+                    </div>
+                </CardContent>
+            </Card>
             </div>
-            <DialogFooter>
-                 <DialogClose asChild>
-                    <Button type="button" variant="outline" disabled={formSubmitting}>İptal</Button>
-                </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
-                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Değişiklikleri Kaydet
+
+            <DialogFooter className="p-6 pt-4 border-t">
+              <Button type="submit" disabled={formSubmitting}>
+                {formSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Kaydediliyor...</> : 'Kaydet'}
               </Button>
             </DialogFooter>
           </form>
