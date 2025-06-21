@@ -219,15 +219,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="space-y-4">
-        <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><ListFilter /> Hızlı Filtreler</h2>
-            <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={() => setShowAdvancedFilters(prev => !prev)}>
-                <SlidersHorizontal size={16} className="mr-1.5"/>
-                Gelişmiş Filtreleme
-            </Button>
+      {showAdvancedFilters && (
+        <FreightFilters onFilterChange={handleAdvancedFilterChange} isLoading={isLoading || isLoadingMore} />
+      )}
+
+      <div className="pt-4">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+          <h2 className="text-3xl font-bold text-primary text-center sm:text-left">Güncel Nakliye İlanları</h2>
+          <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={() => setShowAdvancedFilters(prev => !prev)}>
+            <SlidersHorizontal size={16} className="mr-1.5"/>
+            Gelişmiş Filtreleme
+          </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        <div className="flex flex-wrap items-center gap-2 mb-8">
             <Button size="sm" variant={activeQuickFilter === 'all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('all')}>
               <Globe size={16} className="mr-1.5"/>
               Tümü
@@ -257,15 +262,7 @@ export default function HomePage() {
               Bugünkü Boş Araçlar
             </Button>
         </div>
-      </div>
-
-      {showAdvancedFilters && (
-        <FreightFilters onFilterChange={handleAdvancedFilterChange} isLoading={isLoading || isLoadingMore} />
-      )}
-
-
-      <div className="pt-4">
-        <h2 className="text-3xl font-bold text-primary mb-8 text-center sm:text-left">Güncel Nakliye İlanları</h2>
+        
         {isLoading && !initialLoadComplete && !isLoadingMore ? renderSkeletons() :
           freights.length > 0 ? (
             <>
@@ -310,3 +307,4 @@ export default function HomePage() {
     </div>
   );
 }
+
