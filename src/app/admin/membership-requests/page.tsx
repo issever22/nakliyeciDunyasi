@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Handshake, Eye, User, Building, Phone, Mail, MessageCircle, FileText, CalendarIcon, UserPlus, Star, CreditCard } from 'lucide-react';
+import { Loader2, Handshake, Eye, User, Building, Phone, Mail, MessageCircle, FileText, CalendarIcon, UserPlus, Star, CreditCard, Search } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
@@ -52,6 +52,10 @@ export default function MembershipRequestsPage() {
   const [membershipEndDate, setMembershipEndDate] = useState<Date | undefined>();
   const [membershipFee, setMembershipFee] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'guest' | 'registered'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | MembershipRequest['status']>('all');
 
 
   const fetchRequests = useCallback(async () => {
@@ -70,6 +74,34 @@ export default function MembershipRequestsPage() {
     fetchRequests();
     fetchMembershipOptions();
   }, [fetchRequests, fetchMembershipOptions]);
+  
+  const filteredRequests = useMemo(() => {
+    return requests.filter(request => {
+        // User Type Filter
+        if (userTypeFilter === 'registered' && !request.userId) return false;
+        if (userTypeFilter === 'guest' && request.userId) return false;
+
+        // Status Filter
+        if (statusFilter !== 'all' && request.status !== statusFilter) return false;
+
+        // Search Term Filter
+        if (searchTerm) {
+            const lowerCaseSearch = searchTerm.toLowerCase();
+            const searchIn = [
+                request.name,
+                request.phone,
+                request.email || '',
+                request.companyName || '',
+            ].join(' ').toLowerCase();
+
+            if (!searchIn.includes(lowerCaseSearch)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+  }, [requests, searchTerm, userTypeFilter, statusFilter]);
 
   const handleViewRequest = async (request: MembershipRequest) => {
     setSelectedRequest(request);
@@ -182,6 +214,41 @@ export default function MembershipRequestsPage() {
           <CardDescription>Kullanıcılardan gelen "Sizi Arayalım" taleplerini yönetin.</CardDescription>
         </CardHeader>
         <CardContent>
+           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+                <div className="relative w-full sm:max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="İsteklerde ara (isim, firma, tel...)"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8 w-full"
+                    />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Select value={userTypeFilter} onValueChange={(v) => setUserTypeFilter(v as any)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Kullanıcı Tipi" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tüm Kullanıcılar</SelectItem>
+                            <SelectItem value="registered">Kayıtlı Firmalar</SelectItem>
+                            <SelectItem value="guest">Misafirler</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Durum" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tüm Durumlar</SelectItem>
+                            <SelectItem value="new">Yeni</SelectItem>
+                            <SelectItem value="contacted">İletişime Geçildi</SelectItem>
+                            <SelectItem value="converted">Üye Yapıldı</SelectItem>
+                            <SelectItem value="closed">Kapatıldı</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-12 w-full" />
@@ -202,7 +269,7 @@ export default function MembershipRequestsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {requests.length > 0 ? requests.map((request) => (
+                  {filteredRequests.length > 0 ? filteredRequests.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell className="font-medium">{request.name}</TableCell>
                       <TableCell>{request.phone}</TableCell>
@@ -230,7 +297,7 @@ export default function MembershipRequestsPage() {
                   )) : (
                     <TableRow>
                       <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                        Henüz üyelik talebi bulunmamaktadır.
+                        {searchTerm || statusFilter !== 'all' || userTypeFilter !== 'all' ? 'Arama kriterlerine uygun talep bulunamadı.' : 'Henüz üyelik talebi bulunmamaktadır.'}
                       </TableCell>
                     </TableRow>
                   )}
