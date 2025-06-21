@@ -154,13 +154,23 @@ export const getPaginatedAdminListings = async (
 };
 
 
-export const getListingsByUserId = async (userId: string): Promise<{ listings: Freight[]; error?: { message: string; indexCreationUrl?: string } }> => {
+export const getListingsByUserId = async (userId: string, options: { onlyActive?: boolean } = {}): Promise<{ listings: Freight[]; error?: { message: string; indexCreationUrl?: string } }> => {
    if (userId.startsWith(GUEST_USER_ID_PREFIX)) {
     return { listings: [] }; // Guests cannot have "my listings" page
   }
   try {
     const listingsRef = collection(db, LISTINGS_COLLECTION);
-    const q = query(listingsRef, where('userId', '==', userId), orderBy('postedAt', 'desc'));
+    const queryConstraints: QueryConstraint[] = [];
+
+    queryConstraints.push(where('userId', '==', userId));
+    
+    if (options.onlyActive) {
+        queryConstraints.push(where('isActive', '==', true));
+    }
+
+    queryConstraints.push(orderBy('postedAt', 'desc'));
+
+    const q = query(listingsRef, ...queryConstraints);
     const querySnapshot = await getDocs(q);
     const listings = querySnapshot.docs.map(doc => convertToFreight(doc));
     return { listings };
@@ -170,7 +180,7 @@ export const getListingsByUserId = async (userId: string): Promise<{ listings: F
 
     if (error.code === 'failed-precondition') {
         errorMessage = error.message || "Eksik Firestore dizini (kullanıcı ilanları). Lütfen sunucu konsolunu kontrol edin.";
-        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^\/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
         const match = errorMessage.match(urlRegex);
         if (match && match[0]) {
             indexCreationUrl = match[0];

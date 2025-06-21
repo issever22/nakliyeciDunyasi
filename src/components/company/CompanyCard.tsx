@@ -21,13 +21,13 @@ export default function CompanyCard({ company, isSponsor = false }: CompanyCardP
       "shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full bg-card text-card-foreground relative",
       isSponsor && "border-yellow-400/50 ring-2 ring-yellow-400/80 shadow-yellow-500/10"
     )}>
-      <CardHeader className="items-center text-center p-4 border-b">
+      <CardHeader className="items-center text-center p-4 border-b relative">
         {isSponsor && (
           <Badge variant="default" className="absolute -top-2 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 shadow-lg px-2 py-0.5 text-xs z-10">
             <Star className="h-3 w-3 mr-1" /> SPONSOR
           </Badge>
         )}
-        <Avatar className="w-24 h-24 mb-3 border-2 border-muted shadow-md rounded-md">
+        <Avatar className="w-24 h-24 mb-3 mt-2 border-2 border-muted shadow-md rounded-md">
           {company.logoUrl ? (
             <AvatarImage src={company.logoUrl} alt={`${company.name} logo`} data-ai-hint="company logo" className="object-contain" />
           ) : null}
@@ -53,8 +53,7 @@ export default function CompanyCard({ company, isSponsor = false }: CompanyCardP
       </CardContent>
       <CardFooter className="p-4 border-t mt-auto">
         <Button variant="outline" className="w-full text-xs" asChild>
-          {/* Placeholder for future company profile page */}
-          <Link href={`#`}>Firma Detaylarını Gör (Yakında)</Link>
+          <Link href={`/uyelerimiz/firma/${company.id}`}>Profili Görüntüle</Link>
         </Button>
       </CardFooter>
     </Card>
