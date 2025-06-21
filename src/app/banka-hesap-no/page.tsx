@@ -1,31 +1,35 @@
+"use client";
 
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Banknote, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// A simple component to simulate copying to clipboard
-// In a real app, this would use navigator.clipboard
-function CopyToClipboardButton({ text }: { text: string }) {
-    const handleCopy = () => {
-        // In a real app, you would add a toast notification here.
-        navigator.clipboard.writeText(text);
-    };
-
-    return (
-        <Button variant="ghost" size="icon" onClick={handleCopy} title={`Kopyala: ${text}`}>
-            <Copy className="h-4 w-4" />
-        </Button>
-    );
-}
-
+import { useToast } from "@/hooks/use-toast";
 
 export default function BankAccountPage() {
+  const { toast } = useToast();
+
   const accounts = [
     { bank: 'Türkiye İş Bankası', branch: 'Pendik', iban: 'TR00 0000 0000 0000 0000 0000', accountHolder: 'İssever Bilişim Danışmanlık ve Pazarlama Ticaret Limited Şirketi' },
     { bank: 'Garanti BBVA', branch: 'Teknopark Şubesi', iban: 'TR00 0000 0000 0000 0000 0001', accountHolder: 'İssever Bilişim Danışmanlık ve Pazarlama Ticaret Limited Şirketi' },
     { bank: 'Ziraat Bankası', branch: 'İstanbul', iban: 'TR00 0000 0000 0000 0000 0002', accountHolder: 'İssever Bilişim Danışmanlık ve Pazarlama Ticaret Limited Şirketi' },
   ];
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: "Kopyalandı!",
+        description: "IBAN panonuza kopyalandı.",
+      });
+    }).catch(err => {
+      console.error("Kopyalama başarısız:", err);
+      toast({
+        title: "Hata",
+        description: "Panoya kopyalama başarısız oldu.",
+        variant: "destructive",
+      });
+    });
+  };
 
   return (
     <div className="space-y-12">
@@ -73,7 +77,9 @@ export default function BankAccountPage() {
                             <p className="font-semibold text-muted-foreground">IBAN</p>
                             <div className="flex items-center justify-between">
                                 <p className="text-base font-mono tracking-wider">{account.iban}</p>
-                                <CopyToClipboardButton text={account.iban} />
+                                <Button variant="ghost" size="icon" onClick={() => handleCopy(account.iban)} title={`Kopyala: ${account.iban}`}>
+                                    <Copy className="h-4 w-4" />
+                                </Button>
                             </div>
                         </div>
                     </CardContent>
