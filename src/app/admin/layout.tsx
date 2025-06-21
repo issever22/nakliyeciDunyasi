@@ -7,7 +7,7 @@ import { SidebarProvider, Sidebar, SidebarTrigger, SidebarHeader, SidebarContent
 import { Button } from '@/components/ui/button';
 import { 
   LogOut, LayoutDashboard, ShieldCheck, Settings, Users, Package,
-  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle, MessageSquare
+  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle, MessageSquare, Handshake
 } from 'lucide-react'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -148,6 +148,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/listings')} tooltip={{content: "İlanları Yönet", side: "right"}}>
                 <Link href="/admin/listings">
                   <Package /> <span>İlanlar</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+             <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/membership-requests')} tooltip={{content: "Üyelik İstekleri", side: "right"}}>
+                <Link href="/admin/membership-requests">
+                  <Handshake /> <span>Üyelik İstekleri</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

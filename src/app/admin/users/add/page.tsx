@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent, useEffect } from 'react';
+import { useState, type FormEvent, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createCompanyUser as createCompanyUserServerAction } from '@/services/authService';
 import { COMPANY_CATEGORIES, COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type TurkishCity, type CountryCode } from '@/lib/locationData';
@@ -24,23 +24,25 @@ import { Checkbox } from '@/components/ui/checkbox';
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
 const MAX_PREFERRED_LOCATIONS = 5;
 
-export default function AddCompanyPage() {
-  const { toast } = useToast();
+function AddCompanyForm() {
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const { toast } = useToast();
+
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
 
   const [formData, setFormData] = useState<Partial<CompanyRegisterData>>({
     role: 'company',
-    name: '',
-    email: '',
+    name: searchParams.get('companyName') || '',
+    email: searchParams.get('email') || '',
     password: '',
     isActive: true,
     category: 'Nakliyeci',
     username: '',
-    companyTitle: '',
-    contactFullName: '',
-    mobilePhone: '',
+    companyTitle: searchParams.get('companyName') || '',
+    contactFullName: searchParams.get('name') || '',
+    mobilePhone: searchParams.get('phone') || '',
     companyType: 'local',
     addressCity: '',
     fullAddress: '',
@@ -285,7 +287,7 @@ export default function AddCompanyPage() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="fullAddress">Açık Adres (*)</Label>
-                        <Textarea id="fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={formData.fullAddress} onChange={handleInputChange} required />
+                        <Textarea id="fullAddress" placeholder="Mahalle, cadde, sokak, no, daire..." value={formData.fullAddress || ''} onChange={handleInputChange} required />
                     </div>
                 </div>
             </CardContent>
@@ -379,4 +381,10 @@ export default function AddCompanyPage() {
   );
 }
 
-    
+export default function AddCompanyPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AddCompanyForm />
+    </Suspense>
+  )
+}

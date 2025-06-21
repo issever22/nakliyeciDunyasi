@@ -256,6 +256,18 @@ export interface Message {
   isRead: boolean;
 }
 
+export interface MembershipRequest {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  companyName?: string;
+  details: string;
+  status: 'new' | 'contacted' | 'converted' | 'closed';
+  createdAt: string; // ISO string
+  userId?: string; // Link to existing user if available
+}
+
 export type FreightFilterOptions = {
   originCity?: string;
   destinationCity?: string;

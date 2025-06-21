@@ -1,5 +1,5 @@
 
-import type { Freight, CommercialFreight, ResidentialFreight } from '@/types';
+import type { Freight, CommercialFreight, ResidentialFreight, EmptyVehicleListing } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MapPin, Truck, CalendarDays, Info, User, Globe, Package as PackageIcon, Repeat, Layers, Weight, PackagePlus, Boxes, Home, Building, ArrowUpDown, ChevronsUpDown, Tag } from 'lucide-react';
@@ -39,7 +39,7 @@ export default function FreightCard({ freight }: FreightCardProps) {
             <MapPin size={20} className="mt-1 flex-shrink-0 text-primary" /> 
             <span className="leading-tight">{originDisplay} <br className="hidden sm:inline"/>&rarr; {destinationDisplay}</span>
           </CardTitle>
-           <Badge variant={freight.freightType === 'Evden Eve' ? "secondary" : (freight.freightType === 'Yük' ? "default" : "outline")} className="whitespace-nowrap flex-shrink-0 text-xs py-1 px-2 flex items-center gap-1"> {/* Changed 'Ticari' to 'Yük' */}
+           <Badge variant={freight.freightType === 'Evden Eve' ? "secondary" : (freight.freightType === 'Yük' ? "default" : "outline")} className="whitespace-nowrap flex-shrink-0 text-xs py-1 px-2 flex items-center gap-1">
             <FreightTypeIcon size={14} /> {freight.freightType}
           </Badge>
         </div>
@@ -52,7 +52,7 @@ export default function FreightCard({ freight }: FreightCardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 space-y-2 text-sm flex-grow">
-        {freight.freightType === 'Yük' && ( // Changed from 'Ticari'
+        {freight.freightType === 'Yük' && (
           <>
             {(freight as CommercialFreight).shipmentScope && 
               <div className="flex items-center gap-2">
@@ -122,6 +122,14 @@ export default function FreightCard({ freight }: FreightCardProps) {
           </>
         )}
         
+        {freight.freightType === 'Boş Araç' && (
+          <>
+            {(listing as EmptyVehicleListing).advertisedVehicleType && <p><strong className="text-muted-foreground">Araç Tipi:</strong> {(listing as EmptyVehicleListing).advertisedVehicleType}</p>}
+            {(listing as EmptyVehicleListing).serviceTypeForLoad && <p><strong className="text-muted-foreground">Hizmet Tipi:</strong> {(listing as EmptyVehicleListing).serviceTypeForLoad}</p>}
+            {(listing as EmptyVehicleListing).vehicleStatedCapacity !== undefined && <p><strong className="text-muted-foreground">Kapasite:</strong> {(listing as EmptyVehicleListing).vehicleStatedCapacity} {(listing as EmptyVehicleListing).vehicleStatedCapacityUnit}</p>}
+          </>
+        )}
+
         <div className="flex items-center gap-2">
           <CalendarDays size={16} className="text-muted-foreground flex-shrink-0" />
           <p><span className="font-medium">Yükleme/Taşıma Tarihi:</span> {formattedLoadingDate}</p>
@@ -136,11 +144,9 @@ export default function FreightCard({ freight }: FreightCardProps) {
       </CardContent>
       <CardFooter className="p-4 bg-muted/20 mt-auto border-t">
         <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-          {/* Link to a potential detail page - adjust as needed */}
           <Link href={`/ilan/${freight.id}`}>Detayları Gör</Link> 
         </Button>
       </CardFooter>
     </Card>
   );
 }
-
