@@ -426,14 +426,21 @@ export default function UsersPage() {
         </TableHeader>
         <TableBody>
           {userList.length > 0 ? userList.map((user) => {
-            const isMember = user.membershipStatus && user.membershipStatus !== 'Yok';
+            const isSponsor = user.sponsorships && user.sponsorships.length > 0;
             return (
-            <TableRow key={user.id} className={cn("transition-colors hover:bg-muted/50", isMember && "bg-green-400/10")}>
+            <TableRow key={user.id} className="transition-colors hover:bg-muted/50">
               <TableCell className="px-2">
-                <Avatar className={cn("h-9 w-9", isMember && "ring-2 ring-green-400 ring-offset-2 ring-offset-background")}>
-                  <AvatarImage src={user.logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="company logo"/>
-                  <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
+                <div className="flex flex-col items-center gap-1">
+                  <Avatar className={cn("h-9 w-9", isSponsor && "ring-2 ring-orange-500 ring-offset-2 ring-offset-background")}>
+                    <AvatarImage src={user.logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="company logo"/>
+                    <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  {isSponsor && (
+                    <Badge variant="outline" className="text-xs px-1 py-0 border-orange-500 text-orange-600">
+                      Sponsor
+                    </Badge>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="font-medium">
                   {user.name}
@@ -854,11 +861,11 @@ export default function UsersPage() {
       
       {viewingCompany && (
         <Dialog open={isViewNotesModalOpen} onOpenChange={(open) => {
-            setIsViewNotesModalOpen(open);
             if (!open) {
               setViewingCompany(null);
               setNoteFilter('all');
             }
+            setIsViewNotesModalOpen(open);
           }}>
           <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
@@ -977,5 +984,6 @@ export default function UsersPage() {
     </div>
   );
 }
+
 
 
