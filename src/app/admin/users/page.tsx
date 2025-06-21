@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, type FormEvent, useMemo, useCallback } from 'react';
@@ -906,57 +907,70 @@ export default function UsersPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            
-            <Dialog open={isViewNotesModalOpen} onOpenChange={(open) => { setIsViewNotesModalOpen(open); if (!open) setNoteFilter('all'); }}>
-                <DialogContent className="sm:max-w-3xl">
-                    <DialogHeader>
-                        <DialogTitle>"{viewingCompany?.name}" İçin Notlar</DialogTitle>
-                        <DialogDescription>
-                            Bu firma için kaydedilmiş tüm yönetici notları ve ödeme kayıtları.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                     <div className="flex items-center gap-2 border-b pb-4">
-                        <Button size="sm" variant={noteFilter === 'all' ? 'default' : 'ghost'} onClick={() => setNoteFilter('all')}>Tümü</Button>
-                        <Button size="sm" variant={noteFilter === 'note' ? 'default' : 'ghost'} onClick={() => setNoteFilter('note')}>Notlar</Button>
-                        <Button size="sm" variant={noteFilter === 'payment' ? 'default' : 'ghost'} onClick={() => setNoteFilter('payment')}>Ödemeler</Button>
-                    </div>
-
-                    <div className="max-h-[50vh] overflow-y-auto p-1 -mx-1 pr-3">
-                        {isNotesLoading ? (
-                            <div className="flex justify-center items-center h-24">
-                                <Loader2 className="h-6 w-6 animate-spin"/>
-                            </div>
-                        ) : filteredNotesForViewing.length > 0 ? (
-                            <div className="space-y-4">
-                                {filteredNotesForViewing.map(note => (
-                                    <div key={note.id} className="p-4 border rounded-lg bg-muted/30">
-                                        <h4 className="font-semibold text-md flex items-center gap-2">
-                                            {note.type === 'payment' ? <CreditCard className="h-4 w-4 text-green-600" /> : <StickyNote className="h-4 w-4 text-blue-600" />}
-                                            {note.title}
-                                        </h4>
-                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-2">{note.content}</p>
-                                        <p className="text-xs text-muted-foreground/70 mt-3 text-right">
-                                            {format(parseISO(note.createdAt), "dd MMMM yyyy, HH:mm", { locale: tr })}
-                                            {note.author && ` - ${note.author}`}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-center text-muted-foreground py-8">
-                                {noteFilter === 'all' ? 'Bu firma için kayıtlı not bulunmamaktadır.' : `Bu firma için kayıtlı ${noteFilter === 'note' ? 'not' : 'ödeme'} bulunmamaktadır.`}
-                            </p>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsViewNotesModalOpen(false)}>Kapat</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </>
+      )}
+
+      {viewingCompany && (
+        <Dialog open={isViewNotesModalOpen} onOpenChange={(open) => {
+            setIsViewNotesModalOpen(open);
+            if (!open) {
+              setViewingCompany(null);
+              setNoteFilter('all');
+            }
+          }}>
+          <DialogContent className="sm:max-w-3xl">
+              <DialogHeader>
+                  <DialogTitle>"{viewingCompany?.name}" İçin Notlar</DialogTitle>
+                  <DialogDescription>
+                      Bu firma için kaydedilmiş tüm yönetici notları ve ödeme kayıtları.
+                  </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex items-center gap-2 border-b pb-4">
+                  <Button size="sm" variant={noteFilter === 'all' ? 'default' : 'ghost'} onClick={() => setNoteFilter('all')}>Tümü</Button>
+                  <Button size="sm" variant={noteFilter === 'note' ? 'default' : 'ghost'} onClick={() => setNoteFilter('note')}>Notlar</Button>
+                  <Button size="sm" variant={noteFilter === 'payment' ? 'default' : 'ghost'} onClick={() => setNoteFilter('payment')}>Ödemeler</Button>
+              </div>
+
+              <div className="max-h-[50vh] overflow-y-auto p-1 -mx-1 pr-3">
+                  {isNotesLoading ? (
+                      <div className="flex justify-center items-center h-24">
+                          <Loader2 className="h-6 w-6 animate-spin"/>
+                      </div>
+                  ) : filteredNotesForViewing.length > 0 ? (
+                      <div className="space-y-4">
+                          {filteredNotesForViewing.map(note => (
+                              <div key={note.id} className="p-4 border rounded-lg bg-muted/30">
+                                  <h4 className="font-semibold text-md flex items-center gap-2">
+                                      {note.type === 'payment' ? <CreditCard className="h-4 w-4 text-green-600" /> : <StickyNote className="h-4 w-4 text-blue-600" />}
+                                      {note.title}
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-2">{note.content}</p>
+                                  <p className="text-xs text-muted-foreground/70 mt-3 text-right">
+                                      {format(parseISO(note.createdAt), "dd MMMM yyyy, HH:mm", { locale: tr })}
+                                      {note.author && ` - ${note.author}`}
+                                  </p>
+                              </div>
+                          ))}
+                      </div>
+                  ) : (
+                      <p className="text-center text-muted-foreground py-8">
+                          {noteFilter === 'all' ? 'Bu firma için kayıtlı not bulunmamaktadır.' : `Bu firma için kayıtlı ${noteFilter === 'note' ? 'not' : 'ödeme'} bulunmamaktadır.`}
+                      </p>
+                  )}
+              </div>
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => {
+                      setIsViewNotesModalOpen(false);
+                      setViewingCompany(null);
+                      setNoteFilter('all');
+                  }}>Kapat</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
       )}
 
     </div>
   );
 }
+
