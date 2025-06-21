@@ -7,7 +7,7 @@ import { SidebarProvider, Sidebar, SidebarTrigger, SidebarHeader, SidebarContent
 import { Button } from '@/components/ui/button';
 import { 
   LogOut, LayoutDashboard, ShieldCheck, Settings, Users, Package,
-  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle
+  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle, MessageSquare
 } from 'lucide-react'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -194,6 +194,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings/announcements')} tooltip={{content: "Duyurular", side: "right"}}>
                 <Link href="/admin/settings/announcements">
                   <Megaphone /> <span>Duyurular</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/messages')} tooltip={{content: "Mesajlar", side: "right"}}>
+                <Link href="/admin/messages">
+                  <MessageSquare /> <span>Mesajlar</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

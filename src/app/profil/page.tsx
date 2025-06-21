@@ -15,9 +15,9 @@ import EditCompanyDetailsModal from '@/components/profile/EditCompanyDetailsModa
 import ManageCompanyVehiclesModal from '@/components/profile/ManageCompanyVehiclesModal';
 import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDocsModal';
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
+import SendMessageModal from '@/components/profile/SendMessageModal';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import MyListingsTab from '@/components/profile/MyListingsTab';
-// import MyTransportOffersTab from '@/components/profile/MyTransportOffersTab'; // Removed
-import FeedbackModal from '@/components/profile/FeedbackModal'; 
 import { useRouter } from 'next/navigation';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -51,7 +51,7 @@ export default function ProfilePage() {
   const [isManageVehiclesModalOpen, setIsManageVehiclesModalOpen] = useState(false);
   const [isManageAuthDocsModalOpen, setIsManageAuthDocsModalOpen] = useState(false);
   const [isViewMembershipsModalOpen, setIsViewMembershipsModalOpen] = useState(false);
-  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isSendMessageModalOpen, setIsSendMessageModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
 
 
@@ -91,7 +91,7 @@ export default function ProfilePage() {
   };
 
 
-  if (authLoading || (companyUser && settingsLoading && !['myListings'].includes(activeTab) )) { // Removed 'myTransportOffers'
+  if (authLoading || (companyUser && settingsLoading && !['myListings'].includes(activeTab) )) {
     return (
       <div className="space-y-6 container mx-auto px-4 py-8">
         <Skeleton className="h-10 w-1/3 mb-6" />
@@ -138,6 +138,8 @@ export default function ProfilePage() {
     );
   };
 
+  const isMember = companyUser.membershipStatus && companyUser.membershipStatus !== 'Yok';
+
   return (
     <div className="container mx-auto px-2 sm:px-4 py-8">
       <h1 className="text-3xl font-bold mb-8 text-primary">Firma Profilim</h1>
@@ -173,9 +175,22 @@ export default function ProfilePage() {
               <Button onClick={handleSendPasswordReset} variant="outline" className="w-full" disabled>
                 <KeyRound className="mr-2 h-4 w-4" /> Şifre Değiştir (Devre Dışı)
               </Button>
-              <Button onClick={() => setIsFeedbackModalOpen(true)} variant="outline" className="w-full">
-                <MessageSquareText className="mr-2 h-4 w-4" /> Geri Bildirim Gönder
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="w-full">
+                       <Button onClick={() => setIsSendMessageModalOpen(true)} variant="outline" className="w-full" disabled={!isMember}>
+                        <MessageSquareText className="mr-2 h-4 w-4" /> Mesaj Gönder
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {!isMember && (
+                  <TooltipContent>
+                    <p>Mesaj gönderebilmek için aktif bir üyeliğiniz olmalıdır.</p>
+                  </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             </CardContent>
           </Card>
         </div>
@@ -186,12 +201,11 @@ export default function ProfilePage() {
                  <TabsList
                     className={cn(
                       "grid w-full p-1 rounded-md bg-muted/50",
-                      "grid-cols-2 md:grid-cols-2 lg:grid-cols-5" // Adjusted grid columns
+                      "grid-cols-2 md:grid-cols-2 lg:grid-cols-5" 
                     )}
                   >
                     <TabsTrigger value="details" className="text-xs sm:text-sm"><Building className="mr-1.5 h-4 w-4 hidden sm:inline"/>Firma Detayları</TabsTrigger>
                     <TabsTrigger value="myListings" className="text-xs sm:text-sm"><ListChecks className="mr-1.5 h-4 w-4 hidden sm:inline"/>Yük İlanlarım</TabsTrigger>
-                    {/* MyTransportOffersTab trigger removed */}
                     <TabsTrigger value="vehicles" className="text-xs sm:text-sm"><Truck className="mr-1.5 h-4 w-4 hidden sm:inline"/>Araçlarım</TabsTrigger>
                     <TabsTrigger value="authDocs" className="text-xs sm:text-sm"><FileTextIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Belgelerim</TabsTrigger>
                     <TabsTrigger value="membership" className="text-xs sm:text-sm"><Star className="mr-1.5 h-4 w-4 hidden sm:inline"/>Üyeliğim</TabsTrigger>
@@ -244,7 +258,6 @@ export default function ProfilePage() {
                 <MyListingsTab userId={companyUser.id} />
               </TabsContent>
 
-              {/* MyTransportOffersTab content removed */}
               <TabsContent value="vehicles">
                   <Card className="shadow-md">
                   <CardHeader>
@@ -310,10 +323,10 @@ export default function ProfilePage() {
                 user={companyUser} 
                 onProfileUpdate={handleProfileUpdate as (updatedProfile: UserProfile) => void} 
             />
-            {isFeedbackModalOpen && ( 
-                <FeedbackModal
-                    isOpen={isFeedbackModalOpen}
-                    onClose={() => setIsFeedbackModalOpen(false)}
+            {isSendMessageModalOpen && ( 
+                <SendMessageModal
+                    isOpen={isSendMessageModalOpen}
+                    onClose={() => setIsSendMessageModalOpen(false)}
                     userId={companyUser.id} 
                     userName={companyUser.name}
                 />
@@ -349,5 +362,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

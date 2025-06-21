@@ -244,6 +244,16 @@ export interface CompanyNote {
   author?: string; // Name of admin who wrote it
 }
 
+export interface Message {
+  id: string;
+  userId: string;
+  userName: string;
+  title: string;
+  content: string;
+  createdAt: string; // ISO string
+  isRead: boolean;
+}
+
 export type FreightFilterOptions = {
   originCity?: string;
   destinationCity?: string;
