@@ -109,11 +109,10 @@ export default function HomePage() {
     }
   }, [toast]); 
 
-  const handleAdvancedFilterChange = useCallback((newFilters: FreightFilterOptions) => {
+  const handleApplyAdvancedFilters = useCallback((newFilters: FreightFilterOptions) => {
     setCurrentFilters(newFilters);
     setActiveQuickFilter('advanced');
     setInitialLoadComplete(false);
-    setShowAdvancedFilters(false);
   }, []);
 
   const handleQuickFilterClick = useCallback((filterName: string) => {
@@ -146,8 +145,15 @@ export default function HomePage() {
     setActiveQuickFilter(filterName);
     setCurrentFilters(newFilters);
     setInitialLoadComplete(false); 
-    setShowAdvancedFilters(false);
   }, []);
+
+  const handleToggleAdvancedFilters = useCallback(() => {
+    // When toggling, reset to a clean state.
+    handleQuickFilterClick('all');
+    // Then toggle the visibility
+    setShowAdvancedFilters(prev => !prev);
+  }, [handleQuickFilterClick]);
+
 
   useEffect(() => {
     fetchFreights(null, currentFilters);
@@ -219,49 +225,49 @@ export default function HomePage() {
         </div>
       </section>
 
-      {showAdvancedFilters && (
-        <FreightFilters onFilterChange={handleAdvancedFilterChange} isLoading={isLoading || isLoadingMore} />
-      )}
-
       <div className="pt-4">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
           <h2 className="text-3xl font-bold text-primary text-center sm:text-left">Güncel Nakliye İlanları</h2>
-          <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={() => setShowAdvancedFilters(prev => !prev)}>
+          <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={handleToggleAdvancedFilters}>
             <SlidersHorizontal size={16} className="mr-1.5"/>
-            Gelişmiş Filtreleme
+            {showAdvancedFilters ? 'Filtreyi Kapat' : 'Gelişmiş Filtreleme'}
           </Button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mb-8">
-            <Button size="sm" variant={activeQuickFilter === 'all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('all')}>
-              <Globe size={16} className="mr-1.5"/>
-              Tümü
-            </Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_all')}>
-              <CalendarClock size={16} className="mr-1.5"/>
-              Bugün Yayınlananlar
-            </Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_domestic' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_domestic')}>
-              <Truck size={16} className="mr-1.5"/>
-              Bugünkü Yurtiçi Yükler
-            </Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_international' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_international')}>
-              <Globe size={16} className="mr-1.5"/>
-              Bugünkü Yurtdışı Yükler
-            </Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_residential' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_residential')}>
-              <Home size={16} className="mr-1.5"/>
-              Bugünkü Evden Eve
-            </Button>
-            <Button size="sm" variant={activeQuickFilter === 'continuous' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('continuous')}>
-              <Repeat size={16} className="mr-1.5"/>
-              Sürekli Yükler
-            </Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_empty_vehicle' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_empty_vehicle')}>
-              <PackagePlus size={16} className="mr-1.5"/>
-              Bugünkü Boş Araçlar
-            </Button>
-        </div>
+        {showAdvancedFilters ? (
+            <FreightFilters onFilterChange={handleApplyAdvancedFilters} isLoading={isLoading || isLoadingMore} />
+        ) : (
+            <div className="flex flex-wrap items-center gap-2 mb-8">
+                <Button size="sm" variant={activeQuickFilter === 'all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('all')}>
+                <Globe size={16} className="mr-1.5"/>
+                Tümü
+                </Button>
+                <Button size="sm" variant={activeQuickFilter === 'today_all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_all')}>
+                <CalendarClock size={16} className="mr-1.5"/>
+                Bugün Yayınlananlar
+                </Button>
+                <Button size="sm" variant={activeQuickFilter === 'today_domestic' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_domestic')}>
+                <Truck size={16} className="mr-1.5"/>
+                Bugünkü Yurtiçi Yükler
+                </Button>
+                <Button size="sm" variant={activeQuickFilter === 'today_international' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_international')}>
+                <Globe size={16} className="mr-1.5"/>
+                Bugünkü Yurtdışı Yükler
+                </Button>
+                <Button size="sm" variant={activeQuickFilter === 'today_residential' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_residential')}>
+                <Home size={16} className="mr-1.5"/>
+                Bugünkü Evden Eve
+                </Button>
+                <Button size="sm" variant={activeQuickFilter === 'continuous' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('continuous')}>
+                <Repeat size={16} className="mr-1.5"/>
+                Sürekli Yükler
+                </Button>
+                <Button size="sm" variant={activeQuickFilter === 'today_empty_vehicle' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_empty_vehicle')}>
+                <PackagePlus size={16} className="mr-1.5"/>
+                Bugünkü Boş Araçlar
+                </Button>
+            </div>
+        )}
         
         {isLoading && !initialLoadComplete && !isLoadingMore ? renderSkeletons() :
           freights.length > 0 ? (
@@ -307,4 +313,3 @@ export default function HomePage() {
     </div>
   );
 }
-
