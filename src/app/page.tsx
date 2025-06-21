@@ -155,8 +155,10 @@ export default function HomePage() {
 
   const handleToggleAdvancedFilters = useCallback(() => {
     if(!showAdvancedFilters) {
-        handleQuickFilterClick('all');
+        // Reset to 'all' when opening advanced filters for a clean slate
+        handleQuickFilterClick('all'); 
     } else {
+        // Reset to 'all' when closing advanced filters
         handleQuickFilterClick('all');
     }
     setShowAdvancedFilters(prev => !prev);
@@ -245,7 +247,7 @@ export default function HomePage() {
         {showAdvancedFilters ? (
             <FreightFilters onFilterChange={handleApplyAdvancedFilters} isLoading={isLoading || isLoadingMore} />
         ) : (
-            <div className="flex flex-wrap items-center gap-2 mb-8">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
                 <Button size="sm" variant={activeQuickFilter === 'all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('all')}>
                 <Globe size={16} className="mr-1.5"/>
                 Tümü

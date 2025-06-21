@@ -263,10 +263,10 @@ export default function Header() {
           </Link>
           
           <nav className="hidden md:flex items-center gap-x-3">
-             <Button variant="ghost" asChild>
-                <Link href="/yeni-ilan" legacyBehavior passHref>
-                    <a><PlusCircle size={18} /> İlan Ver</a>
-                </Link>
+            <Button asChild>
+              <Link href="/yeni-ilan">
+                <PlusCircle size={18} /> İlan Ver
+              </Link>
             </Button>
             
             <AnnouncementBell />
@@ -337,8 +337,8 @@ export default function Header() {
                 <ScrollArea className="flex-grow">
                 <nav className="p-4 space-y-1">
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                    <Link href="/yeni-ilan" passHref legacyBehavior>
-                        <a><PlusCircle size={20} /> İlan Ver</a>
+                    <Link href="/yeni-ilan">
+                      <PlusCircle size={20} /> İlan Ver
                     </Link>
                   </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
@@ -366,8 +366,8 @@ export default function Header() {
                       <>
                       <Separator className="my-2"/>
                       <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                          <Link href="/profil" passHref legacyBehavior>
-                              <a><UserCircle size={20} /> Profilim</a>
+                          <Link href="/profil">
+                              <UserCircle size={20} /> Profilim
                           </Link>
                       </Button>
                       </>
