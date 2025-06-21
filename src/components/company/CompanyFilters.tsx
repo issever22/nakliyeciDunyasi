@@ -16,7 +16,7 @@ interface CompanyFiltersProps {
   isLoading?: boolean;
 }
 
-const ALL_OPTIONS_VALUE = ""; 
+const ALL_OPTIONS_VALUE = "_ALL_"; 
 
 export default function CompanyFilters({ onFilterChange, initialSearchTerm = '', isLoading = false }: CompanyFiltersProps) {
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
