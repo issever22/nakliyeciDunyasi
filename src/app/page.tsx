@@ -442,7 +442,7 @@ export default function HomePage() {
               </div>
                <div className="hidden lg:block">
                   <Image 
-                      src="https://placehold.co/600x500.png"
+                      src="https://issever.co/wp-content/uploads/2025/06/nakliye-kamyon.svg"
                       alt="Lojistik operasyonlarını gösteren bir görsel"
                       width={600}
                       height={500}
@@ -516,12 +516,12 @@ export default function HomePage() {
             </div>
             <div className="hidden lg:flex justify-center">
                  <Image 
-                      src="https://placehold.co/450x450.png"
+                      src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-hakkimizda.svg"
                       alt="Sıkça sorulan sorular için yardımcı karakter"
                       width={450}
                       height={450}
                       className="rounded-xl"
-                      data-ai-hint="customer service mascot"
+                      data-ai-hint="support team"
                   />
             </div>
         </div>
