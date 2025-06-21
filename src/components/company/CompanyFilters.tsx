@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -119,8 +118,9 @@ export default function CompanyFilters({ onFilterChange, initialSearchTerm = '',
                 <Filter size={16} className="mr-2" />
                 Filtrele
             </Button>
-            <Button onClick={handleResetFilters} size="sm" variant="outline" className="h-9" disabled={isLoading}>
-                <RotateCcw size={16} />
+            <Button onClick={handleResetFilters} size="sm" variant="ghost" className="h-9 text-muted-foreground" disabled={isLoading}>
+                <RotateCcw size={16} className="mr-1.5"/>
+                Tüm Firmalar
             </Button>
         </div>
       </div>

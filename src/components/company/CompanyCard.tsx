@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { CompanyUserProfile } from '@/types';
@@ -27,11 +26,11 @@ export default function CompanyCard({ company, isSponsor = false }: CompanyCardP
             <Star className="h-3 w-3 mr-1" /> SPONSOR
           </Badge>
         )}
-        <Avatar className="w-24 h-24 mb-3 border-2 border-muted shadow-md">
+        <Avatar className="w-24 h-24 mb-3 border-2 border-muted shadow-md rounded-md">
           {company.logoUrl ? (
-            <AvatarImage src={company.logoUrl} alt={`${company.name} logo`} data-ai-hint="company logo" />
+            <AvatarImage src={company.logoUrl} alt={`${company.name} logo`} data-ai-hint="company logo" className="object-contain" />
           ) : null}
-          <AvatarFallback className="text-3xl bg-primary/10 text-primary">
+          <AvatarFallback className="text-3xl bg-primary/10 text-primary rounded-md">
             {company.name.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
