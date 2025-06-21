@@ -91,7 +91,7 @@ export default function UsersPage() {
       }
       setCurrentFormData({
         ...editingUser,
-        password: '', // Always start with an empty password field for editing
+        password: editingUser.password || '',
         membershipEndDate: membershipEndDateToSet,
         workingMethods: editingUser.workingMethods || [],
         workingRoutes: editingUser.workingRoutes || [],
@@ -132,16 +132,19 @@ export default function UsersPage() {
     e.preventDefault();
     if (!editingUser) return;
     
-    const requiredFields = ['name', 'email', 'username', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCity', 'fullAddress'];
+    const requiredFields: (keyof CompanyUserProfile)[] = ['name', 'email', 'username', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCity', 'fullAddress', 'password'];
     for (const field of requiredFields) {
-        if (!(currentFormData as any)[field]) {
+        const value = (currentFormData as any)[field];
+        if (!value || (typeof value === 'string' && !value.trim())) {
             toast({ title: "Eksik Bilgi", description: `Lütfen zorunlu alanları (*) doldurun. Eksik alan: ${field}`, variant: "destructive" });
+            setFormSubmitting(false);
             return;
         }
     }
     
     if (currentFormData.password && currentFormData.password.length < 6) {
-        toast({ title: "Hata", description: "Yeni şifre en az 6 karakter olmalıdır.", variant: "destructive" });
+        toast({ title: "Hata", description: "Şifre en az 6 karakter olmalıdır.", variant: "destructive" });
+        setFormSubmitting(false);
         return;
     }
     setFormSubmitting(true);
@@ -159,10 +162,6 @@ export default function UsersPage() {
     dataToSubmit.preferredCountries = (dataToSubmit.preferredCountries || []).filter((c: string) => c);
     
     const { id, createdAt, email, role, ...updateData } = dataToSubmit; 
-    
-    if (!updateData.password || updateData.password.trim() === '') {
-        delete updateData.password;
-    }
     
     const success = await updateUserProfile(editingUser.id, updateData as Partial<CompanyUserProfile>);
     if (success) {
@@ -437,8 +436,8 @@ export default function UsersPage() {
                             <p className="text-xs text-muted-foreground">E-posta adresi değiştirilemez.</p>
                         </div>
                         <div className="space-y-1.5">
-                            <Label htmlFor="edit-password">Yeni Şifre (Değiştirmek için doldurun)</Label>
-                            <Input id="edit-password" type="password" value={currentFormData.password || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} placeholder="Boş bırakırsanız değişmez"/>
+                            <Label htmlFor="edit-password">Şifre (*)</Label>
+                            <Input id="edit-password" type="password" value={currentFormData.password || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} placeholder="Şifre girin" required/>
                         </div>
                     </div>
                      <div className="space-y-1.5">

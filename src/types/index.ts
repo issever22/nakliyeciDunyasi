@@ -15,7 +15,8 @@ import type {
   WORKING_METHODS,
   WORKING_ROUTES,
   EMPTY_VEHICLE_SERVICE_TYPES,
-  COMPANY_CATEGORIES
+  COMPANY_CATEGORIES,
+  MEMBERSHIP_STATUS_OPTIONS
 } from '@/lib/constants';
 import type { CountryCode, TurkishCity } from '@/lib/locationData';
 
@@ -116,7 +117,7 @@ interface BaseUserProfile {
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
-  password?: string; 
+  password: string; 
   username: string;
   logoUrl?: string;
   companyTitle: string; 
@@ -135,7 +136,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
-  membershipStatus?: 'Yok' | 'Standart' | 'Premium' | string;
+  membershipStatus?: typeof MEMBERSHIP_STATUS_OPTIONS[number];
   membershipEndDate?: string; 
   ownedVehicles: string[];
   authDocuments: string[];
@@ -151,7 +152,7 @@ interface BaseRegisterData {
 }
 export interface CompanyRegisterData extends BaseRegisterData {
   role: 'company';
-  password?: string; 
+  password: string; 
   username: string;
   category: CompanyCategory;
   logoUrl?: string;

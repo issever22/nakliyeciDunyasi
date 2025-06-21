@@ -278,11 +278,6 @@ export async function updateUserProfile(uid: string, data: Partial<CompanyUserPr
     delete updateData.role; 
     delete updateData.createdAt;
 
-    // Conditionally handle password: only include it in the update if it's a non-empty string.
-    if (!updateData.password || updateData.password.trim() === '') {
-        delete updateData.password;
-    }
-
     if (updateData.hasOwnProperty('name')) {
         updateData.companyTitle = updateData.name;
     } else if (updateData.hasOwnProperty('companyTitle')) {
