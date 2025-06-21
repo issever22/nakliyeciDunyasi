@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import type { CompanyUserProfile, SponsorshipLocation } from '@/types';
 import { getSponsoredCompanies, updateSponsorshipsForUser } from '@/services/authService';
-import { COUNTRIES, TURKISH_CITIES } from '@/lib/locationData';
+import { COUNTRIES } from '@/lib/locationData';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Award, Edit, Trash2, Globe, MapPin, PlusCircle, AlertTriangle } from 'lucide-react';
+import { Award, Edit, Trash2, Globe, MapPin, PlusCircle, AlertTriangle, Search } from 'lucide-react';
 import EditSponsorshipsModal from '@/components/admin/sponsors/EditSponsorshipsModal';
 import Link from 'next/link';
+import { Input } from '@/components/ui/input';
 
 export default function SponsorsListPage() {
   const { toast } = useToast();
@@ -24,6 +25,10 @@ export default function SponsorsListPage() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<CompanyUserProfile | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'country' | 'city'>('all');
+
 
   const fetchSponsors = useCallback(async () => {
     setIsLoading(true);
@@ -63,6 +68,42 @@ export default function SponsorsListPage() {
   };
   
   const getCountryName = (code: string) => COUNTRIES.find(c => c.code === code)?.name || code;
+
+  const filteredCompanies = useMemo(() => {
+    return sponsoredCompanies.filter(company => {
+        const hasCountrySponsorship = company.sponsorships?.some(s => s.type === 'country');
+        const hasCitySponsorship = company.sponsorships?.some(s => s.type === 'city');
+
+        if (filterType === 'country' && !hasCountrySponsorship) {
+            return false;
+        }
+        if (filterType === 'city' && !hasCitySponsorship) {
+            return false;
+        }
+
+        if (!searchTerm.trim()) {
+            return true;
+        }
+
+        const searchTermLower = searchTerm.toLowerCase();
+
+        if (company.name.toLowerCase().includes(searchTermLower)) {
+            return true;
+        }
+
+        const sponsoredCountries = company.sponsorships?.filter(s => s.type === 'country').map(s => getCountryName(s.name).toLowerCase()) || [];
+        if (sponsoredCountries.some(name => name.includes(searchTermLower))) {
+            return true;
+        }
+
+        const sponsoredCities = company.sponsorships?.filter(s => s.type === 'city').map(s => s.name.toLowerCase()) || [];
+        if (sponsoredCities.some(name => name.includes(searchTermLower))) {
+            return true;
+        }
+
+        return false;
+    });
+  }, [sponsoredCompanies, searchTerm, filterType]);
 
   if (isLoading) {
     return (
@@ -108,6 +149,22 @@ export default function SponsorsListPage() {
           </Button>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Firma, ülke, şehir ara..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8 w-full"
+                />
+            </div>
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+                <Button size="sm" variant={filterType === 'all' ? 'secondary' : 'ghost'} onClick={() => setFilterType('all')} className="h-8 px-3">Tümü</Button>
+                <Button size="sm" variant={filterType === 'country' ? 'secondary' : 'ghost'} onClick={() => setFilterType('country')} className="h-8 px-3">Sadece Ülke</Button>
+                <Button size="sm" variant={filterType === 'city' ? 'secondary' : 'ghost'} onClick={() => setFilterType('city')} className="h-8 px-3">Sadece Şehir</Button>
+            </div>
+          </div>
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -118,7 +175,7 @@ export default function SponsorsListPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sponsoredCompanies.length > 0 ? sponsoredCompanies.map((company) => {
+                {filteredCompanies.length > 0 ? filteredCompanies.map((company) => {
                   const sponsoredCountries = company.sponsorships?.filter(s => s.type === 'country') || [];
                   const sponsoredCities = company.sponsorships?.filter(s => s.type === 'city') || [];
                   return (
@@ -177,7 +234,7 @@ export default function SponsorsListPage() {
                 }) : (
                   <TableRow>
                     <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                      Aktif sponsor firma bulunamadı.
+                       {searchTerm || filterType !== 'all' ? 'Arama kriterlerinize uygun sponsor bulunamadı.' : 'Aktif sponsor firma bulunamadı.'}
                     </TableCell>
                   </TableRow>
                 )}
