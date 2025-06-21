@@ -7,7 +7,21 @@ import FreightFilters from '@/components/freight/FreightFilters';
 import type { Freight, FreightFilterOptions } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, AlertTriangle, Loader2, SearchX, Filter } from 'lucide-react';
+import { 
+  PlusCircle, 
+  AlertTriangle, 
+  Loader2, 
+  SearchX, 
+  Filter, 
+  ListFilter, 
+  CalendarClock, 
+  Globe, 
+  Repeat, 
+  Home, 
+  Truck, 
+  PackagePlus, 
+  SlidersHorizontal 
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import Image from 'next/image';
@@ -139,6 +153,11 @@ export default function HomePage() {
     fetchFreights(null, currentFilters);
   }, [currentFilters, fetchFreights]);
 
+  const loadMoreFreights = useCallback(() => {
+    if (hasMore && lastVisibleDoc && !isLoadingMore) {
+        fetchFreights(lastVisibleDoc, currentFilters);
+    }
+  }, [hasMore, lastVisibleDoc, isLoadingMore, fetchFreights, currentFilters]);
   
   const renderSkeletons = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
@@ -201,16 +220,34 @@ export default function HomePage() {
       </section>
 
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-foreground">Hızlı Filtreler</h2>
+        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><ListFilter /> Hızlı Filtreler</h2>
         <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant={activeQuickFilter === 'today_all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_all')}>Bugün Yayınlanan Yükler</Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_domestic' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_domestic')}>Bugün Yayınlanan Yurtiçi Yükler</Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_international' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_international')}>Bugün Yayınlanan Yurtdışı Yükler</Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_residential' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_residential')}>Bugün Yayınlanan Evden Eve</Button>
-            <Button size="sm" variant={activeQuickFilter === 'continuous' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('continuous')}>Sürekli (Proje) Yükler</Button>
-            <Button size="sm" variant={activeQuickFilter === 'today_empty_vehicle' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_empty_vehicle')}>Bugün Yayınlanan Boş Araçlar</Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_all' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_all')}>
+              <CalendarClock size={16} className="mr-1.5"/>
+              Bugün Yayınlananlar
+            </Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_domestic' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_domestic')}>
+              <Truck size={16} className="mr-1.5"/>
+              Bugünkü Yurtiçi Yükler
+            </Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_international' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_international')}>
+              <Globe size={16} className="mr-1.5"/>
+              Bugünkü Yurtdışı Yükler
+            </Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_residential' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_residential')}>
+              <Home size={16} className="mr-1.5"/>
+              Bugünkü Evden Eve
+            </Button>
+            <Button size="sm" variant={activeQuickFilter === 'continuous' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('continuous')}>
+              <Repeat size={16} className="mr-1.5"/>
+              Sürekli Yükler
+            </Button>
+            <Button size="sm" variant={activeQuickFilter === 'today_empty_vehicle' ? 'default' : 'outline'} onClick={() => handleQuickFilterClick('today_empty_vehicle')}>
+              <PackagePlus size={16} className="mr-1.5"/>
+              Bugünkü Boş Araçlar
+            </Button>
             <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={() => setShowAdvancedFilters(prev => !prev)}>
-                <Filter size={16} className="mr-2"/>
+                <SlidersHorizontal size={16} className="mr-1.5"/>
                 Gelişmiş Filtreleme
             </Button>
         </div>
@@ -267,5 +304,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
