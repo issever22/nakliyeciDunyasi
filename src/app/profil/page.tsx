@@ -355,7 +355,7 @@ export default function ProfilePage() {
                 isOpen={isViewMembershipsModalOpen}
                 onClose={() => setIsViewMembershipsModalOpen(false)}
                 availableMemberships={membershipPackages}
-                currentUserMembership={companyUser.membershipStatus}
+                companyUser={companyUser}
             />
         </>
       )}

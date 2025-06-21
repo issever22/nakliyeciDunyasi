@@ -1,25 +1,63 @@
 
 "use client";
 
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import type { MembershipSetting } from '@/types';
-import { CheckCircle, Star, Tag } from 'lucide-react';
+import type { MembershipSetting, CompanyUserProfile } from '@/types';
+import { CheckCircle, Star, Loader2, Send } from 'lucide-react';
 import { ScrollArea } from "../ui/scroll-area";
+import { useToast } from '@/hooks/use-toast';
+import { addMembershipRequest } from '@/services/membershipRequestsService';
 
 interface ViewMembershipsModalProps {
   isOpen: boolean;
   onClose: () => void;
   availableMemberships: MembershipSetting[];
-  currentUserMembership?: string;
+  companyUser: CompanyUserProfile;
 }
 
-export default function ViewMembershipsModal({ isOpen, onClose, availableMemberships, currentUserMembership }: ViewMembershipsModalProps) {
+export default function ViewMembershipsModal({ isOpen, onClose, availableMemberships, companyUser }: ViewMembershipsModalProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const currentUserMembership = companyUser.membershipStatus;
+
+  const handlePackageRequest = async (pkg: MembershipSetting) => {
+    setIsSubmitting(true);
+    try {
+      const result = await addMembershipRequest({
+        name: companyUser.contactFullName || companyUser.name,
+        phone: companyUser.mobilePhone || 'Belirtilmedi',
+        details: `"${companyUser.name}" firması "${pkg.name}" üyelik paketine geçiş yapmak için talepte bulundu.`,
+        email: companyUser.email,
+        companyName: companyUser.companyTitle || companyUser.name,
+        userId: companyUser.id
+      });
+      if (result.success) {
+        toast({
+          title: "Talep Gönderildi",
+          description: `"${pkg.name}" üyeliği için talebiniz alındı. En kısa sürede sizinle iletişime geçeceğiz.`
+        });
+        onClose();
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Hata",
+        description: error.message || "Talep gönderilirken bir sorun oluştu.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle className="text-2xl flex items-center gap-2"><Star size={24} className="text-primary"/> Üyelik Paketleri</DialogTitle>
           <DialogDescription>
@@ -37,12 +75,11 @@ export default function ViewMembershipsModal({ isOpen, onClose, availableMembers
                         <CardTitle className="text-xl text-primary">{pkg.name}</CardTitle>
                         {currentUserMembership === pkg.name && <Badge className="bg-green-500 text-white">Aktif Paket</Badge>}
                     </div>
-                    <CardDescription className="text-xs">{pkg.description || "Bu paket için açıklama bulunmamaktadır."}</CardDescription>
+                    <CardDescription className="text-sm min-h-[3em]">{pkg.description || "Bu paket için açıklama bulunmamaktadır."}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow space-y-3">
-                    <div className="text-3xl font-bold text-foreground flex items-baseline">
-                      {pkg.price} TL 
-                      <span className="text-sm font-normal text-muted-foreground ml-1">/ {pkg.duration} {pkg.durationUnit}</span>
+                    <div className="text-2xl font-bold text-foreground">
+                      {pkg.duration} {pkg.durationUnit}
                     </div>
                     <ul className="space-y-1.5 text-sm text-muted-foreground">
                       {pkg.features.map((feature, index) => (
@@ -54,8 +91,16 @@ export default function ViewMembershipsModal({ isOpen, onClose, availableMembers
                     </ul>
                   </CardContent>
                   <CardFooter className="mt-auto pt-4">
-                    <Button className="w-full" disabled> {/* Actual purchase logic not implemented */}
-                        {currentUserMembership === pkg.name ? 'Mevcut Paketiniz' : 'Bu Paketi Seç (Yakında)'}
+                    <Button 
+                      className="w-full" 
+                      disabled={isSubmitting || currentUserMembership === pkg.name}
+                      onClick={() => handlePackageRequest(pkg)}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                      ) : (
+                        currentUserMembership === pkg.name ? 'Mevcut Paketiniz' : <><Send className="mr-2 h-4 w-4"/> Yükseltme Talebi Gönder</>
+                      )}
                     </Button>
                   </CardFooter>
                 </Card>
