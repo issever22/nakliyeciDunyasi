@@ -237,7 +237,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <ShieldCheck size={22} /> Yönetici
             </Link>
         </header>
-        <main className="flex-1 p-4 sm:px-6 sm:py-0 md:p-6 lg:p-8 bg-muted/30 min-h-[calc(100vh-theme(spacing.16))]">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 bg-muted/30 min-h-[calc(100vh-theme(spacing.16))]">
           {children}
         </main>
       </SidebarInset>

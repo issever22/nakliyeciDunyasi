@@ -153,13 +153,13 @@ export default function AddCompanyPage() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Yeni Firma Ekle</CardTitle>
-            <div className="flex gap-2">
-                <Button variant="outline" asChild>
+            <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="outline" asChild className="w-full sm:w-auto">
                     <Link href="/admin/users">İptal</Link>
                 </Button>
-                <Button type="submit" disabled={formSubmitting}>
+                <Button type="submit" disabled={formSubmitting} className="w-full sm:w-auto">
                     {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <CheckSquare size={18} className="mr-2"/> Firmayı Kaydet
                 </Button>
@@ -366,11 +366,11 @@ export default function AddCompanyPage() {
             <Switch id="isActive" checked={formData.isActive} onCheckedChange={(checked) => setFormData(prev => ({...prev, isActive: checked}))} />
             <Label htmlFor="isActive" className="font-medium cursor-pointer">Firma Onay Durumu (Aktif/Pasif)</Label>
         </div>
-        <CardFooter className="flex justify-end gap-2 p-0 pt-4">
-            <Button variant="outline" asChild>
+        <CardFooter className="flex flex-col sm:flex-row justify-end gap-2 p-0 pt-4">
+            <Button variant="outline" asChild className="w-full sm:w-auto">
                 <Link href="/admin/users">İptal</Link>
             </Button>
-            <Button type="submit" disabled={formSubmitting}>
+            <Button type="submit" disabled={formSubmitting} className="w-full sm:w-auto">
                 {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                  <CheckSquare size={18} className="mr-2"/> Firmayı Kaydet
             </Button>

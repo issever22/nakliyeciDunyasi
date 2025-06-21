@@ -241,21 +241,19 @@ export default function UsersPage() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[60px]"></TableHead>
+            <TableHead className="w-[60px] px-2"></TableHead>
             <TableHead className="min-w-[180px]">Firma Adı</TableHead>
-            <TableHead className="min-w-[150px]">Kategori</TableHead>
-            <TableHead className="min-w-[180px]">E-posta</TableHead>
-            <TableHead className="min-w-[120px]">Üyelik</TableHead>
-            <TableHead className="min-w-[120px]">Kalan Üyelik</TableHead>
-            <TableHead className="w-[120px]">Kayıt Tarihi</TableHead>
-            <TableHead className="w-[100px] text-center">Durum (Onay)</TableHead>
+            <TableHead className="min-w-[150px] hidden md:table-cell">Kategori</TableHead>
+            <TableHead className="min-w-[180px] hidden lg:table-cell">E-posta</TableHead>
+            <TableHead className="min-w-[120px] hidden md:table-cell">Üyelik</TableHead>
+            <TableHead className="w-[100px] text-center hidden sm:table-cell">Durum</TableHead>
             <TableHead className="w-[120px] text-right">Eylemler</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {userList.length > 0 ? userList.map((user) => (
             <TableRow key={user.id} className="hover:bg-muted/50">
-              <TableCell>
+              <TableCell className="px-2">
                 <Avatar className="h-9 w-9">
                   <AvatarImage src={user.logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="company logo"/>
                   <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
@@ -263,16 +261,16 @@ export default function UsersPage() {
               </TableCell>
               <TableCell className="font-medium">
                   {user.name}
+                  <div className="text-xs text-muted-foreground md:hidden">{user.category}</div>
                   <div className="text-xs text-muted-foreground">K.Adı: {user.username}</div>
               </TableCell>
-              <TableCell><Badge variant="secondary" className="text-xs">{user.category}</Badge></TableCell>
-              <TableCell className="text-sm">{user.email}</TableCell>
-              <TableCell>{getMembershipBadge(user.membershipStatus)}</TableCell>
-              <TableCell className="text-sm"><Clock size={14} className="inline mr-1 text-muted-foreground"/> {calculateRemainingDays(user.membershipEndDate)}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                  {user.createdAt ? format(parseISO(user.createdAt), "dd.MM.yyyy", { locale: tr }) : '-'}
+              <TableCell className="hidden md:table-cell"><Badge variant="secondary" className="text-xs">{user.category}</Badge></TableCell>
+              <TableCell className="text-sm hidden lg:table-cell">{user.email}</TableCell>
+              <TableCell className="hidden md:table-cell">
+                  {getMembershipBadge(user.membershipStatus)}
+                  <div className="text-xs text-muted-foreground mt-1">{calculateRemainingDays(user.membershipEndDate)}</div>
               </TableCell>
-              <TableCell className="text-center">
+              <TableCell className="text-center hidden sm:table-cell">
                   <Badge variant={user.isActive ? "default" : "outline"} className={user.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-yellow-500/10 text-yellow-700 border-yellow-400"}>
                   {user.isActive ? <CheckCircle size={14} className="inline mr-1"/> : <XCircle size={14} className="inline mr-1"/>}
                   {user.isActive ? 'Onaylı' : 'Onay Bekliyor'}
@@ -309,7 +307,7 @@ export default function UsersPage() {
             </TableRow>
           )) : (
             <TableRow>
-              <TableCell colSpan={9} className="h-32 text-center">
+              <TableCell colSpan={7} className="h-32 text-center">
                 <ShieldAlert className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">
                   {searchTerm ? `"${searchTerm}" için sonuç bulunamadı.` : 'Kayıtlı firma kullanıcısı bulunamadı.'}
@@ -649,4 +647,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
 
