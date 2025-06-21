@@ -124,9 +124,9 @@ export default function FreightCard({ freight }: FreightCardProps) {
         
         {freight.freightType === 'Boş Araç' && (
           <>
-            {(listing as EmptyVehicleListing).advertisedVehicleType && <p><strong className="text-muted-foreground">Araç Tipi:</strong> {(listing as EmptyVehicleListing).advertisedVehicleType}</p>}
-            {(listing as EmptyVehicleListing).serviceTypeForLoad && <p><strong className="text-muted-foreground">Hizmet Tipi:</strong> {(listing as EmptyVehicleListing).serviceTypeForLoad}</p>}
-            {(listing as EmptyVehicleListing).vehicleStatedCapacity !== undefined && <p><strong className="text-muted-foreground">Kapasite:</strong> {(listing as EmptyVehicleListing).vehicleStatedCapacity} {(listing as EmptyVehicleListing).vehicleStatedCapacityUnit}</p>}
+            {(freight as EmptyVehicleListing).advertisedVehicleType && <p><strong className="text-muted-foreground">Araç Tipi:</strong> {(freight as EmptyVehicleListing).advertisedVehicleType}</p>}
+            {(freight as EmptyVehicleListing).serviceTypeForLoad && <p><strong className="text-muted-foreground">Hizmet Tipi:</strong> {(freight as EmptyVehicleListing).serviceTypeForLoad}</p>}
+            {(freight as EmptyVehicleListing).vehicleStatedCapacity !== undefined && <p><strong className="text-muted-foreground">Kapasite:</strong> {(freight as EmptyVehicleListing).vehicleStatedCapacity} {(freight as EmptyVehicleListing).vehicleStatedCapacityUnit}</p>}
           </>
         )}
 
