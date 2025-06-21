@@ -3,6 +3,7 @@
 
 import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { CompanyUserProfile, CompanyFilterOptions } from '@/types';
 import { getPaginatedCompanies, getActiveSponsorCompanyIds } from '@/services/authService';
 import CompanyCard from '@/components/company/CompanyCard';
@@ -138,14 +139,27 @@ function CompaniesContent() {
   
   return (
     <div className="space-y-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-primary mb-2 flex items-center justify-center gap-3">
-          <Users size={40}/> Firmalar
-        </h1>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          Platformumuzdaki aktif nakliye ve lojistik firmalarını keşfedin. İhtiyacınıza en uygun partneri bulmak için arama ve filtreleme yapın.
-        </p>
-      </div>
+      <Card className="overflow-hidden bg-primary text-primary-foreground shadow-lg">
+        <div className="grid md:grid-cols-2 items-center">
+          <div className="p-8 md:p-12">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 flex items-center gap-3">
+              <Users size={48} /> Firmalar
+            </h1>
+            <p className="text-xl md:text-2xl text-primary-foreground/90">
+              Platformumuzdaki aktif nakliye ve lojistik firmalarını keşfedin. İhtiyacınıza en uygun partneri bulmak için arama ve filtreleme yapın.
+            </p>
+          </div>
+          <div className="relative h-64 md:h-full hidden md:block">
+            <Image
+              src="https://placehold.co/800x400.png"
+              alt="Firma arama illüstrasyonu"
+              layout="fill"
+              objectFit="cover"
+              data-ai-hint="logistics map"
+            />
+          </div>
+        </div>
+      </Card>
 
       <CompanyFilters onFilterChange={handleFilterChange} initialSearchTerm={initialQuery} isLoading={isLoading || isLoadingMore}/>
       
