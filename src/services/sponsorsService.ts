@@ -12,27 +12,24 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
-import { parseISO, isValid, isAfter } from 'date-fns';
-
 
 export const getActiveSponsorCompanyIds = async (): Promise<Set<string>> => {
     try {
         const usersRef = collection(db, 'users');
-        const today = Timestamp.now();
-
-        // Firestore cannot do an OR query on two different fields.
-        // We need to fetch users whose sponsorship has not expired OR is indefinite (null).
-        const q1 = query(usersRef, where('sponsorshipExpiryDate', '>=', today));
-        const q2 = query(usersRef, where('sponsorshipExpiryDate', '==', null));
-        
-        const [snapshot1, snapshot2] = await Promise.all([
-            getDocs(q1),
-            getDocs(q2)
-        ]);
+        // Query for users where the sponsorships array exists and is not empty.
+        // Firestore's '!=' operator can check for non-empty arrays,
+        // but it may require a composite index if you add other range/inequality filters.
+        const q = query(usersRef, where('sponsorships', '!=', []));
+        const querySnapshot = await getDocs(q);
 
         const sponsorIds = new Set<string>();
-        snapshot1.docs.forEach(doc => sponsorIds.add(doc.id));
-        snapshot2.docs.forEach(doc => sponsorIds.add(doc.id));
+        querySnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            // A secondary check to be safe: ensure the array truly has items.
+            if (data.sponsorships && Array.isArray(data.sponsorships) && data.sponsorships.length > 0) {
+                 sponsorIds.add(doc.id);
+            }
+        });
 
         return sponsorIds;
     } catch (error) {
@@ -45,9 +42,7 @@ export const getActiveSponsorCompanyIds = async (): Promise<Set<string>> => {
 export const addSponsorshipsToUser = async (
   companyId: string,
   countryCodes: string[],
-  cityNames: string[],
-  startDateStr: string,
-  endDateStr?: string
+  cityNames: string[]
 ): Promise<{ success: boolean; message: string; addedCount: number; skippedCount: number }> => {
   if (!companyId) {
     return { success: false, message: "Firma seçimi zorunludur.", addedCount: 0, skippedCount: 0 };
@@ -72,14 +67,14 @@ export const addSponsorshipsToUser = async (
 
     countryCodes.forEach(code => {
         if (!existingSponsorshipsSet.has(`country:${code}`)) {
-            newSponsorships.push({ type: 'country', name: code, startDate: startDateStr, endDate: endDateStr });
+            newSponsorships.push({ type: 'country', name: code });
             addedCount++;
         }
     });
 
     cityNames.forEach(name => {
         if (!existingSponsorshipsSet.has(`city:${name}`)) {
-            newSponsorships.push({ type: 'city', name: name, startDate: startDateStr, endDate: endDateStr });
+            newSponsorships.push({ type: 'city', name: name });
             addedCount++;
         }
     });
@@ -89,31 +84,9 @@ export const addSponsorshipsToUser = async (
     }
 
     const allSponsorships = [...existingSponsorships, ...newSponsorships];
-
-    // Calculate the latest expiry date
-    let latestExpiry: Date | null = null;
-    let hasIndefiniteSponsorship = false;
-
-    for (const sp of allSponsorships) {
-        if (!sp.endDate) {
-            hasIndefiniteSponsorship = true;
-            break; // If one is indefinite, the overall expiry is indefinite (null)
-        }
-        const currentEndDate = parseISO(sp.endDate);
-        if (isValid(currentEndDate)) {
-            if (!latestExpiry || isAfter(currentEndDate, latestExpiry)) {
-                latestExpiry = currentEndDate;
-            }
-        }
-    }
     
-    // If there is an indefinite sponsorship, the expiry date is null.
-    // Otherwise, it's the latest date found.
-    const newExpiryDate = hasIndefiniteSponsorship ? null : (latestExpiry ? Timestamp.fromDate(latestExpiry) : null);
-
     await updateDoc(userDocRef, {
         sponsorships: allSponsorships,
-        sponsorshipExpiryDate: newExpiryDate
     });
 
     let message = `${addedCount} yeni sponsorluk eklendi.`;

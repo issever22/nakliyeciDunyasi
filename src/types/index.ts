@@ -107,8 +107,6 @@ export type MembershipStatus = 'Yok' | 'Standart' | 'Premium';
 export interface SponsorshipLocation {
   type: 'country' | 'city';
   name: string; // Country code or City name
-  startDate: string; // ISO string
-  endDate?: string; // ISO string
 }
 
 interface BaseUserProfile {
@@ -146,7 +144,6 @@ export interface CompanyUserProfile extends BaseUserProfile {
   ownedVehicles: string[];
   authDocuments: string[];
   sponsorships?: SponsorshipLocation[];
-  sponsorshipExpiryDate?: string; // ISO String of the latest expiry date for querying
 }
 
 export type UserProfile = CompanyUserProfile; 

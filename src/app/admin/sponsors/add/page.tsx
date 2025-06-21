@@ -7,8 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -19,9 +17,9 @@ import { COUNTRIES, TURKISH_CITIES } from '@/lib/locationData';
 import type { CompanyUserProfile } from '@/types';
 import { Loader2, PlusCircle, Award, CalendarIcon, Building, CheckSquare, Search, Globe, MapPin, X, ChevronsUpDown, Check } from 'lucide-react';
 import Link from 'next/link';
-import { format } from "date-fns";
-import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
 
 export default function AddSponsorPage() {
   const { toast } = useToast();
@@ -37,10 +35,7 @@ export default function AddSponsorPage() {
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   
   const [citySearchTerm, setCitySearchTerm] = useState('');
-  const [popoverOpen, setPopoverOpen] = useState(false);
-
-  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [companyPopoverOpen, setCompanyPopoverOpen] = useState(false);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -85,14 +80,7 @@ export default function AddSponsorPage() {
         toast({ title: "Hata", description: "Lütfen en az bir ülke veya şehir seçin.", variant: "destructive" });
         return;
     }
-    if (!startDate) {
-        toast({ title: "Hata", description: "Başlangıç tarihi zorunludur.", variant: "destructive" });
-        return;
-    }
-    if (startDate && endDate && startDate > endDate) {
-        toast({ title: "Hata", description: "Bitiş tarihi başlangıç tarihinden önce olamaz.", variant: "destructive" });
-        return;
-    }
+    
     setFormSubmitting(true);
     
     try {
@@ -100,8 +88,6 @@ export default function AddSponsorPage() {
         selectedCompanyId,
         selectedCountries,
         selectedCities,
-        format(startDate, "yyyy-MM-dd"),
-        endDate ? format(endDate, "yyyy-MM-dd") : undefined
       );
 
       if (result.success) {
@@ -135,19 +121,18 @@ export default function AddSponsorPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Sponsor Firma ve Geçerlilik Tarihleri</CardTitle>
-          <CardDescription>Sponsor olacak firmayı ve sponsorluğun geçerlilik aralığını seçin. Bu tarihler seçilen tüm lokasyonlar için geçerli olacaktır.</CardDescription>
+          <CardTitle>Sponsor Firma</CardTitle>
+          <CardDescription>Sponsor olarak işaretlenecek firmayı seçin.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1.5">
+        <CardContent>
+            <div className="space-y-1.5 max-w-md">
               <Label htmlFor="spCompany" className="font-medium">Sponsor Firma (*)</Label>
-               <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+               <Popover open={companyPopoverOpen} onOpenChange={setCompanyPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     role="combobox"
-                    aria-expanded={popoverOpen}
+                    aria-expanded={companyPopoverOpen}
                     className="w-full justify-between font-normal"
                     disabled={optionsLoading}
                   >
@@ -171,7 +156,7 @@ export default function AddSponsorPage() {
                             value={company.name}
                             onSelect={() => {
                               setSelectedCompanyId(company.id === selectedCompanyId ? '' : company.id);
-                              setPopoverOpen(false);
+                              setCompanyPopoverOpen(false);
                             }}
                           >
                             <Check
@@ -189,38 +174,6 @@ export default function AddSponsorPage() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div></div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="spStartDate" className="font-medium">Başlangıç Tarihi (*)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!startDate && "text-muted-foreground"}`}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP", { locale: tr }) : <span>Tarih seçin</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus locale={tr} />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="spEndDate" className="font-medium">Bitiş Tarihi (Opsiyonel)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!endDate && "text-muted-foreground"}`}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP", { locale: tr }) : <span>Tarih seçin</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus locale={tr} />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
