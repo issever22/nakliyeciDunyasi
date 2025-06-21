@@ -395,5 +395,3 @@ export const deleteListing = async (id: string): Promise<boolean> => {
     return false;
   }
 };
-
-    
