@@ -427,16 +427,17 @@ export default function UsersPage() {
         <TableBody>
           {userList.length > 0 ? userList.map((user) => {
             const isSponsor = user.sponsorships && user.sponsorships.length > 0;
+            const isMember = user.membershipStatus && user.membershipStatus !== 'Yok';
             return (
-            <TableRow key={user.id} className="transition-colors hover:bg-muted/50">
+            <TableRow key={user.id} className={cn("transition-colors hover:bg-muted/50", isMember && !isSponsor && "bg-green-500/5")}>
               <TableCell className="px-2">
                 <div className="flex flex-col items-center gap-1">
-                  <Avatar className={cn("h-9 w-9", isSponsor && "ring-2 ring-orange-500 ring-offset-2 ring-offset-background")}>
+                  <Avatar className={cn("h-9 w-9", isSponsor && "ring-2 ring-yellow-400 ring-offset-2 ring-offset-background", isMember && !isSponsor && "ring-2 ring-green-500 ring-offset-2 ring-offset-background")}>
                     <AvatarImage src={user.logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="company logo"/>
                     <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   {isSponsor && (
-                    <Badge variant="outline" className="text-xs px-1 py-0 border-orange-500 text-orange-600">
+                    <Badge variant="outline" className="text-xs px-1 py-0 border-yellow-500 text-yellow-600">
                       Sponsor
                     </Badge>
                   )}
@@ -984,6 +985,7 @@ export default function UsersPage() {
     </div>
   );
 }
+
 
 
 
