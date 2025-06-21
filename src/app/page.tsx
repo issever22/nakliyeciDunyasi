@@ -20,10 +20,16 @@ import {
   Home, 
   Truck, 
   PackagePlus, 
-  SlidersHorizontal 
+  SlidersHorizontal,
+  FilePlus2,
+  Gavel,
+  Network,
+  BadgePercent,
+  ShieldCheck,
+  MousePointerClick
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from '@/components/ui/card';
 import Image from 'next/image';
 import { getListings } from '@/services/listingsService';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
@@ -148,11 +154,13 @@ export default function HomePage() {
   }, []);
 
   const handleToggleAdvancedFilters = useCallback(() => {
-    // When toggling, reset to a clean state.
-    handleQuickFilterClick('all');
-    // Then toggle the visibility
+    if(!showAdvancedFilters) {
+        handleQuickFilterClick('all');
+    } else {
+        handleQuickFilterClick('all');
+    }
     setShowAdvancedFilters(prev => !prev);
-  }, [handleQuickFilterClick]);
+  }, [showAdvancedFilters, handleQuickFilterClick]);
 
 
   useEffect(() => {
@@ -197,7 +205,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-16">
       <section className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group">
         <Image
           src="https://placehold.co/1600x600.png"
@@ -225,7 +233,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="pt-4">
+      <section className="pt-4">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
           <h2 className="text-3xl font-bold text-primary text-center sm:text-left">Güncel Nakliye İlanları</h2>
           <Button size="sm" variant={showAdvancedFilters || activeQuickFilter === 'advanced' ? 'default' : 'outline'} onClick={handleToggleAdvancedFilters}>
@@ -309,7 +317,120 @@ export default function HomePage() {
              )
           )
         }
-      </div>
+      </section>
+
+      <section className="text-center">
+        <h2 className="text-3xl font-bold text-center mb-2">Nasıl Çalışır?</h2>
+        <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-10">Platformumuzu kullanarak nakliye sürecini sadece üç basit adımda tamamlayın.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Card className="text-center shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-3">
+                <FilePlus2 className="h-10 w-10 text-primary" />
+              </div>
+              <CardTitle>1. İlan Oluşturun</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">İhtiyacınıza uygun ilan tipini seçin, yükünüzün ve güzergahınızın detaylarını saniyeler içinde girin.</p>
+            </CardContent>
+          </Card>
+          <Card className="text-center shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-3">
+                 <Gavel className="h-10 w-10 text-primary" />
+              </div>
+              <CardTitle>2. Teklifleri Değerlendirin</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Güvenilir nakliyecilerden gelen fiyat tekliflerini karşılaştırın, firmanın profilini ve puanını inceleyin.</p>
+            </CardContent>
+          </Card>
+          <Card className="text-center shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-3">
+                 <Truck className="h-10 w-10 text-primary" />
+              </div>
+              <CardTitle>3. Taşımanızı Gerçekleştirin</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">En uygun teklifi seçerek nakliyecinizle anlaşın ve yükünüzün güvenle taşınmasını izleyin.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+      
+      <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div>
+                  <h2 className="text-3xl font-bold mb-4">Neden Nakliyeci Dünyası?</h2>
+                  <p className="text-muted-foreground mb-8">
+                      Geniş nakliyeci ağımız, rekabetçi fiyatlarımız ve kullanıcı dostu platformumuz ile lojistik ihtiyaçlarınız için en doğru adresiz. Güvenilir ve hızlı çözümlerle işinizi kolaylaştırıyoruz.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="flex gap-4">
+                          <div className="bg-accent/10 text-accent p-3 rounded-full h-fit"><Network size={24} /></div>
+                          <div>
+                              <h3 className="font-semibold mb-1">Geniş Ağ</h3>
+                              <p className="text-sm text-muted-foreground">Türkiye'nin dört bir yanından binlerce güvenilir nakliyeciye anında ulaşın.</p>
+                          </div>
+                      </div>
+                      <div className="flex gap-4">
+                           <div className="bg-accent/10 text-accent p-3 rounded-full h-fit"><BadgePercent size={24} /></div>
+                          <div>
+                              <h3 className="font-semibold mb-1">Rekabetçi Fiyatlar</h3>
+                              <p className="text-sm text-muted-foreground">Birden fazla teklif alarak bütçenize en uygun fiyatı bulun.</p>
+                          </div>
+                      </div>
+                      <div className="flex gap-4">
+                           <div className="bg-accent/10 text-accent p-3 rounded-full h-fit"><ShieldCheck size={24} /></div>
+                          <div>
+                              <h3 className="font-semibold mb-1">Güvenli Platform</h3>
+                              <p className="text-sm text-muted-foreground">Onaylanmış firma profilleri ve kullanıcı yorumları ile güvenle çalışın.</p>
+                          </div>
+                      </div>
+                      <div className="flex gap-4">
+                           <div className="bg-accent/10 text-accent p-3 rounded-full h-fit"><MousePointerClick size={24} /></div>
+                          <div>
+                              <h3 className="font-semibold mb-1">Kolay Kullanım</h3>
+                              <p className="text-sm text-muted-foreground">Basit arayüzümüzle ilan vermek ve teklifleri yönetmek çok kolay.</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+               <div className="hidden lg:block">
+                  <Image 
+                      src="https://placehold.co/600x500.png"
+                      alt="Lojistik operasyonlarını gösteren bir görsel"
+                      width={600}
+                      height={500}
+                      className="rounded-xl shadow-2xl"
+                      data-ai-hint="logistics operation"
+                  />
+              </div>
+          </div>
+      </section>
+
+      <section className="bg-primary/5 border-t border-b border-primary/10">
+          <div className="container mx-auto px-4 py-16 text-center">
+              <h2 className="text-3xl font-bold text-primary mb-4">Aramıza Katılın ve Kazanmaya Başlayın!</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
+                  İster yük sahibi olun ister nakliyeci, platformumuzda sizin için bir yer var. Hemen kayıt olun, fırsatları kaçırmayın.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                  <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-lg py-3 px-8">
+                      <Link href="/yeni-ilan">
+                          <FilePlus2 className="mr-2 h-5 w-5" /> Ücretsiz İlan Ver
+                      </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline" className="text-lg py-3 px-8 border-primary text-primary hover:bg-primary/10 hover:text-primary">
+                       <Link href="/auth/kayit">
+                          <Truck className="mr-2 h-5 w-5" /> Nakliyeci Olarak Kaydol
+                      </Link>
+                  </Button>
+              </div>
+          </div>
+      </section>
+
     </div>
   );
 }
