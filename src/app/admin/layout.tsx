@@ -7,7 +7,7 @@ import { SidebarProvider, Sidebar, SidebarTrigger, SidebarHeader, SidebarContent
 import { Button } from '@/components/ui/button';
 import { 
   LogOut, LayoutDashboard, ShieldCheck, Settings, Users, Package,
-  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award
+  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle
 } from 'lucide-react'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -21,6 +21,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const isSettingsRouteActive = useMemo(() => pathname.startsWith('/admin/settings'), [pathname]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsRouteActive);
+
+  const isUsersRouteActive = useMemo(() => pathname.startsWith('/admin/users'), [pathname]);
+  const [isUsersOpen, setIsUsersOpen] = useState(isUsersRouteActive);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -44,7 +47,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     if (isSettingsRouteActive && !isSettingsOpen) {
       setIsSettingsOpen(true);
     }
-  }, [isSettingsRouteActive, isSettingsOpen]);
+     if (isUsersRouteActive && !isUsersOpen) {
+      setIsUsersOpen(true);
+    }
+  }, [isSettingsRouteActive, isSettingsOpen, isUsersRouteActive, isUsersOpen]);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -52,10 +58,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
     setIsAdminAuthenticated(false); 
     router.push('/admin/login');
-  };
-
-  const handleToggleSettings = () => {
-    setIsSettingsOpen(!isSettingsOpen);
   };
 
   if (isLoading) {
@@ -98,13 +100,37 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/users')} tooltip={{content: "Kullanıcıları Yönet", side: "right"}}>
-                <Link href="/admin/users">
-                  <Users /> <span>Kullanıcılar</span>
-                </Link>
+              <SidebarMenuButton 
+                onClick={() => setIsUsersOpen(!isUsersOpen)} 
+                isActive={isUsersRouteActive} 
+                tooltip={{content: "Firmalar", side: "right"}}
+                className="w-full flex justify-between items-center" 
+              >
+                <div className="flex items-center gap-2"><Building /> <span>Firmalar</span></div>
+                {isUsersOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </SidebarMenuButton>
             </SidebarMenuItem>
+            {isUsersOpen && (
+              <>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/users'} tooltip={{content: "Firma Listesi", side: "right"}}>
+                    <Link href="/admin/users">
+                      <List size={18}/> <span className="text-sm">Firma Listesi</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/users/add'} tooltip={{content: "Firma Ekle", side: "right"}}>
+                    <Link href="/admin/users/add">
+                      <PlusCircle size={18}/> <span className="text-sm">Firma Ekle</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
+
              <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/listings')} tooltip={{content: "İlanları Yönet", side: "right"}}>
                 <Link href="/admin/listings">
@@ -122,12 +148,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             
             <SidebarMenuItem>
               <SidebarMenuButton 
-                onClick={handleToggleSettings} 
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)} 
                 isActive={isSettingsRouteActive} 
                 tooltip={{content: "Ayarlar", side: "right"}}
                 className="w-full flex justify-between items-center" 
               >
-                <Settings /> <span>Ayarlar</span>
+                <div className="flex items-center gap-2"><Settings /> <span>Ayarlar</span></div>
                 {isSettingsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </SidebarMenuButton>
             </SidebarMenuItem>

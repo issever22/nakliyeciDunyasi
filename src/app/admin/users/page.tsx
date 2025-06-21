@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, ListFilter } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { CompanyUserProfile, CompanyCategory, CompanyRegisterData } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
@@ -25,9 +25,9 @@ import {
   getAllUserProfiles, 
   updateUserProfile,
   deleteUserProfile,
-  createCompanyUser as createCompanyUserServerAction,
 } from '@/services/authService'; 
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 const MEMBERSHIP_STATUS_OPTIONS = ['Yok', 'Standart', 'Premium'];
 
@@ -37,14 +37,12 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<CompanyUserProfile | null>(null);
   const [showOnlyMembers, setShowOnlyMembers] = useState(false);
   const [showOnlyPendingApproval, setShowOnlyPendingApproval] = useState(false);
   
-  const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile> & { name: string, email: string, category: CompanyCategory, password?: string }>({ 
-    role: 'company', name: '', email: '', isActive: true, category: 'Nakliyeci', password: ''
-  });
+  const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile>>({});
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -68,51 +66,21 @@ export default function UsersPage() {
       }
       setCurrentFormData({
         ...editingUser,
-        name: editingUser.name || '', 
-        email: editingUser.email || '',
         membershipEndDate: membershipEndDateToSet,
-        role: 'company', 
-        category: editingUser.category || 'Nakliyeci',
-        password: '', // Clear password for edit mode
       });
     } else {
-      // For new company user profile
-      setCurrentFormData({
-        role: 'company',
-        name: '',
-        email: '',
-        password: '',
-        isActive: true, // Default for new company created by admin
-        category: 'Nakliyeci',
-        username: '',
-        companyTitle: '',
-        contactFullName: '',
-        mobilePhone: '',
-        membershipStatus: 'Yok',
-        membershipEndDate: undefined,
-        companyType: 'local',
-        addressCity: '',
-        fullAddress: '',
-        workingMethods: [],
-        workingRoutes: [],
-        preferredCities: [],
-        preferredCountries: [],
-      });
+      setCurrentFormData({});
     }
-  }, [editingUser, isAddEditDialogOpen]);
-
-  const handleAddNew = () => {
-    setEditingUser(null);
-    setIsAddEditDialogOpen(true);
-  };
+  }, [editingUser, isEditDialogOpen]);
 
   const handleEdit = (user: CompanyUserProfile) => {
     setEditingUser(user);
-    setIsAddEditDialogOpen(true);
+    setIsEditDialogOpen(true);
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleEditSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!editingUser) return;
     if (!currentFormData.name?.trim() || !currentFormData.email?.trim()) {
         toast({ title: "Hata", description: "Firma Adı ve E-posta boş bırakılamaz.", variant: "destructive" });
         return;
@@ -145,61 +113,19 @@ export default function UsersPage() {
     }
    
     dataToSubmit.name = dataToSubmit.companyTitle || dataToSubmit.name;
-
-
-    if (editingUser) {
-      const { id, createdAt, password, email, role, ...updateData } = dataToSubmit; 
-      
-      const success = await updateUserProfile(editingUser.id, updateData as Partial<CompanyUserProfile>);
-      if (success) {
-        toast({ title: "Başarılı", description: "Firma profili güncellendi." });
-        fetchUsers();
-      } else {
-        toast({ title: "Hata", description: "Firma profili güncellenemedi.", variant: "destructive" });
-      }
+    
+    const { id, createdAt, password, email, role, ...updateData } = dataToSubmit; 
+    
+    const success = await updateUserProfile(editingUser.id, updateData as Partial<CompanyUserProfile>);
+    if (success) {
+      toast({ title: "Başarılı", description: "Firma profili güncellendi." });
+      fetchUsers();
     } else {
-      // Adding new company
-      if (!currentFormData.password?.trim() || currentFormData.password.length < 6) {
-        toast({ title: "Hata", description: "Yeni firma için en az 6 karakterli bir şifre girilmelidir.", variant: "destructive" });
-        setFormSubmitting(false);
-        return;
-      }
-      
-      const registrationPayload: CompanyRegisterData = {
-        role: 'company',
-        email: currentFormData.email!,
-        password: currentFormData.password!,
-        name: currentFormData.companyTitle || currentFormData.name!,
-        username: currentFormData.username!,
-        category: currentFormData.category!,
-        logoUrl: currentFormData.logoUrl || undefined,
-        contactFullName: currentFormData.contactFullName!,
-        workPhone: currentFormData.workPhone || undefined,
-        mobilePhone: currentFormData.mobilePhone!,
-        fax: currentFormData.fax || undefined,
-        website: currentFormData.website || undefined,
-        companyDescription: currentFormData.companyDescription || undefined,
-        companyType: currentFormData.companyType!,
-        addressCity: currentFormData.addressCity!,
-        addressDistrict: currentFormData.addressDistrict || undefined,
-        fullAddress: currentFormData.fullAddress!,
-        workingMethods: currentFormData.workingMethods || [],
-        workingRoutes: currentFormData.workingRoutes || [],
-        preferredCities: currentFormData.preferredCities?.filter(c => c) || [],
-        preferredCountries: currentFormData.preferredCountries?.filter(c => c) || [],
-        isActive: currentFormData.isActive, // Pass admin's choice for initial active state
-      };
-
-      const result = await createCompanyUserServerAction(registrationPayload);
-      if (result.profile) {
-        toast({ title: "Başarılı", description: `Yeni firma "${result.profile.name}" oluşturuldu.`});
-        fetchUsers();
-      } else {
-        toast({ title: "Firma Oluşturma Hatası", description: result.error || "Firma oluşturulamadı.", variant: "destructive"});
-      }
+      toast({ title: "Hata", description: "Firma profili güncellenemedi.", variant: "destructive" });
     }
+
     setFormSubmitting(false);
-    setIsAddEditDialogOpen(false);
+    setIsEditDialogOpen(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -364,8 +290,8 @@ export default function UsersPage() {
     <div className="space-y-6">
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Firma Kullanıcıları Yönetimi</CardTitle>
-          <CardDescription>Uygulamadaki firma kullanıcılarını yönetin.</CardDescription>
+          <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Firma Listesi</CardTitle>
+          <CardDescription>Uygulamadaki firma kullanıcılarını yönetin ve onay durumlarını kontrol edin.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
@@ -378,8 +304,10 @@ export default function UsersPage() {
                 className="pl-8 w-full"
               />
             </div>
-            <Button onClick={handleAddNew} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
-              <PlusCircle className="mr-2 h-4 w-4" /> Yeni Firma Ekle
+            <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+              <Link href="/admin/users/add">
+                <PlusCircle className="mr-2 h-4 w-4" /> Yeni Firma Ekle
+              </Link>
             </Button>
           </div>
 
@@ -406,16 +334,16 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isAddEditDialogOpen} onOpenChange={(isOpen) => {
-          setIsAddEditDialogOpen(isOpen);
+      <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
+          setIsEditDialogOpen(isOpen);
           if (!isOpen) setEditingUser(null);
       }}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleEditSubmit}>
             <DialogHeader>
-              <DialogTitle>{editingUser ? 'Firma Profilini Düzenle' : 'Yeni Firma Profili Ekle'}</DialogTitle>
+              <DialogTitle>Firma Profilini Düzenle</DialogTitle>
               <DialogDescription>
-                 {editingUser ? `"${editingUser.name}" firmasının profilini güncelleyin.` : `Yeni bir firma profili için bilgileri girin.`}
+                 {editingUser ? `"${editingUser.name}" firmasının profilini güncelleyin.` : ''}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-6">
@@ -450,15 +378,9 @@ export default function UsersPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="userEmail" className="font-medium">E-posta Adresi (*)</Label>
-                    <Input id="userEmail" type="email" value={currentFormData.email || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, email: e.target.value}))} placeholder="kullanici@example.com" disabled={!!editingUser && !currentFormData.email?.includes('@example.com')} />
-                    {editingUser && !currentFormData.email?.includes('@example.com') && <p className="text-xs text-muted-foreground">E-posta adresi değiştirilemez.</p>}
+                    <Input id="userEmail" type="email" value={currentFormData.email || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, email: e.target.value}))} placeholder="kullanici@example.com" disabled />
+                    <p className="text-xs text-muted-foreground">E-posta adresi değiştirilemez.</p>
                   </div>
-                  {!editingUser && (
-                    <div className="space-y-1.5">
-                        <Label htmlFor="companyPassword">Şifre (Yeni Firma İçin) (*)</Label>
-                        <Input id="companyPassword" type="password" value={currentFormData.password || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} placeholder="En az 6 karakter" />
-                    </div>
-                  )}
                   <div className="space-y-1.5">
                     <Label htmlFor="membershipStatus" className="font-medium">Üyelik Durumu</Label>
                     <Select 
@@ -506,7 +428,7 @@ export default function UsersPage() {
                 </DialogClose>
               <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={formSubmitting}>
                 {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingUser ? 'Değişiklikleri Kaydet' : 'Yeni Firma Ekle'}
+                Değişiklikleri Kaydet
               </Button>
             </DialogFooter>
           </form>
@@ -515,4 +437,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
