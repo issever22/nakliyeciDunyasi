@@ -16,7 +16,6 @@ import type {
   WORKING_ROUTES,
   EMPTY_VEHICLE_SERVICE_TYPES,
   COMPANY_CATEGORIES,
-  MEMBERSHIP_STATUS_OPTIONS
 } from '@/lib/constants';
 import type { CountryCode, TurkishCity } from '@/lib/locationData';
 
@@ -105,6 +104,7 @@ export type CompanyCategoryDetail = typeof COMPANY_CATEGORIES[number];
 
 export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
 export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
+export type MembershipStatus = 'Yok' | 'Standart' | 'Premium';
 
 interface BaseUserProfile {
   id: string;
@@ -136,7 +136,7 @@ export interface CompanyUserProfile extends BaseUserProfile {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
-  membershipStatus?: typeof MEMBERSHIP_STATUS_OPTIONS[number];
+  membershipStatus?: MembershipStatus;
   membershipEndDate?: string; 
   ownedVehicles: string[];
   authDocuments: string[];
@@ -269,4 +269,8 @@ export type FreightFilterOptions = {
   isContinuousLoad?: boolean;
 };
 
-    
+export type CompanyFilterOptions = {
+    searchTerm: string;
+    category: string;
+    city: string;
+};

@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory } from '@/types';
+import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory, CompanyFilterOptions } from '@/types';
 import {
   collection,
   doc,
@@ -153,35 +153,70 @@ export async function getPaginatedAdminUsers(options: {
   }
 }
 
-export async function searchCompanyProfilesByName(searchTerm: string): Promise<CompanyUserProfile[]> {
+export async function getPaginatedCompanies(options: {
+  lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;
+  pageSize?: number;
+  filters?: CompanyFilterOptions;
+}): Promise<{
+  companies: CompanyUserProfile[];
+  newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null;
+  error?: { message: string; indexCreationUrl?: string };
+}> {
+  const { lastVisibleDoc = null, pageSize = 12, filters = {} } = options;
   try {
-    if (!searchTerm) return [];
-    
     const usersRef = collection(db, USERS_COLLECTION);
-    const q = query(
-      usersRef,
-      where('role', '==', 'company'),
-      where('isActive', '==', true),
-      where('name', '>=', searchTerm),
-      where('name', '<=', searchTerm + '\uf8ff'),
-      orderBy('name', 'asc'),
-      limit(20) // Limit results to prevent overwhelming data return
-    );
-    
+    const queryConstraints: QueryConstraint[] = [];
+
+    queryConstraints.push(where('role', '==', 'company'));
+    queryConstraints.push(where('isActive', '==', true));
+
+    if (filters.category) {
+      queryConstraints.push(where('category', '==', filters.category));
+    }
+    if (filters.city) {
+      queryConstraints.push(where('addressCity', '==', filters.city));
+    }
+
+    if (filters.searchTerm) {
+      const searchTerm = filters.searchTerm;
+      queryConstraints.push(where('name', '>=', searchTerm));
+      queryConstraints.push(where('name', '<=', searchTerm + '\uf8ff'));
+      queryConstraints.push(orderBy('name', 'asc'));
+    } else {
+      queryConstraints.push(orderBy('createdAt', 'desc'));
+    }
+
+    if (lastVisibleDoc) {
+      queryConstraints.push(startAfter(lastVisibleDoc));
+    }
+    queryConstraints.push(limit(pageSize));
+
+    const q = query(usersRef, ...queryConstraints);
     const querySnapshot = await getDocs(q);
-    const companyProfiles: CompanyUserProfile[] = [];
-    querySnapshot.docs.forEach(doc => {
-      const profile = convertToUserProfile(doc.data(), doc.id);
-      if (profile) {
-        companyProfiles.push(profile);
-      }
-    });
-    return companyProfiles;
+
+    const companies = querySnapshot.docs
+      .map(doc => convertToUserProfile(doc.data(), doc.id))
+      .filter((profile): profile is CompanyUserProfile => profile !== null);
+
+    const newLastDoc = querySnapshot.docs.length === pageSize ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
+
+    return { companies, newLastVisibleDoc: newLastDoc };
   } catch (error: any) {
-    console.error("[authService.ts - searchCompanyProfilesByName] Error searching profiles:", error);
-    // Firestore might require an index for this query. You would see an error in the server logs
-    // with a link to create it. We can't create it from here, so we just log the error.
-    return [];
+    console.error("[authService.ts - getPaginatedCompanies] Error:", error);
+    let errorMessage = "Firmalar yüklenirken bir hata oluştu.";
+    let indexCreationUrl: string | undefined = undefined;
+
+    if (error.code === 'failed-precondition') {
+        errorMessage = error.message || "Gerekli veritabanı dizini eksik. Lütfen sunucu loglarını kontrol edin.";
+        const urlRegex = /(https:\/\/console.firebase.google.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const match = errorMessage.match(urlRegex);
+        if (match && match[0]) {
+            indexCreationUrl = match[0];
+        }
+    } else {
+        errorMessage = error.message;
+    }
+    return { companies: [], newLastVisibleDoc: null, error: { message: errorMessage, indexCreationUrl } };
   }
 }
 

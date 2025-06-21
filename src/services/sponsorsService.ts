@@ -53,6 +53,38 @@ const convertToSponsor = (docData: DocumentData, id: string): Sponsor => {
   } as Sponsor;
 };
 
+export const getActiveSponsorCompanyIds = async (): Promise<Set<string>> => {
+    try {
+        const sponsorsRef = collection(db, SPONSORS_COLLECTION);
+        const today = Timestamp.fromDate(new Date());
+
+        const q = query(
+            sponsorsRef,
+            where('isActive', '==', true),
+            where('startDate', '<=', today)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const sponsorIds = new Set<string>();
+
+        querySnapshot.docs.forEach(doc => {
+            const sponsor = doc.data();
+            const endDate = sponsor.endDate ? sponsor.endDate.toDate() : null;
+
+            // Add to set if there's no end date or if the end date is in the future
+            if (!endDate || endDate >= new Date()) {
+                sponsorIds.add(sponsor.companyId);
+            }
+        });
+
+        return sponsorIds;
+    } catch (error) {
+        console.error("Error fetching active sponsor company IDs: ", error);
+        return new Set<string>();
+    }
+};
+
+
 export const getAllSponsors = async (): Promise<Sponsor[]> => {
   try {
     const sponsorsRef = collection(db, SPONSORS_COLLECTION);

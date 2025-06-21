@@ -5,18 +5,28 @@ import type { CompanyUserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { MapPin, Building } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { MapPin, Building, Star } from 'lucide-react';
 import Link from 'next/link';
-// import Image from 'next/image'; // Not used here currently
+import { cn } from '@/lib/utils';
 
 interface CompanyCardProps {
   company: CompanyUserProfile;
+  isSponsor?: boolean;
 }
 
-export default function CompanyCard({ company }: CompanyCardProps) {
+export default function CompanyCard({ company, isSponsor = false }: CompanyCardProps) {
   return (
-    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full bg-card text-card-foreground">
+    <Card className={cn(
+      "shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full bg-card text-card-foreground relative",
+      isSponsor && "border-amber-400/50 ring-2 ring-amber-400/80 shadow-amber-500/10"
+    )}>
       <CardHeader className="items-center text-center p-4 border-b">
+        {isSponsor && (
+          <Badge variant="default" className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-900 hover:bg-amber-400/90 shadow-lg px-2 py-0.5 text-xs z-10">
+            <Star className="h-3 w-3 mr-1" /> SPONSOR
+          </Badge>
+        )}
         <Avatar className="w-24 h-24 mb-3 border-2 border-muted shadow-md">
           {company.logoUrl ? (
             <AvatarImage src={company.logoUrl} alt={`${company.name} logo`} data-ai-hint="company logo" />

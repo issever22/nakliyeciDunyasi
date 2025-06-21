@@ -342,16 +342,13 @@ export default function Header() {
                     </Link>
                   </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/arama/firmalar">Firmalar</Link>
+                  </Button>
+                  <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/hakkimizda">Hakkımızda</Link>
                   </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/iletisim">İletişim</Link>
-                  </Button>
-                  <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                    <Link href="/lojistik-firmalari/karayolu">Karayolu Lojistik</Link>
-                  </Button>
-                  <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                    <Link href="/nakliyeciler/illere-gore">İllere Göre Nakliyeciler</Link>
                   </Button>
                   <Separator className="my-2"/>
                   <p className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Üyelerimiz</p>
@@ -407,6 +404,13 @@ export default function Header() {
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
+                <Link href="/arama/firmalar" legacyBehavior passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    Firmalar
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
                 <Link href="/hakkimizda" legacyBehavior passHref>
                   <NavigationMenuTrigger>Hakkımızda</NavigationMenuTrigger>
                 </Link>
@@ -429,26 +433,6 @@ export default function Header() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuTrigger>Lojistik Firmalar</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
-                    <ListItem href="/lojistik-firmalari/karayolu" title="Karayolu Lojistik Firmaları">
-                      Yurtiçi ve yurtdışı karayolu taşımacılığı.
-                    </ListItem>
-                    <ListItem href="/lojistik-firmalari/havayolu" title="Havayolu Lojistik Firmaları">
-                      Hızlı ve güvenli havayolu kargo çözümleri.
-                    </ListItem>
-                    <ListItem href="/lojistik-firmalari/demiryolu" title="Demiryolu Lojistik Firmaları">
-                      Çevreci ve ekonomik demiryolu taşımacılığı.
-                    </ListItem>
-                    <ListItem href="/lojistik-firmalari/denizyolu" title="Denizyolu Lojistik Firmaları">
-                      Uluslararası denizyolu konteyner ve yük taşımacılığı.
-                    </ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-
-              <NavigationMenuItem>
                 <NavigationMenuTrigger>Üyelerimiz</NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] lg:w-[600px] md:grid-cols-2">
@@ -464,21 +448,7 @@ export default function Header() {
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>
-              
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>Nakliyeciler</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[300px] gap-3 p-4 md:w-[400px]">
-                      <ListItem href="/nakliyeciler/illere-gore" title="İllere Göre Nakliyeciler">
-                      Türkiye'nin her ilinden nakliye firmaları.
-                    </ListItem>
-                      <ListItem href="/nakliyeciler/ulkelere-gore" title="Ülkelere Göre Nakliyeciler">
-                      Farklı ülkelere hizmet veren nakliyeciler.
-                    </ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-              
+                            
               <NavigationMenuItem>
                 <NavigationMenuTrigger>Bize Ulaşın</NavigationMenuTrigger>
                 <NavigationMenuContent>
