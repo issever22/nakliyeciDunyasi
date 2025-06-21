@@ -13,13 +13,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Truck, Home, PackagePlus, Loader2 } from 'lucide-react';
 import { addListing } from '@/services/listingsService';
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 export default function NewFreightPage() {
-  const { user, loading: authLoading, isAuthenticated } = useAuth(); // No longer using useRequireAuth
+  const { user, loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [selectedFreightType, setSelectedFreightType] = useState<'Yük' | 'Evden Eve' | 'Boş Araç'>('Yük');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isCompanyUser = isAuthenticated && user?.role === 'company';
 
   const handleFormSubmit = useCallback(async (newFreightData: FreightCreationData) => {
     setIsSubmitting(true);
@@ -104,16 +107,18 @@ export default function NewFreightPage() {
       </div>
 
       <Tabs value={selectedFreightType} onValueChange={(value) => setSelectedFreightType(value as 'Yük' | 'Evden Eve' | 'Boş Araç')} className="w-full mb-8">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={cn("grid w-full", isCompanyUser ? "grid-cols-3" : "grid-cols-2")}>
           <TabsTrigger value="Yük" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
             <Truck size={18}/> Yük İlanı
           </TabsTrigger>
           <TabsTrigger value="Evden Eve" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
             <Home size={18}/> Evden Eve Nakliyat
           </TabsTrigger>
-          <TabsTrigger value="Boş Araç" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
-            <PackagePlus size={18}/> Boş Araç İlanı
-          </TabsTrigger>
+          {isCompanyUser && (
+            <TabsTrigger value="Boş Araç" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
+              <PackagePlus size={18}/> Boş Araç İlanı
+            </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="Yük">
           <CommercialFreightForm 
@@ -125,11 +130,13 @@ export default function NewFreightPage() {
             onSubmitSuccess={handleFormSubmit as (data: Omit<ResidentialFreight, 'id' | 'postedAt' | 'userId'>) => Promise<void>} 
           />
         </TabsContent>
-        <TabsContent value="Boş Araç">
-          <EmptyVehicleForm 
-            onSubmitSuccess={handleFormSubmit as (data: Omit<EmptyVehicleListing, 'id' | 'postedAt' | 'userId'>) => Promise<void>} 
-          />
-        </TabsContent>
+        {isCompanyUser && (
+          <TabsContent value="Boş Araç">
+            <EmptyVehicleForm 
+              onSubmitSuccess={handleFormSubmit as (data: Omit<EmptyVehicleListing, 'id' | 'postedAt' | 'userId'>) => Promise<void>} 
+            />
+          </TabsContent>
+        )}
       </Tabs>
       {isSubmitting && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
@@ -139,5 +146,3 @@ export default function NewFreightPage() {
     </div>
   );
 }
-
-    
