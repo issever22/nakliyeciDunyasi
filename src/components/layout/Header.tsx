@@ -274,13 +274,13 @@ export default function Header() {
           "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg"
         )}
       >
-        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/">
              <Image
                 src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo.svg"
                 alt="Nakliyeci Dünyası Logo"
                 priority
-                width={140}
+                width={120}
                 height={35}
               />
           </Link>
