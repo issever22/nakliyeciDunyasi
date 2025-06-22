@@ -148,6 +148,18 @@ export default function HeroSlidesPage() {
           <Input id="slideButtonColor" value={(currentFormData as any).buttonColor || ''} onChange={(e) => handleFieldChange('buttonColor' as any, e.target.value)} placeholder="örn: #e11d48" />
         </div>
       ),
+      buttonShape: (
+        <div className="space-y-1.5" key="btnShape">
+          <Label htmlFor="slideButtonShape">Buton Şekli</Label>
+          <Select value={(currentFormData as any).buttonShape || 'default'} onValueChange={(v) => handleFieldChange('buttonShape' as any, v)}>
+            <SelectTrigger id="slideButtonShape"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Varsayılan (Hafif Yuvarlak)</SelectItem>
+              <SelectItem value="rounded">Tam Yuvarlak</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      ),
       textColor: <div className="space-y-1.5" key="txtColor"><Label>Yazı Rengi (örn: #FFFFFF)</Label><Input placeholder="#FFFFFF" value={(currentFormData as any).textColor || ''} onChange={(e) => handleFieldChange('textColor' as any, e.target.value)} /></div>,
       overlayOpacity: <div className="space-y-1.5" key="overlay"><Label>Karartma Opaklığı (0-1)</Label><Input type="number" step="0.1" min="0" max="1" placeholder="0.5" value={(currentFormData as any).overlayOpacity ?? ''} onChange={(e) => handleNumericFieldChange('overlayOpacity' as any, e.target.value)} /></div>,
       inputPlaceholder: <div className="space-y-1.5" key="inputPl"><Label>Form Alanı İpucu</Label><Input value={(currentFormData as any).inputPlaceholder || ''} onChange={(e) => handleFieldChange('inputPlaceholder' as any, e.target.value)} /></div>,
@@ -161,22 +173,22 @@ export default function HeroSlidesPage() {
 
     switch (type) {
       case 'centered':
-        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.textColor, fields.overlayOpacity];
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.buttonShape, fields.textColor, fields.overlayOpacity];
         break;
       case 'left-aligned':
-        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.textColor, fields.overlayOpacity];
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.buttonShape, fields.textColor, fields.overlayOpacity];
         break;
       case 'with-input':
-        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.inputPlaceholder, fields.buttonText, fields.formActionUrl, fields.buttonIcon, fields.buttonColor, fields.textColor, fields.overlayOpacity];
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.inputPlaceholder, fields.buttonText, fields.formActionUrl, fields.buttonIcon, fields.buttonColor, fields.buttonShape, fields.textColor, fields.overlayOpacity];
         break;
       case 'split':
-        renderedFields = [fields.title, fields.subtitle, fields.mediaType, fields.mediaUrl, fields.backgroundColor, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor];
+        renderedFields = [fields.title, fields.subtitle, fields.mediaType, fields.mediaUrl, fields.backgroundColor, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.buttonShape];
         break;
       case 'title-only':
         renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.textColor, fields.overlayOpacity];
         break;
       case 'video-background':
-        renderedFields = [fields.title, fields.subtitle, fields.videoUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.textColor, fields.overlayOpacity];
+        renderedFields = [fields.title, fields.subtitle, fields.videoUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.buttonShape, fields.textColor, fields.overlayOpacity];
         break;
       default:
         renderedFields = [fields.title, fields.subtitle];
