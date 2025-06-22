@@ -233,7 +233,11 @@ export default function HeroSlider() {
             slidesPerView={1}
             pagination={{ clickable: true }}
             loop={slides.length > 1}
-            autoplay={{ delay: 5000, disableOnInteraction: false }}
+            autoplay={{ 
+                delay: 5000, 
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true,
+            }}
             effect="fade"
             className="h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-primary/30 [&_.swiper-pagination-bullet-active]:!bg-primary"
         >
