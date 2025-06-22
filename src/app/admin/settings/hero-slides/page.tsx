@@ -177,7 +177,8 @@ export default function HeroSlidesPage() {
                 ? (
                     <div className="space-y-1.5">
                         <Label htmlFor="slideVideoUrl">Video URL</Label>
-                        <Input id="slideVideoUrl" value={(currentFormData as any).videoUrl || ''} onChange={(e) => handleFieldChange('videoUrl', e.target.value)} placeholder="https://ornek.com/video.mp4"/>
+                        <Input id="slideVideoUrl" value={(currentFormData as any).videoUrl || ''} onChange={(e) => handleFieldChange('videoUrl', e.target.value)} placeholder="https://ornek.com/arka-plan.mp4"/>
+                        <p className="text-xs text-muted-foreground pt-1">Doğrudan video dosyası (.mp4, .webm) linki girilmelidir. YouTube linkleri desteklenmemektedir.</p>
                     </div>
                 )
                 : (
