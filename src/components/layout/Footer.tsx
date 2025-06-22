@@ -1,5 +1,6 @@
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Truck as AppIcon, QrCode } from 'lucide-react'; 
 
 export default function Footer() {
@@ -11,8 +12,12 @@ export default function Footer() {
           {/* Column 1: Brand Info */}
           <div className="md:col-span-4 lg:col-span-5 text-center md:text-left">
             <Link href="/" className="flex items-center justify-center md:justify-start gap-2 mb-4">
-              <AppIcon className="h-10 w-10 text-white" data-ai-hint="truck logistics" />
-              <span className="text-2xl font-bold text-white font-headline">Nakliyeci Dünyası</span>
+               <Image
+                src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo-white.svg"
+                alt="Nakliyeci Dünyası Logo"
+                width={200}
+                height={45}
+              />
             </Link>
             <p className="text-sm text-primary-foreground/80 max-w-sm mx-auto md:mx-0">
               Türkiye'nin güvenilir nakliye platformu. Yüklerinizi en iyi fiyatlarla taşıtın, lojistik süreçlerinizi kolaylaştırın.

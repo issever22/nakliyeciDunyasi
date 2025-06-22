@@ -2,6 +2,7 @@
 "use client";
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText, Search, Users as UsersIcon } from 'lucide-react';
@@ -274,9 +275,14 @@ export default function Header() {
         )}
       >
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <AppIcon className="h-8 w-8 text-primary" data-ai-hint="truck logistics" />
-            <h1 className="text-2xl font-bold text-primary font-headline">Nakliyeci Dünyası</h1>
+          <Link href="/">
+             <Image
+                src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo.svg"
+                alt="Nakliyeci Dünyası Logo"
+                width={180}
+                height={40}
+                priority
+              />
           </Link>
           
           <nav className="hidden md:flex items-center gap-x-3">
@@ -345,9 +351,13 @@ export default function Header() {
               <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0 flex flex-col">
                 <SheetHeader className="p-4 border-b">
                   <SheetTitle>
-                      <Link href="/" className="flex items-center gap-2" onClick={closeMobileMenu}>
-                          <AppIcon className="h-7 w-7 text-primary" />
-                          <span className="text-xl font-bold text-primary font-headline">Nakliyeci Dünyası</span>
+                      <Link href="/" className="flex items-center" onClick={closeMobileMenu}>
+                           <Image
+                            src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo.svg"
+                            alt="Nakliyeci Dünyası Logo"
+                            width={160}
+                            height={35}
+                          />
                       </Link>
                   </SheetTitle>
                 </SheetHeader>
