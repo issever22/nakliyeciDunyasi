@@ -127,12 +127,24 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
 
         case 'split': {
             const s = slide as SplitHeroSlide;
+            const textColumnStyle: React.CSSProperties = {
+                backgroundColor: !s.backgroundImageUrl ? (s.backgroundColor || '#FFFFFF') : undefined,
+                color: s.textColor || undefined,
+            };
             return (
-                <div className="w-full h-full grid grid-cols-1 md:grid-cols-2" style={{ backgroundColor: s.backgroundColor || '#FFFFFF' }}>
-                    <div className="flex flex-col justify-center p-8 md:p-12 text-left">
-                        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">{s.title}</h1>
-                        {s.subtitle && <p className="text-lg text-muted-foreground mb-8">{s.subtitle}</p>}
-                        {renderButton(s)}
+                <div className="w-full h-full grid grid-cols-1 md:grid-cols-2">
+                    <div className="relative flex flex-col justify-center p-8 md:p-12 text-left" style={textColumnStyle}>
+                         {s.backgroundImageUrl && (
+                            <>
+                                <Image src={s.backgroundImageUrl} alt={s.title} layout="fill" objectFit="cover" className="z-0" />
+                                <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.3})` }} />
+                            </>
+                        )}
+                        <div className="relative z-20">
+                            <h1 className="text-4xl md:text-5xl font-bold mb-4">{s.title}</h1>
+                            {s.subtitle && <p className="text-lg text-muted-foreground mb-8">{s.subtitle}</p>}
+                            {renderButton(s)}
+                        </div>
                     </div>
                     <div className="relative h-64 md:h-full">
                         {s.mediaType === 'image' && s.mediaUrl ? (
@@ -267,7 +279,7 @@ export default function HeroSlider() {
                 pauseOnMouseEnter: true,
             }}
             effect="fade"
-            className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-white/30 [&_.swiper-pagination-bullet-active]:!bg-primary"
+            className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-white/50 [&_.swiper-pagination-bullet-active]:!bg-primary"
         >
             {slides.map((slide) => (
                 <SwiperSlide key={slide.id}>
@@ -277,13 +289,13 @@ export default function HeroSlider() {
             <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 
                             w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
                             opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <ChevronLeft className="w-6 h-6 text-[hsl(var(--accent))]" />
+                <ChevronLeft className="w-5 h-5 text-[hsl(var(--accent))]" />
             </div>
 
             <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 
                             w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
                             opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <ChevronRight className="w-6 h-6 text-[hsl(var(--accent))]" />
+                <ChevronRight className="w-5 h-5 text-[hsl(var(--accent))]" />
             </div>
         </Swiper>
     );

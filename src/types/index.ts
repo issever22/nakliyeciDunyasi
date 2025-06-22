@@ -352,6 +352,9 @@ export interface SplitHeroSlide extends BaseHeroSlide {
     buttonTextColor?: string;
     buttonShape?: 'default' | 'rounded';
     backgroundColor?: string;
+    backgroundImageUrl?: string;
+    textColor?: string;
+    overlayOpacity?: number;
 }
 
 export interface TitleOnlyHeroSlide extends BaseHeroSlide {
