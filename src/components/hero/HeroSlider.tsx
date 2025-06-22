@@ -9,7 +9,7 @@ import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
 import 'swiper/css/navigation';
 
-import type { HeroSlide, CenteredHeroSlide, LeftAlignedHeroSlide, WithInputHeroSlide, SplitHeroSlide, TitleOnlyHeroSlide, VideoBackgroundHeroSlide } from '@/types';
+import type { HeroSlide, CenteredHeroSlide, LeftAlignedHeroSlide, WithInputHeroSlide, TitleOnlyHeroSlide, VideoBackgroundHeroSlide } from '@/types';
 import { getActiveHeroSlides } from '@/services/heroSlidesService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -51,7 +51,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
     
     const contentWrapperBaseStyles = "relative z-20 flex flex-col h-full p-6 md:p-8 ";
 
-    const renderButton = (s: CenteredHeroSlide | LeftAlignedHeroSlide | WithInputHeroSlide | SplitHeroSlide | VideoBackgroundHeroSlide) => {
+    const renderButton = (s: CenteredHeroSlide | LeftAlignedHeroSlide | WithInputHeroSlide | VideoBackgroundHeroSlide) => {
         if (!s.buttonText || !s.buttonUrl) return null;
 
         const buttonStyles = {
@@ -124,38 +124,6 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                 </div>
             );
         }
-
-        case 'split': {
-            const s = slide as SplitHeroSlide;
-            const textColumnStyle: React.CSSProperties = {
-                backgroundColor: !s.backgroundImageUrl ? (s.backgroundColor || '#FFFFFF') : undefined,
-                color: s.textColor || undefined,
-            };
-            return (
-                <div className="w-full h-full grid grid-cols-1 md:grid-cols-2">
-                    <div className="relative flex flex-col justify-center p-8 md:p-12 text-left" style={textColumnStyle}>
-                         {s.backgroundImageUrl && (
-                            <>
-                                <Image src={s.backgroundImageUrl} alt={s.title} layout="fill" objectFit="cover" className="z-0" />
-                                <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.3})` }} />
-                            </>
-                        )}
-                        <div className="relative z-20">
-                            <h1 className="text-4xl md:text-5xl font-bold mb-4">{s.title}</h1>
-                            {s.subtitle && <p className="text-lg text-muted-foreground mb-8">{s.subtitle}</p>}
-                            {renderButton(s)}
-                        </div>
-                    </div>
-                    <div className="relative h-64 md:h-full">
-                        {s.mediaType === 'image' && s.mediaUrl ? (
-                            <Image src={s.mediaUrl} alt={s.title} fill style={{ objectFit: 'cover' }} />
-                        ) : s.mediaType === 'video' && s.mediaUrl ? (
-                            <video src={s.mediaUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-                        ) : null}
-                    </div>
-                </div>
-            );
-        }
         
         case 'title-only': {
             const s = slide as TitleOnlyHeroSlide;
@@ -163,7 +131,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                 <div className="relative w-full h-full">
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.4})` }}/>
-                    <div className={cn(contentWrapperBaseStyles, "items-center justify-end pb-16 text-center")} style={{ color: s.textColor || 'white' }}>
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
                          <h1 className="text-3xl sm:text-4xl font-bold mb-1 drop-shadow-lg">{s.title}</h1>
                         {s.subtitle && <p className="text-md text-neutral-200 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
                     </div>

@@ -289,7 +289,7 @@ export type CompanyFilterOptions = {
 
 
 // HERO SLIDER TYPES
-export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'split' | 'title-only' | 'video-background';
+export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'title-only' | 'video-background';
 
 export interface BaseHeroSlide {
   id: string;
@@ -341,22 +341,6 @@ export interface WithInputHeroSlide extends BaseHeroSlide {
     overlayOpacity?: number;
 }
 
-export interface SplitHeroSlide extends BaseHeroSlide {
-    type: 'split';
-    mediaType: 'image' | 'video';
-    mediaUrl: string;
-    buttonText?: string;
-    buttonUrl?: string;
-    buttonIcon?: string;
-    buttonColor?: string;
-    buttonTextColor?: string;
-    buttonShape?: 'default' | 'rounded';
-    backgroundColor?: string;
-    backgroundImageUrl?: string;
-    textColor?: string;
-    overlayOpacity?: number;
-}
-
 export interface TitleOnlyHeroSlide extends BaseHeroSlide {
     type: 'title-only';
     backgroundImageUrl: string;
@@ -381,7 +365,6 @@ export type HeroSlide =
   | CenteredHeroSlide
   | LeftAlignedHeroSlide
   | WithInputHeroSlide
-  | SplitHeroSlide
   | TitleOnlyHeroSlide
   | VideoBackgroundHeroSlide;
 

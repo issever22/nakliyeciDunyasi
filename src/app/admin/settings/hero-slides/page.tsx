@@ -24,7 +24,6 @@ const SLIDE_TYPES: { value: HeroSlideType; label: string }[] = [
     { value: 'centered', label: 'Ortalı Tanıtım' },
     { value: 'left-aligned', label: 'Sola Hizalı Tanıtım' },
     { value: 'with-input', label: 'Form İçeren Tanıtım' },
-    { value: 'split', label: 'İki Kolonlu Tanıtım' },
     { value: 'title-only', label: 'Sade Başlık' },
     { value: 'video-background', label: 'Video Arka Planlı' }
 ];
@@ -183,29 +182,6 @@ export default function HeroSlidesPage() {
         </div>
     );
 
-    const splitMediaFields = (
-        <div className="space-y-4">
-            <h4 className="font-medium text-muted-foreground">Medya Paneli (Sağ Taraf)</h4>
-            <div className="space-y-1.5"><Label>Medya Tipi</Label><Select value={(currentFormData as any).mediaType || 'image'} onValueChange={(v) => handleFieldChange('mediaType', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="image">Resim</SelectItem><SelectItem value="video">Video</SelectItem></SelectContent></Select></div>
-            <div className="space-y-1.5"><Label>Medya URL</Label><Input value={(currentFormData as any).mediaUrl || ''} onChange={(e) => handleFieldChange('mediaUrl', e.target.value)} /></div>
-        </div>
-    );
-
-    const splitContentFields = (
-        <div className="space-y-4">
-            <h4 className="font-medium text-muted-foreground">İçerik Paneli (Sol Taraf)</h4>
-             <div className="space-y-1.5">
-                <Label htmlFor="slideBackgroundColor">Arka Plan Rengi (Resim yoksa)</Label>
-                 <div className="flex items-center gap-2">
-                    <Input id="slideBackgroundColor" value={(currentFormData as any).backgroundColor || ''} onChange={(e) => handleFieldChange('backgroundColor', e.target.value)} placeholder="#FFFFFF"/>
-                    <Input type="color" value={(currentFormData as any).backgroundColor || '#ffffff'} onChange={(e) => handleFieldChange('backgroundColor', e.target.value)} className="h-10 w-10 p-1 rounded-md" />
-                </div>
-            </div>
-            <div className="space-y-1.5"><Label>Arka Plan Resmi (Opsiyonel)</Label><Input value={(currentFormData as any).backgroundImageUrl || ''} onChange={(e) => handleFieldChange('backgroundImageUrl', e.target.value)} placeholder="https://.../image.jpg"/></div>
-            <div className="space-y-1.5"><Label>Karartma Opaklığı (Resim varsa)</Label><Input type="number" step="0.1" min="0" max="1" placeholder="0.3" value={(currentFormData as any).overlayOpacity ?? ''} onChange={(e) => handleNumericFieldChange('overlayOpacity', e.target.value)} /></div>
-        </div>
-    );
-
     let renderedFields: JSX.Element[] = [];
     
     switch (type) {
@@ -244,9 +220,6 @@ export default function HeroSlidesPage() {
                 <div className="space-y-1.5"><Label>Buton Şekli</Label><Select value={(currentFormData as any).buttonShape || 'default'} onValueChange={(v) => handleFieldChange('buttonShape', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="default">Varsayılan (Köşeli)</SelectItem><SelectItem value="rounded">Tam Yuvarlak</SelectItem></SelectContent></Select></div>
              </div>
         ];
-        break;
-      case 'split':
-        renderedFields = [commonContentFields, <Separator key="sep1"/>, splitContentFields, <Separator key="sep2"/>, splitMediaFields, <Separator key="sep3"/>, buttonFields];
         break;
       case 'title-only':
         renderedFields = [commonContentFields, <Separator key="sep1"/>, backgroundFields];
