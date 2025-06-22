@@ -3,9 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, Autoplay, EffectFade } from 'swiper/modules';
+import { Pagination, Autoplay, EffectFade } from 'swiper/modules';
 import 'swiper/css';
-import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
 
@@ -211,15 +210,14 @@ export default function HeroSlider() {
     
     return (
         <Swiper
-            modules={[Navigation, Pagination, Autoplay, EffectFade]}
+            modules={[Pagination, Autoplay, EffectFade]}
             spaceBetween={0}
             slidesPerView={1}
-            navigation
             pagination={{ clickable: true }}
             loop={slides.length > 1}
             autoplay={{ delay: 5000, disableOnInteraction: false }}
             effect="fade"
-            className="h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group"
+            className="h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-primary/30 [&_.swiper-pagination-bullet-active]:!bg-primary"
         >
             {slides.map((slide) => (
                 <SwiperSlide key={slide.id}>
