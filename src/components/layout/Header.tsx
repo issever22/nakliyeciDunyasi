@@ -176,6 +176,8 @@ export default function Header() {
       return paths.some(p => pathname.startsWith(p));
   }, [pathname]);
 
+  const isNasilCalisirActive = useMemo(() => pathname.startsWith('/nasil-calisir'), [pathname]);
+
   const isUyelerimizActive = useMemo(() => {
     return pathname.startsWith('/uyelerimiz/') && !pathname.startsWith('/uyelerimiz/firma/');
   }, [pathname]);
@@ -371,6 +373,9 @@ export default function Header() {
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/arama/firmalar">Firmalar</Link>
                   </Button>
+                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/nasil-calisir">Nasıl Çalışır?</Link>
+                  </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/hakkimizda">Hakkımızda</Link>
                   </Button>
@@ -434,6 +439,13 @@ export default function Header() {
                 <Link href="/arama/firmalar" legacyBehavior passHref>
                   <NavigationMenuLink active={isFirmalarActive} className={navigationMenuTriggerStyle()}>
                     Firmalar
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link href="/nasil-calisir" legacyBehavior passHref>
+                  <NavigationMenuLink active={isNasilCalisirActive} className={navigationMenuTriggerStyle()}>
+                    Nasıl Çalışır?
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
