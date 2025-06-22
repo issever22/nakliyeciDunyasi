@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText, Search, Users as UsersIcon } from 'lucide-react';
+import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText, Search, Users as UsersIcon, Home as HomeIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -175,8 +175,6 @@ export default function Header() {
       const paths = ['/hakkimizda', '/tasarladigimiz-afisler', '/tasarladigimiz-logolar', '/tasarladigimiz-siteler'];
       return paths.some(p => pathname.startsWith(p));
   }, [pathname]);
-
-  const isNasilCalisirActive = useMemo(() => pathname.startsWith('/nasil-calisir'), [pathname]);
 
   const isUyelerimizActive = useMemo(() => {
     return pathname.startsWith('/uyelerimiz/') && !pathname.startsWith('/uyelerimiz/firma/');
@@ -365,6 +363,11 @@ export default function Header() {
                 </SheetHeader>
                 <ScrollArea className="flex-grow">
                 <nav className="p-4 space-y-1">
+                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/">
+                      <HomeIcon size={20} /> Ana Sayfa
+                    </Link>
+                  </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/yeni-ilan">
                       <PlusCircle size={20} /> İlan Ver
@@ -372,9 +375,6 @@ export default function Header() {
                   </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/arama/firmalar">Firmalar</Link>
-                  </Button>
-                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
-                    <Link href="/nasil-calisir">Nasıl Çalışır?</Link>
                   </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/hakkimizda">Hakkımızda</Link>
@@ -435,17 +435,17 @@ export default function Header() {
         <div className="container mx-auto px-4 flex items-center justify-between h-14">
           <NavigationMenu>
             <NavigationMenuList>
-              <NavigationMenuItem>
-                <Link href="/arama/firmalar" legacyBehavior passHref>
-                  <NavigationMenuLink active={isFirmalarActive} className={navigationMenuTriggerStyle()}>
-                    Firmalar
+               <NavigationMenuItem>
+                <Link href="/" legacyBehavior passHref>
+                  <NavigationMenuLink active={pathname === '/'} className={navigationMenuTriggerStyle()}>
+                    Ana Sayfa
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/nasil-calisir" legacyBehavior passHref>
-                  <NavigationMenuLink active={isNasilCalisirActive} className={navigationMenuTriggerStyle()}>
-                    Nasıl Çalışır?
+                <Link href="/arama/firmalar" legacyBehavior passHref>
+                  <NavigationMenuLink active={isFirmalarActive} className={navigationMenuTriggerStyle()}>
+                    Firmalar
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>

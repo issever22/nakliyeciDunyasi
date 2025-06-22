@@ -29,7 +29,8 @@ import {
   MousePointerClick,
   Users,
   MessageSquareText,
-  Star
+  Star,
+  Info
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from '@/components/ui/card';
@@ -399,6 +400,14 @@ export default function HomePage() {
               <p className="text-muted-foreground">En uygun teklifi seçerek nakliyecinizle anlaşın ve yükünüzün güvenle taşınmasını izleyin.</p>
             </CardContent>
           </Card>
+        </div>
+        <div className="mt-10">
+            <Button asChild size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/5 hover:text-primary">
+                <Link href="/nasil-calisir">
+                    <Info className="mr-2 h-5 w-5" />
+                    Detayları Gör
+                </Link>
+            </Button>
         </div>
       </section>
       
