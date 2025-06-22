@@ -43,7 +43,8 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
+import HeroSlider from '@/components/hero/HeroSlider';
 
 const PAGE_SIZE = 6; 
 
@@ -218,32 +219,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-16">
-      <section className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group">
-        <Image
-          src="https://placehold.co/1600x600.png"
-          alt="Nakliye ve lojistik platformu arka planı"
-          fill
-          style={{objectFit:"cover"}}
-          className="z-0 transition-transform duration-500 ease-in-out group-hover:scale-105"
-          priority
-          data-ai-hint="modern logistics"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent z-10" />
-        <div className="absolute inset-0 bg-primary/30 mix-blend-multiply z-10" />
-        <div className="relative z-20 flex flex-col items-center justify-center h-full text-center p-6 md:p-8">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-            Türkiye'nin Nakliye Dünyası
-          </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-neutral-100 mb-8 max-w-3xl drop-shadow-md">
-            Yüklerinizi güvenle taşıtın, taşıma ihtiyaçlarınıza en uygun çözümleri burada bulun.
-          </p>
-          <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground py-3 px-10 text-lg rounded-full shadow-lg transition-transform hover:scale-105">
-            <Link href="/yeni-ilan">
-              <PlusCircle className="mr-2 h-6 w-6" /> Hemen İlan Ver
-            </Link>
-          </Button>
-        </div>
-      </section>
+      <HeroSlider />
 
       <section className="pt-4">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">

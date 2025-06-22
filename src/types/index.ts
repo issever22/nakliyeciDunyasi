@@ -286,3 +286,73 @@ export type CompanyFilterOptions = {
     city: string;
     country?: string;
 };
+
+
+// HERO SLIDER TYPES
+export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'split' | 'title-only' | 'video-background';
+
+export interface BaseHeroSlide {
+  id: string;
+  type: HeroSlideType;
+  title: string;
+  subtitle?: string;
+  isActive: boolean;
+  order: number;
+  createdAt: string; // ISO string
+}
+
+export interface CenteredHeroSlide extends BaseHeroSlide {
+  type: 'centered';
+  backgroundImageUrl: string;
+  buttonText?: string;
+  buttonUrl?: string;
+}
+
+export interface LeftAlignedHeroSlide extends BaseHeroSlide {
+  type: 'left-aligned';
+  backgroundImageUrl: string;
+  buttonText?: string;
+  buttonUrl?: string;
+  textColor?: string;
+  overlayOpacity?: number;
+}
+
+export interface WithInputHeroSlide extends BaseHeroSlide {
+    type: 'with-input';
+    backgroundImageUrl: string;
+    inputPlaceholder?: string;
+    buttonText: string;
+    formActionUrl: string;
+}
+
+export interface SplitHeroSlide extends BaseHeroSlide {
+    type: 'split';
+    mediaType: 'image' | 'video';
+    mediaUrl: string;
+    buttonText?: string;
+    buttonUrl?: string;
+    backgroundColor?: string;
+}
+
+export interface TitleOnlyHeroSlide extends BaseHeroSlide {
+    type: 'title-only';
+    backgroundImageUrl: string;
+}
+
+export interface VideoBackgroundHeroSlide extends BaseHeroSlide {
+    type: 'video-background';
+    videoUrl: string;
+    buttonText?: string;
+    buttonUrl?: string;
+}
+
+export type HeroSlide = 
+  | CenteredHeroSlide
+  | LeftAlignedHeroSlide
+  | WithInputHeroSlide
+  | SplitHeroSlide
+  | TitleOnlyHeroSlide
+  | VideoBackgroundHeroSlide;
+
+export type HeroSlideCreationData = Omit<HeroSlide, 'id' | 'createdAt'>;
+export type HeroSlideUpdateData = Partial<Omit<HeroSlide, 'id'>>;

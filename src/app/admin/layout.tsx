@@ -7,7 +7,8 @@ import { SidebarProvider, Sidebar, SidebarTrigger, SidebarHeader, SidebarContent
 import { Button } from '@/components/ui/button';
 import { 
   LogOut, LayoutDashboard, ShieldCheck, Settings, Users, Package,
-  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle, MessageSquare, Handshake
+  ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle, MessageSquare, Handshake,
+  Image as HeroIcon
 } from 'lucide-react'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -231,6 +232,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   <SidebarMenuButton asChild isActive={pathname === '/admin/settings'} tooltip={{content: "Genel Ayarlar", side: "right"}}>
                     <Link href="/admin/settings">
                       <Settings size={18}/> <span className="text-sm">Genel Ayarlar</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem className="pl-4">
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/hero-slides'} tooltip={{content: "Hero Alanı", side: "right"}}>
+                    <Link href="/admin/settings/hero-slides">
+                      <HeroIcon size={18}/> <span className="text-sm">Hero Alanı</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
