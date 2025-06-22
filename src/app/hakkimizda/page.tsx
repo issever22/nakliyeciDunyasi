@@ -15,12 +15,13 @@ export default function AboutUsPage() {
               Nakliye deneyimini dijitalleştirerek herkes için daha kolay ve güvenilir hale getiriyoruz.
             </p>
           </div>
-          <div className="relative h-64 md:h-full hidden md:block">
+          <div className="hidden md:flex items-center justify-center p-8">
             <Image
-              src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-hakkimizda.svg"
-              alt="Hakkımızda illüstrasyonu"
-              layout="fill"
-              objectFit="cover"
+              src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo-white.svg"
+              alt="Nakliyeci Dünyası Beyaz Logo"
+              width={300}
+              height={80}
+              className="object-contain"
             />
           </div>
         </div>
