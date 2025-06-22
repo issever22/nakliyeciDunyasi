@@ -31,7 +31,7 @@ const Icon = ({ name, className, ...props }: { name?: string; className?: string
       return null;
     }
   
-    return <LucideIcon className={className} {...props} />;
+    return <LucideIcon className={cn("h-5 w-5", className)} {...props} />;
 };
 
 const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
@@ -62,7 +62,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
         return (
             <Button asChild size="lg" style={buttonStyles} className={cn(s.buttonShape === 'rounded' && 'rounded-full')}>
                 <Link href={s.buttonUrl}>
-                    <Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>
+                    <Icon name={s.buttonIcon} className="mr-2"/>
                     {s.buttonText}
                 </Link>
             </Button>
@@ -74,7 +74,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
         case 'centered': {
             const s = slide as CenteredHeroSlide;
             return (
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full" style={{ backgroundColor: s.backgroundColor }}>
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.5})` }} />
                     <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
@@ -89,9 +89,9 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
         case 'left-aligned': {
             const s = slide as LeftAlignedHeroSlide;
             return (
-                 <div className="relative w-full h-full">
+                 <div className="relative w-full h-full" style={{ backgroundColor: s.backgroundColor }}>
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
-                    <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity || 0.5})` }} />
+                    <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.5})` }} />
                     <div className={cn(contentWrapperBaseStyles, "items-start justify-center text-left")}>
                         <div className="max-w-2xl" style={{ color: s.textColor || '#FFFFFF' }}>
                             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
@@ -110,7 +110,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                 color: s.buttonTextColor ? s.buttonTextColor : undefined,
             };
             return (
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full" style={{ backgroundColor: s.backgroundColor }}>
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.6})` }}/>
                     <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
@@ -128,7 +128,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
         case 'title-only': {
             const s = slide as TitleOnlyHeroSlide;
             return (
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full" style={{ backgroundColor: s.backgroundColor }}>
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.4})` }}/>
                     <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
@@ -247,7 +247,7 @@ export default function HeroSlider() {
                 pauseOnMouseEnter: true,
             }}
             effect="fade"
-            className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-white/50 [&_.swiper-pagination-bullet-active]:!bg-primary"
+            className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!w-2.5 !h-2.5 !bg-white/50 [&_.swiper-pagination-bullet-active]:!bg-primary"
         >
             {slides.map((slide) => (
                 <SwiperSlide key={slide.id}>

@@ -303,7 +303,8 @@ export interface BaseHeroSlide {
 
 export interface CenteredHeroSlide extends BaseHeroSlide {
   type: 'centered';
-  backgroundImageUrl: string;
+  backgroundImageUrl?: string;
+  backgroundColor?: string;
   buttonText?: string;
   buttonUrl?: string;
   buttonIcon?: string;
@@ -316,7 +317,8 @@ export interface CenteredHeroSlide extends BaseHeroSlide {
 
 export interface LeftAlignedHeroSlide extends BaseHeroSlide {
   type: 'left-aligned';
-  backgroundImageUrl: string;
+  backgroundImageUrl?: string;
+  backgroundColor?: string;
   buttonText?: string;
   buttonUrl?: string;
   buttonIcon?: string;
@@ -329,7 +331,8 @@ export interface LeftAlignedHeroSlide extends BaseHeroSlide {
 
 export interface WithInputHeroSlide extends BaseHeroSlide {
     type: 'with-input';
-    backgroundImageUrl: string;
+    backgroundImageUrl?: string;
+    backgroundColor?: string;
     inputPlaceholder?: string;
     buttonText: string;
     buttonColor?: string;
@@ -343,7 +346,8 @@ export interface WithInputHeroSlide extends BaseHeroSlide {
 
 export interface TitleOnlyHeroSlide extends BaseHeroSlide {
     type: 'title-only';
-    backgroundImageUrl: string;
+    backgroundImageUrl?: string;
+    backgroundColor?: string;
     textColor?: string;
     overlayOpacity?: number;
 }

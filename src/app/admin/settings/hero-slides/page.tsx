@@ -33,7 +33,6 @@ const createEmptyFormData = (): HeroSlideCreationData => ({
     title: '',
     isActive: true,
     order: 0,
-    backgroundImageUrl: '',
 });
 
 export default function HeroSlidesPage() {
@@ -125,8 +124,8 @@ export default function HeroSlidesPage() {
     };
 
     const commonContentFields = (
-        <div className="space-y-4">
-            <h4 className="font-medium text-muted-foreground">Genel İçerik</h4>
+        <div className="space-y-4 p-4 border rounded-md">
+            <h4 className="font-semibold text-base">Genel İçerik</h4>
             <div className="space-y-1.5"><Label htmlFor="slideTitle">Başlık (*)</Label><Input id="slideTitle" value={currentFormData.title || ''} onChange={(e) => handleFieldChange('title', e.target.value)} required /></div>
             <div className="space-y-1.5"><Label>Alt Başlık</Label><Textarea value={currentFormData.subtitle || ''} onChange={(e) => handleFieldChange('subtitle', e.target.value)} rows={2} /></div>
              <div className="space-y-1.5">
@@ -140,8 +139,8 @@ export default function HeroSlidesPage() {
     );
 
     const buttonFields = (
-        <div className="space-y-4">
-            <h4 className="font-medium text-muted-foreground">Buton Ayarları</h4>
+        <div className="space-y-4 p-4 border rounded-md">
+            <h4 className="font-semibold text-base">Buton Ayarları</h4>
             <div className="space-y-1.5"><Label>Buton Yazısı</Label><Input value={(currentFormData as any).buttonText || ''} onChange={(e) => handleFieldChange('buttonText', e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Buton URL</Label><Input value={(currentFormData as any).buttonUrl || ''} onChange={(e) => handleFieldChange('buttonUrl', e.target.value)} /></div>
             <div className="space-y-1.5">
@@ -172,11 +171,31 @@ export default function HeroSlidesPage() {
     );
 
     const backgroundFields = (
-        <div className="space-y-4">
-            <h4 className="font-medium text-muted-foreground">Arka Plan Ayarları</h4>
+        <div className="space-y-4 p-4 border rounded-md">
+            <h4 className="font-semibold text-base">Arka Plan Ayarları</h4>
              {type === 'video-background'
-                ? <div className="space-y-1.5"><Label>Video URL</Label><Input value={(currentFormData as any).videoUrl || ''} onChange={(e) => handleFieldChange('videoUrl', e.target.value)} /></div>
-                : <div className="space-y-1.5"><Label>Arka Plan Resim URL'si</Label><Input value={(currentFormData as any).backgroundImageUrl || ''} onChange={(e) => handleFieldChange('backgroundImageUrl', e.target.value)} /></div>
+                ? (
+                    <div className="space-y-1.5">
+                        <Label htmlFor="slideVideoUrl">Video URL</Label>
+                        <Input id="slideVideoUrl" value={(currentFormData as any).videoUrl || ''} onChange={(e) => handleFieldChange('videoUrl', e.target.value)} placeholder="https://ornek.com/video.mp4"/>
+                    </div>
+                )
+                : (
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Arka plan için bir resim URL'si VEYA düz bir renk belirleyebilirsiniz. İkisi de girilirse resim URL'si önceliklidir.</p>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="slideBgImageUrl">Arka Plan Resim URL'si</Label>
+                            <Input id="slideBgImageUrl" value={(currentFormData as any).backgroundImageUrl || ''} onChange={(e) => handleFieldChange('backgroundImageUrl', e.target.value)} placeholder="https://ornek.com/resim.jpg" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="slideBgColor">Arka Plan Rengi</Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="slideBgColor" value={(currentFormData as any).backgroundColor || ''} onChange={(e) => handleFieldChange('backgroundColor', e.target.value)} placeholder="#000000" />
+                                <Input type="color" value={(currentFormData as any).backgroundColor || '#000000'} onChange={(e) => handleFieldChange('backgroundColor', e.target.value)} className="h-10 w-10 p-1 rounded-md" />
+                            </div>
+                        </div>
+                    </div>
+                )
             }
             <div className="space-y-1.5"><Label>Karartma Opaklığı (0-1)</Label><Input type="number" step="0.1" min="0" max="1" placeholder="0.5" value={(currentFormData as any).overlayOpacity ?? ''} onChange={(e) => handleNumericFieldChange('overlayOpacity', e.target.value)} /></div>
         </div>
@@ -187,20 +206,19 @@ export default function HeroSlidesPage() {
     switch (type) {
       case 'centered':
       case 'left-aligned':
-        renderedFields = [commonContentFields, <Separator key="sep1"/>, backgroundFields, <Separator key="sep2"/>, buttonFields];
+        renderedFields = [commonContentFields, backgroundFields, buttonFields];
         break;
       case 'with-input':
-        renderedFields = [commonContentFields, <Separator key="sep1"/>, backgroundFields, <Separator key="sep2"/>, 
-            <div key="form-fields" className="space-y-4">
-                <h4 className="font-medium text-muted-foreground">Form Ayarları</h4>
+        renderedFields = [commonContentFields, backgroundFields, 
+            <div key="form-fields" className="space-y-4 p-4 border rounded-md">
+                <h4 className="font-semibold text-base">Form Ayarları</h4>
                 <div className="space-y-1.5"><Label>Form Alanı İpucu</Label><Input value={(currentFormData as any).inputPlaceholder || ''} onChange={(e) => handleFieldChange('inputPlaceholder', e.target.value)} /></div>
                 <div className="space-y-1.5"><Label>Form Buton Metni (*)</Label><Input value={(currentFormData as any).buttonText || ''} onChange={(e) => handleFieldChange('buttonText', e.target.value)} required /></div>
                 <div className="space-y-1.5"><Label>Form Buton İkonu (Lucide)</Label><Input value={(currentFormData as any).buttonIcon || ''} onChange={(e) => handleFieldChange('buttonIcon', e.target.value)} /></div>
                 <div className="space-y-1.5"><Label>Form Hedef URL (*)</Label><Input value={(currentFormData as any).formActionUrl || ''} onChange={(e) => handleFieldChange('formActionUrl', e.target.value)} required /></div>
             </div>,
-             <Separator key="sep3"/>,
-             <div key="form-button-style" className="space-y-4">
-                 <h4 className="font-medium text-muted-foreground">Form Buton Stili</h4>
+             <div key="form-button-style" className="space-y-4 p-4 border rounded-md">
+                 <h4 className="font-semibold text-base">Form Buton Stili</h4>
                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                         <Label htmlFor="slideButtonColor">Buton Arka Plan Rengi</Label>
@@ -222,21 +240,20 @@ export default function HeroSlidesPage() {
         ];
         break;
       case 'title-only':
-        renderedFields = [commonContentFields, <Separator key="sep1"/>, backgroundFields];
+        renderedFields = [commonContentFields, backgroundFields];
         break;
       case 'video-background':
-        renderedFields = [commonContentFields, <Separator key="sep1"/>, backgroundFields, <Separator key="sep2"/>, buttonFields];
+        renderedFields = [commonContentFields, backgroundFields, buttonFields];
         break;
       default:
         renderedFields = [commonContentFields];
     }
     
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {renderedFields}
-            <Separator />
-            <div className="space-y-4">
-                <h4 className="font-medium text-muted-foreground">Genel Ayarlar</h4>
+            <div className="space-y-4 p-4 border rounded-md">
+                <h4 className="font-semibold text-base">Genel Ayarlar</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                         <Label htmlFor="order">Sıralama</Label>
