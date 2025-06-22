@@ -5,7 +5,8 @@ import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { getListingById } from '@/services/listingsService';
-import type { Freight, CommercialFreight, ResidentialFreight, EmptyVehicleListing } from '@/types';
+import { getUserProfile } from '@/services/authService';
+import type { Freight, CommercialFreight, ResidentialFreight, EmptyVehicleListing, CompanyUserProfile } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,58 +32,84 @@ const formatWhatsAppNumber = (phone: string) => {
 
 
 function ListingDetailContent() {
-    const { user, loading } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const params = useParams();
     const listingId = params.id as string;
     
     const [listing, setListing] = useState<Freight | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingListing, setIsLoadingListing] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [freshUser, setFreshUser] = useState<CompanyUserProfile | null>(null);
+    const [isCheckingMember, setIsCheckingMember] = useState(true);
+
+    useEffect(() => {
+        // This effect will run when the component mounts or `user` from context changes.
+        // It fetches a fresh copy of the user profile to ensure membership data is up-to-date.
+        const checkMembership = async () => {
+            if (user && user.id) {
+                setIsCheckingMember(true);
+                const freshProfile = await getUserProfile(user.id);
+                setFreshUser(freshProfile);
+                setIsCheckingMember(false);
+            } else {
+                // No user logged in or user has no ID
+                setFreshUser(null);
+                setIsCheckingMember(false);
+            }
+        };
+
+        // Only run the check once the initial auth state has been determined.
+        if (!authLoading) {
+             checkMembership();
+        }
+    }, [user, authLoading]);
+
     const isMember = useMemo(() => {
-        // Not a member if user doesn't exist, is not a company, or has no membership status
-        if (!user || user.role !== 'company' || !user.membershipStatus || user.membershipStatus === 'Yok') {
+        // Base the membership decision on the fresh user profile.
+        const userToCheck = freshUser;
+
+        if (!userToCheck || userToCheck.role !== 'company' || !userToCheck.membershipStatus || userToCheck.membershipStatus === 'Yok') {
             return false;
         }
         
-        const endDateIso = user.membershipEndDate;
-        // If they have a status but no end date, they are not considered a paying member.
+        const endDateIso = userToCheck.membershipEndDate;
         if (!endDateIso) {
             return false;
         }
 
         const endDate = parseISO(endDateIso);
         if (!isValid(endDate)) {
-            return false; // Invalid date format in DB
+            return false; 
         }
 
-        // is a member if the membership end date is today or in the future.
         const diff = differenceInDays(endDate, new Date());
         return diff >= 0;
-    }, [user]);
+    }, [freshUser]);
 
     useEffect(() => {
         if (!listingId) {
             setError("İlan ID'si bulunamadı.");
-            setIsLoading(false);
+            setIsLoadingListing(false);
             return;
         }
 
         const fetchListing = async () => {
-            setIsLoading(true);
+            setIsLoadingListing(true);
             const fetchedListing = await getListingById(listingId);
             if (fetchedListing) {
                 setListing(fetchedListing);
             } else {
                 setError("İlan bulunamadı veya artık mevcut değil.");
             }
-            setIsLoading(false);
+            setIsLoadingListing(false);
         };
 
         fetchListing();
     }, [listingId]);
 
-    if (loading || isLoading) {
+    // The main loading condition must wait for auth, listing fetch, and the fresh membership check.
+    if (authLoading || isLoadingListing || isCheckingMember) {
         return (
             <div className="max-w-4xl mx-auto space-y-6">
                 <Skeleton className="h-10 w-2/3" />
@@ -106,6 +133,7 @@ function ListingDetailContent() {
         );
     }
     
+    // Once all loading is complete, check membership.
     if (!isMember) {
         return <MembershipCTA />;
     }
@@ -209,3 +237,5 @@ export default function ListingDetailPage() {
         </Suspense>
     );
 }
+
+    
