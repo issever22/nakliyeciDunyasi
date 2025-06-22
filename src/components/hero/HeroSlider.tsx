@@ -210,12 +210,12 @@ export default function HeroSlider() {
     }, [toast]);
 
     if (loading) {
-        return <Skeleton className="h-[400px] md:h-[450px] w-full rounded-xl" />;
+        return <Skeleton className="h-[450px] md:h-[550px] w-full rounded-xl" />;
     }
 
     if (error && slides.length === 0) {
         return (
-             <section className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group bg-destructive/10 flex flex-col items-center justify-center text-center p-4">
+             <section className="relative h-[450px] md:h-[550px] rounded-xl overflow-hidden shadow-2xl group bg-destructive/10 flex flex-col items-center justify-center text-center p-4">
                 <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
                 <h2 className="text-2xl font-bold text-destructive-foreground">Hero Alanı Yüklenemedi</h2>
                 <p className="mt-2 text-sm text-destructive-foreground/80 max-w-md">{error}</p>
@@ -227,7 +227,7 @@ export default function HeroSlider() {
     if (slides.length === 0) {
         // Fallback to a default static banner if no slides are configured
         return (
-             <section className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group">
+             <section className="relative h-[450px] md:h-[550px] rounded-xl overflow-hidden shadow-2xl group">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent z-10" />
                 <div className="absolute inset-0 bg-primary/30 mix-blend-multiply z-10" />
                 <div className="relative z-20 flex flex-col items-center justify-center h-full text-center p-6 md:p-8">
@@ -259,7 +259,7 @@ export default function HeroSlider() {
                 pauseOnMouseEnter: true,
             }}
             effect="fade"
-            className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!w-2.5 [&_.swiper-pagination-bullet]:!h-2.5 [&_.swiper-pagination-bullet]:!bg-white/50 [&_.swiper-pagination-bullet-active]:!bg-primary"
+            className="relative h-[450px] md:h-[550px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!w-2.5 [&_.swiper-pagination-bullet]:!h-2.5 [&_.swiper-pagination-bullet]:!bg-white/50 [&_.swiper-pagination-bullet-active]:!bg-primary"
         >
             {slides.map((slide) => (
                 <SwiperSlide key={slide.id}>
