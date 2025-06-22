@@ -130,7 +130,13 @@ export default function HeroSlidesPage() {
             <h4 className="font-medium text-muted-foreground">Genel İçerik</h4>
             <div className="space-y-1.5"><Label htmlFor="slideTitle">Başlık (*)</Label><Input id="slideTitle" value={currentFormData.title || ''} onChange={(e) => handleFieldChange('title', e.target.value)} required /></div>
             <div className="space-y-1.5"><Label>Alt Başlık</Label><Textarea value={currentFormData.subtitle || ''} onChange={(e) => handleFieldChange('subtitle', e.target.value)} rows={2} /></div>
-            <div className="space-y-1.5"><Label>Yazı Rengi (örn: #FFFFFF)</Label><Input placeholder="#FFFFFF" value={(currentFormData as any).textColor || ''} onChange={(e) => handleFieldChange('textColor', e.target.value)} /></div>
+             <div className="space-y-1.5">
+                <Label htmlFor="slideTextColor">Yazı Rengi</Label>
+                <div className="flex items-center gap-2">
+                    <Input id="slideTextColor" placeholder="#FFFFFF" value={(currentFormData as any).textColor || ''} onChange={(e) => handleFieldChange('textColor', e.target.value)} />
+                    <Input type="color" value={(currentFormData as any).textColor || '#ffffff'} onChange={(e) => handleFieldChange('textColor', e.target.value)} className="h-10 w-10 p-1 rounded-md" />
+                </div>
+            </div>
         </div>
     );
 
@@ -147,8 +153,20 @@ export default function HeroSlidesPage() {
                 <Input id="slideButtonIcon" value={(currentFormData as any).buttonIcon || ''} onChange={(e) => handleFieldChange('buttonIcon', e.target.value)} placeholder="örn: ArrowRight" />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5"><Label>Buton Arka Plan Rengi</Label><Input value={(currentFormData as any).buttonColor || ''} onChange={(e) => handleFieldChange('buttonColor', e.target.value)} placeholder="örn: #e11d48" /></div>
-                <div className="space-y-1.5"><Label>Buton Yazı & İkon Rengi</Label><Input value={(currentFormData as any).buttonTextColor || ''} onChange={(e) => handleFieldChange('buttonTextColor', e.target.value)} placeholder="#FFFFFF" /></div>
+                 <div className="space-y-1.5">
+                    <Label htmlFor="slideButtonColor">Buton Arka Plan Rengi</Label>
+                    <div className="flex items-center gap-2">
+                        <Input id="slideButtonColor" value={(currentFormData as any).buttonColor || ''} onChange={(e) => handleFieldChange('buttonColor', e.target.value)} placeholder="örn: #e11d48" />
+                        <Input type="color" value={(currentFormData as any).buttonColor || '#e11d48'} onChange={(e) => handleFieldChange('buttonColor', e.target.value)} className="h-10 w-10 p-1 rounded-md" />
+                    </div>
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="slideButtonTextColor">Buton Yazı & İkon Rengi</Label>
+                    <div className="flex items-center gap-2">
+                        <Input id="slideButtonTextColor" value={(currentFormData as any).buttonTextColor || ''} onChange={(e) => handleFieldChange('buttonTextColor', e.target.value)} placeholder="#FFFFFF" />
+                        <Input type="color" value={(currentFormData as any).buttonTextColor || '#ffffff'} onChange={(e) => handleFieldChange('buttonTextColor', e.target.value)} className="h-10 w-10 p-1 rounded-md" />
+                    </div>
+                </div>
             </div>
             <div className="space-y-1.5"><Label>Buton Şekli</Label><Select value={(currentFormData as any).buttonShape || 'default'} onValueChange={(v) => handleFieldChange('buttonShape', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="default">Varsayılan (Köşeli)</SelectItem><SelectItem value="rounded">Tam Yuvarlak</SelectItem></SelectContent></Select></div>
         </div>
@@ -176,7 +194,13 @@ export default function HeroSlidesPage() {
     const splitContentFields = (
         <div className="space-y-4">
             <h4 className="font-medium text-muted-foreground">İçerik Paneli (Sol Taraf)</h4>
-            <div className="space-y-1.5"><Label>Arka Plan Rengi (Resim yoksa)</Label><Input value={(currentFormData as any).backgroundColor || ''} onChange={(e) => handleFieldChange('backgroundColor', e.target.value)} placeholder="#FFFFFF"/></div>
+             <div className="space-y-1.5">
+                <Label htmlFor="slideBackgroundColor">Arka Plan Rengi (Resim yoksa)</Label>
+                 <div className="flex items-center gap-2">
+                    <Input id="slideBackgroundColor" value={(currentFormData as any).backgroundColor || ''} onChange={(e) => handleFieldChange('backgroundColor', e.target.value)} placeholder="#FFFFFF"/>
+                    <Input type="color" value={(currentFormData as any).backgroundColor || '#ffffff'} onChange={(e) => handleFieldChange('backgroundColor', e.target.value)} className="h-10 w-10 p-1 rounded-md" />
+                </div>
+            </div>
             <div className="space-y-1.5"><Label>Arka Plan Resmi (Opsiyonel)</Label><Input value={(currentFormData as any).backgroundImageUrl || ''} onChange={(e) => handleFieldChange('backgroundImageUrl', e.target.value)} placeholder="https://.../image.jpg"/></div>
             <div className="space-y-1.5"><Label>Karartma Opaklığı (Resim varsa)</Label><Input type="number" step="0.1" min="0" max="1" placeholder="0.3" value={(currentFormData as any).overlayOpacity ?? ''} onChange={(e) => handleNumericFieldChange('overlayOpacity', e.target.value)} /></div>
         </div>
@@ -202,8 +226,20 @@ export default function HeroSlidesPage() {
              <div key="form-button-style" className="space-y-4">
                  <h4 className="font-medium text-muted-foreground">Form Buton Stili</h4>
                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5"><Label>Buton Arka Plan Rengi</Label><Input value={(currentFormData as any).buttonColor || ''} onChange={(e) => handleFieldChange('buttonColor', e.target.value)} placeholder="örn: #e11d48" /></div>
-                    <div className="space-y-1.5"><Label>Buton Yazı & İkon Rengi</Label><Input value={(currentFormData as any).buttonTextColor || ''} onChange={(e) => handleFieldChange('buttonTextColor', e.target.value)} placeholder="#FFFFFF" /></div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="slideButtonColor">Buton Arka Plan Rengi</Label>
+                        <div className="flex items-center gap-2">
+                            <Input id="slideButtonColor" value={(currentFormData as any).buttonColor || ''} onChange={(e) => handleFieldChange('buttonColor', e.target.value)} placeholder="örn: #e11d48" />
+                            <Input type="color" value={(currentFormData as any).buttonColor || '#e11d48'} onChange={(e) => handleFieldChange('buttonColor', e.target.value)} className="h-10 w-10 p-1 rounded-md" />
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="slideButtonTextColor">Buton Yazı & İkon Rengi</Label>
+                        <div className="flex items-center gap-2">
+                            <Input id="slideButtonTextColor" value={(currentFormData as any).buttonTextColor || ''} onChange={(e) => handleFieldChange('buttonTextColor', e.target.value)} placeholder="#FFFFFF" />
+                            <Input type="color" value={(currentFormData as any).buttonTextColor || '#ffffff'} onChange={(e) => handleFieldChange('buttonTextColor', e.target.value)} className="h-10 w-10 p-1 rounded-md" />
+                        </div>
+                    </div>
                  </div>
                 <div className="space-y-1.5"><Label>Buton Şekli</Label><Select value={(currentFormData as any).buttonShape || 'default'} onValueChange={(v) => handleFieldChange('buttonShape', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="default">Varsayılan (Köşeli)</SelectItem><SelectItem value="rounded">Tam Yuvarlak</SelectItem></SelectContent></Select></div>
              </div>
