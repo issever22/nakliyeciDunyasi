@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { getListingById } from '@/services/listingsService';
@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import MembershipCTA from '@/components/freight/MembershipCTA';
 import { MapPin, Truck, CalendarDays, Info, User, Globe, Package as PackageIcon, Repeat, Layers, Weight, PackagePlus, Boxes, Home, Building, ArrowUpDown, ChevronsUpDown, Tag, AlertTriangle, Phone, Mail, MessageCircle } from 'lucide-react';
-import { format, formatDistanceToNow, parseISO, isValid } from 'date-fns';
+import { format, formatDistanceToNow, parseISO, isValid, differenceInDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { COUNTRIES } from '@/lib/locationData';
 import { Button } from '@/components/ui/button';
@@ -39,7 +39,27 @@ function ListingDetailContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const isMember = user?.membershipStatus && user.membershipStatus !== 'Yok';
+    const isMember = useMemo(() => {
+        // Not a member if user doesn't exist, is not a company, or has no membership status
+        if (!user || user.role !== 'company' || !user.membershipStatus || user.membershipStatus === 'Yok') {
+            return false;
+        }
+        
+        const endDateIso = user.membershipEndDate;
+        // If they have a status but no end date, they are not considered a paying member.
+        if (!endDateIso) {
+            return false;
+        }
+
+        const endDate = parseISO(endDateIso);
+        if (!isValid(endDate)) {
+            return false; // Invalid date format in DB
+        }
+
+        // is a member if the membership end date is today or in the future.
+        const diff = differenceInDays(endDate, new Date());
+        return diff >= 0;
+    }, [user]);
 
     useEffect(() => {
         if (!listingId) {

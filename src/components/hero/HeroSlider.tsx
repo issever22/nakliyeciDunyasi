@@ -269,13 +269,13 @@ export default function HeroSlider() {
             <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 
                             w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
                             opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white hover:bg-black/40">
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5 text-white" />
             </div>
 
             <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 
                             w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
                             opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white hover:bg-black/40">
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5 text-white" />
             </div>
         </Swiper>
     );
