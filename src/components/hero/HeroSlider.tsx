@@ -1,12 +1,12 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination, Autoplay, EffectFade } from 'swiper/modules';
+import { Pagination, Autoplay, EffectFade, Navigation } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
+import 'swiper/css/navigation';
 
 import type { HeroSlide, CenteredHeroSlide, LeftAlignedHeroSlide, WithInputHeroSlide, SplitHeroSlide, TitleOnlyHeroSlide, VideoBackgroundHeroSlide } from '@/types';
 import { getActiveHeroSlides } from '@/services/heroSlidesService';
@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Search, AlertTriangle, icons } from 'lucide-react';
+import { Search, AlertTriangle, icons, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
@@ -228,7 +228,11 @@ export default function HeroSlider() {
     
     return (
         <Swiper
-            modules={[Pagination, Autoplay, EffectFade]}
+            modules={[Pagination, Autoplay, EffectFade, Navigation]}
+            navigation={{
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev',
+            }}
             spaceBetween={0}
             slidesPerView={1}
             pagination={{ clickable: true }}
@@ -239,13 +243,19 @@ export default function HeroSlider() {
                 pauseOnMouseEnter: true,
             }}
             effect="fade"
-            className="h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-primary/30 [&_.swiper-pagination-bullet-active]:!bg-primary"
+            className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-white/50 [&_.swiper-pagination-bullet-active]:!bg-white"
         >
             {slides.map((slide) => (
                 <SwiperSlide key={slide.id}>
                     <SlideRenderer slide={slide} />
                 </SwiperSlide>
             ))}
+            <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 p-2 rounded-full bg-black/20 backdrop-blur-sm cursor-pointer text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <ChevronLeft className="h-6 w-6" />
+            </div>
+            <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 p-2 rounded-full bg-black/20 backdrop-blur-sm cursor-pointer text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <ChevronRight className="h-6 w-6" />
+            </div>
         </Swiper>
     );
 }
