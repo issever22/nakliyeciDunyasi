@@ -45,7 +45,7 @@ export default function BankAccountPage() {
           </div>
           <div className="relative h-64 md:h-full hidden md:block">
             <Image
-              src="https://issever.co/wp-content/uploads/2025/06/nakliye-kamyon.svg"
+              src="https://issever.co/wp-content/uploads/2025/06/nakliye-kamyon-1.svg"
               alt="Banka işlemleri illüstrasyonu"
               layout="fill"
               objectFit="cover"

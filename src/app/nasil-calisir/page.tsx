@@ -19,7 +19,7 @@ export default function HowItWorksPage() {
           </div>
           <div className="relative h-64 md:h-full hidden md:block">
             <Image
-              src="https://issever.co/wp-content/uploads/2025/06/nakiye-ortakliklari.webp"
+              src="https://issever.co/wp-content/uploads/2025/06/nakliye-kamyon-1.svg"
               alt="Nasıl Çalışır İllüstrasyonu"
               layout="fill"
               objectFit="cover"
