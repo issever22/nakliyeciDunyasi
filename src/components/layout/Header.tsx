@@ -274,14 +274,14 @@ export default function Header() {
           "bg-background/80 border-b sticky top-0 z-50 shadow-sm backdrop-blur-lg"
         )}
       >
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
           <Link href="/">
              <Image
                 src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo.svg"
                 alt="Nakliyeci Dünyası Logo"
                 priority
-                width={120}
-                height={35}
+                width={160}
+                height={45}
               />
           </Link>
           
@@ -356,7 +356,7 @@ export default function Header() {
                             src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo.svg"
                             alt="Nakliyeci Dünyası Logo"
                             width={160}
-                            height={35}
+                            height={45}
                           />
                       </Link>
                   </SheetTitle>
@@ -427,7 +427,7 @@ export default function Header() {
       
       <nav
         className={cn(
-          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-16 z-40",
+          "border-t bg-background/70 backdrop-blur-md hidden md:block sticky top-20 z-40",
           "transition-transform duration-300 ease-in-out",
           showSecondaryNav ? "translate-y-0" : "-translate-y-full"
         )}
