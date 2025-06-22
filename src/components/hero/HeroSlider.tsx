@@ -9,7 +9,7 @@ import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
 import 'swiper/css/navigation';
 
-import type { HeroSlide, CenteredHeroSlide, LeftAlignedHeroSlide, WithInputHeroSlide, TitleOnlyHeroSlide, VideoBackgroundHeroSlide } from '@/types';
+import type { HeroSlide, CenteredHeroSlide, LeftAlignedHeroSlide, WithInputHeroSlide, TitleOnlyHeroSlide, VideoBackgroundHeroSlide, SplitScreenHeroSlide } from '@/types';
 import { getActiveHeroSlides } from '@/services/heroSlidesService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -49,9 +49,9 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
         }
     };
     
-    const contentWrapperBaseStyles = "relative z-20 flex flex-col h-full p-6 md:p-8 ";
+    const contentWrapperBaseStyles = "relative z-20 flex flex-col h-full";
 
-    const renderButton = (s: CenteredHeroSlide | LeftAlignedHeroSlide | WithInputHeroSlide | VideoBackgroundHeroSlide) => {
+    const renderButton = (s: CenteredHeroSlide | LeftAlignedHeroSlide | WithInputHeroSlide | VideoBackgroundHeroSlide | SplitScreenHeroSlide) => {
         if (!s.buttonText || !s.buttonUrl) return null;
 
         const buttonStyles = {
@@ -60,7 +60,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
         };
 
         return (
-            <Button asChild size="lg" style={buttonStyles} className={cn(s.buttonShape === 'rounded' && 'rounded-full')}>
+            <Button asChild size="lg" style={buttonStyles} className={cn('mt-8', s.buttonShape === 'rounded' && 'rounded-full')}>
                 <Link href={s.buttonUrl}>
                     <Icon name={s.buttonIcon} className="mr-2"/>
                     {s.buttonText}
@@ -77,7 +77,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                 <div className="relative w-full h-full" style={{ backgroundColor: s.backgroundColor }}>
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.5})` }} />
-                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center p-6 md:p-8")} style={{ color: s.textColor || 'white' }}>
                         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
                         {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl mb-8 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
                         {renderButton(s)}
@@ -92,7 +92,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                  <div className="relative w-full h-full" style={{ backgroundColor: s.backgroundColor }}>
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.5})` }} />
-                    <div className={cn(contentWrapperBaseStyles, "items-start justify-center text-left")}>
+                    <div className={cn(contentWrapperBaseStyles, "items-start justify-center text-left p-6 md:p-8")}>
                         <div className="max-w-2xl" style={{ color: s.textColor || '#FFFFFF' }}>
                             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
                             {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl mb-8 drop-shadow-md">{s.subtitle}</p>}
@@ -113,7 +113,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                 <div className="relative w-full h-full" style={{ backgroundColor: s.backgroundColor }}>
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.6})` }}/>
-                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center p-6 md:p-8")} style={{ color: s.textColor || 'white' }}>
                         <h1 className="text-4xl sm:text-5xl font-bold mb-2 drop-shadow-lg">{s.title}</h1>
                         {s.subtitle && <p className="text-lg text-neutral-200 mb-6 max-w-2xl drop-shadow-md">{s.subtitle}</p>}
                         <form onSubmit={handleFormSubmit} className={cn("flex w-full max-w-lg items-center gap-2 bg-white/20 p-2 border border-white/30 backdrop-blur-sm", s.buttonShape === 'rounded' ? 'rounded-full' : 'rounded-lg')}>
@@ -131,7 +131,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                 <div className="relative w-full h-full" style={{ backgroundColor: s.backgroundColor }}>
                     {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.4})` }}/>
-                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center p-6 md:p-8")} style={{ color: s.textColor || 'white' }}>
                          <h1 className="text-3xl sm:text-4xl font-bold mb-1 drop-shadow-lg">{s.title}</h1>
                         {s.subtitle && <p className="text-md text-neutral-200 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
                     </div>
@@ -157,13 +157,29 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                         </video>
                     )}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.5})` }}/>
-                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center p-6 md:p-8")} style={{ color: s.textColor || 'white' }}>
                         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
                         {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl text-neutral-100 mb-8 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
                         {renderButton(s)}
                     </div>
                 </div>
             );
+        }
+        
+        case 'split-screen': {
+            const s = slide as SplitScreenHeroSlide;
+            return (
+                <div className="relative w-full h-full grid grid-cols-1 md:grid-cols-2">
+                    <div className="relative h-64 md:h-full">
+                         {s.imageUrl && <Image src={s.imageUrl} alt={s.title} layout="fill" objectFit="cover" className="z-0" />}
+                    </div>
+                    <div className="flex flex-col items-start justify-center p-8 md:p-12" style={{ backgroundColor: s.contentBackgroundColor || '#FFFFFF', color: s.textColor || '#000000' }}>
+                         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">{s.title}</h1>
+                         {s.subtitle && <p className="text-lg sm:text-xl mb-6">{s.subtitle}</p>}
+                         {renderButton(s)}
+                    </div>
+                </div>
+            )
         }
 
         default:
@@ -227,9 +243,7 @@ export default function HeroSlider() {
     if (slides.length === 0) {
         // Fallback to a default static banner if no slides are configured
         return (
-             <section className="relative h-[450px] md:h-[550px] rounded-xl overflow-hidden shadow-2xl group">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent z-10" />
-                <div className="absolute inset-0 bg-primary/30 mix-blend-multiply z-10" />
+             <section className="relative h-[450px] md:h-[550px] rounded-xl overflow-hidden shadow-2xl group bg-primary">
                 <div className="relative z-20 flex flex-col items-center justify-center h-full text-center p-6 md:p-8">
                   <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
                     Türkiye'nin Nakliye Dünyası
@@ -269,13 +283,13 @@ export default function HeroSlider() {
             <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 
                             w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
                             opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white hover:bg-black/40">
-                <ChevronLeft className="w-5 h-5 text-white" />
+                <ChevronLeft className="w-5 h-5" />
             </div>
 
             <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 
                             w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
                             opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white hover:bg-black/40">
-                <ChevronRight className="w-5 h-5 text-white" />
+                <ChevronRight className="w-5 h-5" />
             </div>
         </Swiper>
     );

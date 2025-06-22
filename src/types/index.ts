@@ -289,7 +289,7 @@ export type CompanyFilterOptions = {
 
 
 // HERO SLIDER TYPES
-export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'title-only' | 'video-background';
+export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'title-only' | 'video-background' | 'split-screen';
 
 export interface BaseHeroSlide {
   id: string;
@@ -365,12 +365,26 @@ export interface VideoBackgroundHeroSlide extends BaseHeroSlide {
     overlayOpacity?: number;
 }
 
+export interface SplitScreenHeroSlide extends BaseHeroSlide {
+  type: 'split-screen';
+  imageUrl: string;
+  contentBackgroundColor?: string;
+  textColor?: string;
+  buttonText?: string;
+  buttonUrl?: string;
+  buttonIcon?: string;
+  buttonColor?: string;
+  buttonTextColor?: string;
+  buttonShape?: 'default' | 'rounded';
+}
+
 export type HeroSlide = 
   | CenteredHeroSlide
   | LeftAlignedHeroSlide
   | WithInputHeroSlide
   | TitleOnlyHeroSlide
-  | VideoBackgroundHeroSlide;
+  | VideoBackgroundHeroSlide
+  | SplitScreenHeroSlide;
 
 export type HeroSlideCreationData = Omit<HeroSlide, 'id' | 'createdAt'>;
 export type HeroSlideUpdateData = Partial<Omit<HeroSlide, 'id'>>;
