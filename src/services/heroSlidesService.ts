@@ -41,7 +41,7 @@ export const getAllHeroSlides = async (): Promise<HeroSlide[]> => {
 };
 
 // For Frontend: Get only active slides
-export const getActiveHeroSlides = async (): Promise<HeroSlide[]> => {
+export const getActiveHeroSlides = async (): Promise<{ slides: HeroSlide[]; error?: { message: string; indexCreationUrl?: string } }> => {
     try {
       const q = query(
         collection(db, HERO_SLIDES_COLLECTION), 
@@ -49,10 +49,24 @@ export const getActiveHeroSlides = async (): Promise<HeroSlide[]> => {
         orderBy('order', 'asc')
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => convertToHeroSlide(doc.data(), doc.id));
-    } catch (error) {
-      console.error("Error fetching active hero slides: ", error);
-      return [];
+      const slides = querySnapshot.docs.map(doc => convertToHeroSlide(doc.data(), doc.id));
+      return { slides };
+    } catch (error: any) {
+      console.error("[heroSlidesService] Error fetching active hero slides: ", error);
+      let errorMessage = "Hero slaytları yüklenirken bir hata oluştu.";
+      let indexCreationUrl: string | undefined = undefined;
+
+      if (error.code === 'failed-precondition') {
+          errorMessage = error.message || "Eksik bir Firestore dizini var. Lütfen tarayıcı konsolunu kontrol edin.";
+          const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+          const match = errorMessage.match(urlRegex);
+          if (match && match[0]) {
+              indexCreationUrl = match[0];
+          }
+      } else {
+          errorMessage = error.message;
+      }
+      return { slides: [], error: { message: errorMessage, indexCreationUrl } };
     }
   };
 
