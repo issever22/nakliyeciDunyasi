@@ -142,10 +142,22 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
         case 'video-background': {
             const s = slide as VideoBackgroundHeroSlide;
             return (
-                 <div className="relative w-full h-full">
-                    {s.videoUrl && <video src={s.videoUrl} autoPlay loop muted playsInline className="absolute top-0 left-0 w-full h-full object-cover z-0" />}
+                <div className="relative w-full h-full">
+                    {s.videoUrl && (
+                        <video
+                            key={s.videoUrl} 
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="absolute top-0 left-0 w-full h-full object-cover z-0"
+                        >
+                            <source src={s.videoUrl} type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+                    )}
                     <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.5})` }}/>
-                     <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
                         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
                         {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl text-neutral-100 mb-8 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
                         {renderButton(s)}
@@ -256,14 +268,14 @@ export default function HeroSlider() {
             ))}
             <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 
                             w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
-                            opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <ChevronLeft className="w-5 h-5 text-white" />
+                            opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-accent hover:bg-black/40">
+                <ChevronLeft className="w-5 h-5" />
             </div>
 
             <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 
                             w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
-                            opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <ChevronRight className="w-5 h-5 text-white" />
+                            opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-accent hover:bg-black/40">
+                <ChevronRight className="w-5 h-5" />
             </div>
         </Swiper>
     );
