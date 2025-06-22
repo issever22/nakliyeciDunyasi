@@ -16,11 +16,23 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Search, AlertTriangle } from 'lucide-react';
+import { Search, AlertTriangle, icons } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
-// Helper component for rendering individual slide content based on type
+const Icon = ({ name, className, ...props }: { name?: string; className?: string }) => {
+    if (!name) return null;
+    const formattedName = name.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+    const LucideIcon = icons[formattedName as keyof typeof icons];
+  
+    if (!LucideIcon) {
+      console.warn(`[HeroSlider] Icon '${name}' not found in lucide-react. Check the icon name.`);
+      return null;
+    }
+  
+    return <LucideIcon className={className} {...props} />;
+};
+
 const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
     const router = useRouter();
 
@@ -36,101 +48,107 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
         }
     };
     
-    const contentWrapperBaseStyles = "relative z-20 flex flex-col h-full text-center p-6 md:p-8 ";
+    const contentWrapperBaseStyles = "relative z-20 flex flex-col h-full p-6 md:p-8 ";
 
     switch (slide.type) {
-        case 'centered':
-            const centeredSlide = slide as CenteredHeroSlide;
+        case 'centered': {
+            const s = slide as CenteredHeroSlide;
             return (
                 <div className="relative w-full h-full">
-                    {centeredSlide.backgroundImageUrl && <Image src={centeredSlide.backgroundImageUrl} alt={centeredSlide.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
-                    <div className="absolute inset-0 bg-black/50 z-10" />
-                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center")}>
-                        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">{centeredSlide.title}</h1>
-                        {centeredSlide.subtitle && <p className="text-lg sm:text-xl md:text-2xl text-neutral-100 mb-8 max-w-3xl drop-shadow-md">{centeredSlide.subtitle}</p>}
-                        {centeredSlide.buttonText && centeredSlide.buttonUrl && <Button asChild size="lg"><Link href={centeredSlide.buttonUrl}>{centeredSlide.buttonText}</Link></Button>}
+                    {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
+                    <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.5})` }} />
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
+                        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
+                        {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl mb-8 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
+                        {s.buttonText && s.buttonUrl && <Button asChild size="lg"><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
                     </div>
                 </div>
             );
+        }
 
-        case 'left-aligned':
-            const leftAlignedSlide = slide as LeftAlignedHeroSlide;
+        case 'left-aligned': {
+            const s = slide as LeftAlignedHeroSlide;
             return (
                  <div className="relative w-full h-full">
-                    {leftAlignedSlide.backgroundImageUrl && <Image src={leftAlignedSlide.backgroundImageUrl} alt={leftAlignedSlide.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
-                    <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${leftAlignedSlide.overlayOpacity || 0.5})` }} />
+                    {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
+                    <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity || 0.5})` }} />
                     <div className={cn(contentWrapperBaseStyles, "items-start justify-center text-left")}>
-                        <div className="max-w-2xl" style={{ color: leftAlignedSlide.textColor || '#FFFFFF' }}>
-                            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{leftAlignedSlide.title}</h1>
-                            {leftAlignedSlide.subtitle && <p className="text-lg sm:text-xl md:text-2xl mb-8 drop-shadow-md">{leftAlignedSlide.subtitle}</p>}
-                            {leftAlignedSlide.buttonText && leftAlignedSlide.buttonUrl && <Button asChild size="lg"><Link href={leftAlignedSlide.buttonUrl}>{leftAlignedSlide.buttonText}</Link></Button>}
+                        <div className="max-w-2xl" style={{ color: s.textColor || '#FFFFFF' }}>
+                            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
+                            {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl mb-8 drop-shadow-md">{s.subtitle}</p>}
+                            {s.buttonText && s.buttonUrl && <Button asChild size="lg"><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
                         </div>
                     </div>
                 </div>
             );
+        }
         
-        case 'with-input':
-            const withInputSlide = slide as WithInputHeroSlide;
+        case 'with-input': {
+            const s = slide as WithInputHeroSlide;
             return (
                 <div className="relative w-full h-full">
-                    {withInputSlide.backgroundImageUrl && <Image src={withInputSlide.backgroundImageUrl} alt={withInputSlide.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
-                    <div className="absolute inset-0 bg-black/60 z-10" />
-                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center")}>
-                        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-2 drop-shadow-lg">{withInputSlide.title}</h1>
-                        {withInputSlide.subtitle && <p className="text-lg text-neutral-200 mb-6 max-w-2xl drop-shadow-md">{withInputSlide.subtitle}</p>}
+                    {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
+                    <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.6})` }}/>
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
+                        <h1 className="text-4xl sm:text-5xl font-bold mb-2 drop-shadow-lg">{s.title}</h1>
+                        {s.subtitle && <p className="text-lg text-neutral-200 mb-6 max-w-2xl drop-shadow-md">{s.subtitle}</p>}
                         <form onSubmit={handleFormSubmit} className="flex w-full max-w-lg items-center gap-2 bg-white/20 p-2 rounded-full border border-white/30 backdrop-blur-sm">
-                            <Input name="query" placeholder={withInputSlide.inputPlaceholder || "Arama yap..."} className="bg-transparent text-white placeholder:text-neutral-300 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-base" />
-                            <Button type="submit" size="lg" className="rounded-full"><Search className="mr-2 h-4 w-4"/> {withInputSlide.buttonText}</Button>
+                            <Input name="query" placeholder={s.inputPlaceholder || "Arama yap..."} className="bg-transparent text-white placeholder:text-neutral-300 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-base" />
+                            <Button type="submit" size="lg" className="rounded-full"><Icon name={s.buttonIcon || 'Search'} className="mr-2 h-4 w-4"/> {s.buttonText}</Button>
                         </form>
                     </div>
                 </div>
             );
+        }
 
-        case 'split':
-            const splitSlide = slide as SplitHeroSlide;
+        case 'split': {
+            const s = slide as SplitHeroSlide;
             return (
-                <div className="w-full h-full grid grid-cols-1 md:grid-cols-2" style={{ backgroundColor: splitSlide.backgroundColor || '#FFFFFF' }}>
+                <div className="w-full h-full grid grid-cols-1 md:grid-cols-2" style={{ backgroundColor: s.backgroundColor || '#FFFFFF' }}>
                     <div className="flex flex-col justify-center p-8 md:p-12 text-left">
-                        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">{splitSlide.title}</h1>
-                        {splitSlide.subtitle && <p className="text-lg text-muted-foreground mb-8">{splitSlide.subtitle}</p>}
-                        {splitSlide.buttonText && splitSlide.buttonUrl && <Button asChild size="lg" className="self-start"><Link href={splitSlide.buttonUrl}>{splitSlide.buttonText}</Link></Button>}
+                        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">{s.title}</h1>
+                        {s.subtitle && <p className="text-lg text-muted-foreground mb-8">{s.subtitle}</p>}
+                        {s.buttonText && s.buttonUrl && <Button asChild size="lg" className="self-start"><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
                     </div>
                     <div className="relative h-64 md:h-full">
-                        {splitSlide.mediaType === 'image' && splitSlide.mediaUrl ? (
-                            <Image src={splitSlide.mediaUrl} alt={splitSlide.title} fill style={{ objectFit: 'cover' }} />
-                        ) : splitSlide.mediaType === 'video' && splitSlide.mediaUrl ? (
-                            <video src={splitSlide.mediaUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                        {s.mediaType === 'image' && s.mediaUrl ? (
+                            <Image src={s.mediaUrl} alt={s.title} fill style={{ objectFit: 'cover' }} />
+                        ) : s.mediaType === 'video' && s.mediaUrl ? (
+                            <video src={s.mediaUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                         ) : null}
                     </div>
                 </div>
             );
+        }
         
-        case 'title-only':
-            const titleOnlySlide = slide as TitleOnlyHeroSlide;
+        case 'title-only': {
+            const s = slide as TitleOnlyHeroSlide;
             return (
                 <div className="relative w-full h-full">
-                    {titleOnlySlide.backgroundImageUrl && <Image src={titleOnlySlide.backgroundImageUrl} alt={titleOnlySlide.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
-                    <div className="absolute inset-0 bg-black/40 z-10" />
-                    <div className={cn(contentWrapperBaseStyles, "items-center justify-end pb-16")}>
-                         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-1 drop-shadow-lg">{titleOnlySlide.title}</h1>
-                        {titleOnlySlide.subtitle && <p className="text-md text-neutral-200 max-w-3xl drop-shadow-md">{titleOnlySlide.subtitle}</p>}
+                    {s.backgroundImageUrl && <Image src={s.backgroundImageUrl} alt={s.title} fill style={{ objectFit: 'cover' }} className="z-0" />}
+                    <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.4})` }}/>
+                    <div className={cn(contentWrapperBaseStyles, "items-center justify-end pb-16 text-center")} style={{ color: s.textColor || 'white' }}>
+                         <h1 className="text-3xl sm:text-4xl font-bold mb-1 drop-shadow-lg">{s.title}</h1>
+                        {s.subtitle && <p className="text-md text-neutral-200 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
                     </div>
                 </div>
             );
+        }
 
-        case 'video-background':
-            const videoSlide = slide as VideoBackgroundHeroSlide;
+        case 'video-background': {
+            const s = slide as VideoBackgroundHeroSlide;
             return (
                  <div className="relative w-full h-full">
-                    {videoSlide.videoUrl && <video src={videoSlide.videoUrl} autoPlay loop muted playsInline className="absolute top-0 left-0 w-full h-full object-cover z-0" />}
-                    <div className="absolute inset-0 bg-black/50 z-10" />
-                     <div className={cn(contentWrapperBaseStyles, "items-center justify-center")}>
-                        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">{videoSlide.title}</h1>
-                        {videoSlide.subtitle && <p className="text-lg sm:text-xl md:text-2xl text-neutral-100 mb-8 max-w-3xl drop-shadow-md">{videoSlide.subtitle}</p>}
-                        {videoSlide.buttonText && videoSlide.buttonUrl && <Button asChild size="lg"><Link href={videoSlide.buttonUrl}>{videoSlide.buttonText}</Link></Button>}
+                    {s.videoUrl && <video src={s.videoUrl} autoPlay loop muted playsInline className="absolute top-0 left-0 w-full h-full object-cover z-0" />}
+                    <div className="absolute inset-0 z-10" style={{ backgroundColor: `rgba(0, 0, 0, ${s.overlayOpacity ?? 0.5})` }}/>
+                     <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
+                        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
+                        {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl text-neutral-100 mb-8 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
+                        {s.buttonText && s.buttonUrl && <Button asChild size="lg"><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
                     </div>
                 </div>
             );
+        }
 
         default:
             return <div className="flex items-center justify-center h-full bg-gray-200">Unknown Slide Type</div>;

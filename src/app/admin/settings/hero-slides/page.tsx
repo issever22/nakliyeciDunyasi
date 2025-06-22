@@ -116,31 +116,71 @@ export default function HeroSlidesPage() {
 
   const renderDialogFields = () => {
     const { type } = currentFormData;
+
+    // Helper to handle input changes
+    const handleFieldChange = (field: keyof HeroSlide, value: any) => {
+      setCurrentFormData(p => ({ ...p, [field]: value }));
+    };
+    const handleNumericFieldChange = (field: keyof HeroSlide, value: string) => {
+        setCurrentFormData(p => ({ ...p, [field]: value ? parseFloat(value) : undefined }));
+    };
+
+    const fields = {
+      title: <div className="space-y-1.5" key="title"><Label htmlFor="slideTitle">Başlık (*)</Label><Input id="slideTitle" value={currentFormData.title || ''} onChange={(e) => handleFieldChange('title' as any, e.target.value)} required /></div>,
+      subtitle: <div className="space-y-1.5" key="subtitle"><Label>Alt Başlık</Label><Textarea value={currentFormData.subtitle || ''} onChange={(e) => handleFieldChange('subtitle', e.target.value)} rows={2} /></div>,
+      backgroundImageUrl: <div className="space-y-1.5" key="bgUrl"><Label>Arka Plan Resim URL'si</Label><Input value={(currentFormData as any).backgroundImageUrl || ''} onChange={(e) => handleFieldChange('backgroundImageUrl' as any, e.target.value)} /></div>,
+      videoUrl: <div className="space-y-1.5" key="videoUrl"><Label>Video URL</Label><Input value={(currentFormData as any).videoUrl || ''} onChange={(e) => handleFieldChange('videoUrl' as any, e.target.value)} /></div>,
+      buttonText: <div className="space-y-1.5" key="btnTxt"><Label>Buton Yazısı</Label><Input value={(currentFormData as any).buttonText || ''} onChange={(e) => handleFieldChange('buttonText' as any, e.target.value)} /></div>,
+      buttonUrl: <div className="space-y-1.5" key="btnUrl"><Label>Buton URL</Label><Input value={(currentFormData as any).buttonUrl || ''} onChange={(e) => handleFieldChange('buttonUrl' as any, e.target.value)} /></div>,
+      buttonIcon: <div className="space-y-1.5" key="btnIcon"><Label>Buton İkonu (Lucide-react)</Label><Input value={(currentFormData as any).buttonIcon || ''} onChange={(e) => handleFieldChange('buttonIcon' as any, e.target.value)} placeholder="örn: ArrowRight" /></div>,
+      textColor: <div className="space-y-1.5" key="txtColor"><Label>Yazı Rengi (örn: #FFFFFF)</Label><Input placeholder="#FFFFFF" value={(currentFormData as any).textColor || ''} onChange={(e) => handleFieldChange('textColor' as any, e.target.value)} /></div>,
+      overlayOpacity: <div className="space-y-1.5" key="overlay"><Label>Karartma Opaklığı (0-1)</Label><Input type="number" step="0.1" min="0" max="1" placeholder="0.5" value={(currentFormData as any).overlayOpacity ?? ''} onChange={(e) => handleNumericFieldChange('overlayOpacity' as any, e.target.value)} /></div>,
+      inputPlaceholder: <div className="space-y-1.5" key="inputPl"><Label>Form Alanı İpucu</Label><Input value={(currentFormData as any).inputPlaceholder || ''} onChange={(e) => handleFieldChange('inputPlaceholder' as any, e.target.value)} /></div>,
+      formActionUrl: <div className="space-y-1.5" key="formUrl"><Label>Form Hedef URL (*)</Label><Input value={(currentFormData as any).formActionUrl || ''} onChange={(e) => handleFieldChange('formActionUrl' as any, e.target.value)} required /></div>,
+      mediaType: <div className="space-y-1.5" key="mediaType"><Label>Medya Tipi</Label><Select value={(currentFormData as any).mediaType || 'image'} onValueChange={(v) => handleFieldChange('mediaType' as any, v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="image">Resim</SelectItem><SelectItem value="video">Video</SelectItem></SelectContent></Select></div>,
+      mediaUrl: <div className="space-y-1.5" key="mediaUrl"><Label>Medya URL</Label><Input value={(currentFormData as any).mediaUrl || ''} onChange={(e) => handleFieldChange('mediaUrl' as any, e.target.value)} /></div>,
+      backgroundColor: <div className="space-y-1.5" key="bgColor"><Label>Arka Plan Rengi</Label><Input value={(currentFormData as any).backgroundColor || ''} onChange={(e) => handleFieldChange('backgroundColor' as any, e.target.value)} placeholder="#FFFFFF"/></div>,
+    };
+
+    let renderedFields: JSX.Element[] = [];
+
+    switch (type) {
+      case 'centered':
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.textColor, fields.overlayOpacity];
+        break;
+      case 'left-aligned':
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.textColor, fields.overlayOpacity];
+        break;
+      case 'with-input':
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.inputPlaceholder, fields.buttonText, fields.formActionUrl, fields.buttonIcon, fields.textColor, fields.overlayOpacity];
+        break;
+      case 'split':
+        renderedFields = [fields.title, fields.subtitle, fields.mediaType, fields.mediaUrl, fields.backgroundColor, fields.buttonText, fields.buttonUrl, fields.buttonIcon];
+        break;
+      case 'title-only':
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.textColor, fields.overlayOpacity];
+        break;
+      case 'video-background':
+        renderedFields = [fields.title, fields.subtitle, fields.videoUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.textColor, fields.overlayOpacity];
+        break;
+      default:
+        renderedFields = [fields.title, fields.subtitle];
+    }
+    
     return (
-        <>
-            {/* Common Fields */}
-            <div className="space-y-1.5"><Label htmlFor="slideTitle">Başlık (*)</Label><Input id="slideTitle" value={currentFormData.title || ''} onChange={(e) => setCurrentFormData(p => ({...p, title: e.target.value}))} required /></div>
-            <div className="space-y-1.5"><Label htmlFor="slideSubtitle">Alt Başlık</Label><Textarea id="slideSubtitle" value={currentFormData.subtitle || ''} onChange={(e) => setCurrentFormData(p => ({...p, subtitle: e.target.value}))} rows={2} /></div>
-
-            {/* Type-Specific Fields */}
-            {['centered', 'left-aligned', 'with-input', 'title-only'].includes(type!) && <div className="space-y-1.5"><Label htmlFor="backgroundImageUrl">Arka Plan Resim URL'si</Label><Input id="backgroundImageUrl" value={(currentFormData as any).backgroundImageUrl || ''} onChange={(e) => setCurrentFormData(p => ({...p, backgroundImageUrl: e.target.value}))} /></div>}
-            {['centered', 'left-aligned', 'video-background'].includes(type!) && <> <div className="space-y-1.5"><Label htmlFor="buttonText">Buton Yazısı</Label><Input id="buttonText" value={(currentFormData as any).buttonText || ''} onChange={(e) => setCurrentFormData(p => ({...p, buttonText: e.target.value}))} /></div> <div className="space-y-1.5"><Label htmlFor="buttonUrl">Buton URL</Label><Input id="buttonUrl" value={(currentFormData as any).buttonUrl || ''} onChange={(e) => setCurrentFormData(p => ({...p, buttonUrl: e.target.value}))} /></div> </>}
-            {type === 'left-aligned' && <> <div className="space-y-1.5"><Label htmlFor="textColor">Yazı Rengi (örn: #FFFFFF)</Label><Input id="textColor" value={(currentFormData as any).textColor || ''} onChange={(e) => setCurrentFormData(p => ({...p, textColor: e.target.value}))} /></div> <div className="space-y-1.5"><Label htmlFor="overlayOpacity">Karartma Opaklığı (0-1)</Label><Input type="number" step="0.1" min="0" max="1" id="overlayOpacity" value={(currentFormData as any).overlayOpacity || ''} onChange={(e) => setCurrentFormData(p => ({...p, overlayOpacity: parseFloat(e.target.value)}))} /></div> </>}
-            {type === 'with-input' && <> <div className="space-y-1.5"><Label htmlFor="inputPlaceholder">Form Alanı İpucu</Label><Input id="inputPlaceholder" value={(currentFormData as any).inputPlaceholder || ''} onChange={(e) => setCurrentFormData(p => ({...p, inputPlaceholder: e.target.value}))} /></div> <div className="space-y-1.5"><Label htmlFor="buttonText">Buton Yazısı (*)</Label><Input id="buttonText" value={(currentFormData as any).buttonText || ''} onChange={(e) => setCurrentFormData(p => ({...p, buttonText: e.target.value}))} required /></div> <div className="space-y-1.5"><Label htmlFor="formActionUrl">Form Hedef URL (*)</Label><Input id="formActionUrl" value={(currentFormData as any).formActionUrl || ''} onChange={(e) => setCurrentFormData(p => ({...p, formActionUrl: e.target.value}))} required /></div> </>}
-            {type === 'split' && <> <div className="space-y-1.5"><Label>Medya Tipi</Label><Select value={(currentFormData as any).mediaType || 'image'} onValueChange={(v) => setCurrentFormData(p => ({...p, mediaType: v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="image">Resim</SelectItem><SelectItem value="video">Video</SelectItem></SelectContent></Select></div> <div className="space-y-1.5"><Label>Medya URL</Label><Input value={(currentFormData as any).mediaUrl || ''} onChange={(e) => setCurrentFormData(p => ({...p, mediaUrl: e.target.value}))} /></div> <div className="space-y-1.5"><Label>Buton Yazısı</Label><Input value={(currentFormData as any).buttonText || ''} onChange={(e) => setCurrentFormData(p => ({...p, buttonText: e.target.value}))} /></div> <div className="space-y-1.5"><Label>Buton URL</Label><Input value={(currentFormData as any).buttonUrl || ''} onChange={(e) => setCurrentFormData(p => ({...p, buttonUrl: e.target.value}))} /></div> <div className="space-y-1.5"><Label>Arka Plan Rengi</Label><Input value={(currentFormData as any).backgroundColor || ''} onChange={(e) => setCurrentFormData(p => ({...p, backgroundColor: e.target.value}))} placeholder="#FFFFFF"/></div> </>}
-            {type === 'video-background' && <div className="space-y-1.5"><Label>Video URL</Label><Input value={(currentFormData as any).videoUrl || ''} onChange={(e) => setCurrentFormData(p => ({...p, videoUrl: e.target.value}))} /></div>}
-
+        <div className="space-y-4">
+            {renderedFields}
             <div className="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="space-y-1.5">
                     <Label htmlFor="order">Sıralama</Label>
-                    <Input id="order" type="number" value={currentFormData.order || 0} onChange={(e) => setCurrentFormData(p => ({...p, order: parseInt(e.target.value, 10) || 0}))} />
+                    <Input id="order" type="number" value={currentFormData.order || 0} onChange={(e) => handleFieldChange('order', parseInt(e.target.value, 10) || 0)} />
                 </div>
                  <div className="flex items-center space-x-2 pt-6">
-                    <Switch id="isActive" checked={currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData(p => ({...p, isActive: checked}))} />
+                    <Switch id="isActive" checked={currentFormData.isActive} onCheckedChange={(checked) => handleFieldChange('isActive', checked)} />
                     <Label htmlFor="isActive" className="font-medium cursor-pointer">Aktif mi?</Label>
                 </div>
             </div>
-        </>
+        </div>
     );
   };
 
