@@ -243,17 +243,17 @@ export default function HeroSlider() {
                 pauseOnMouseEnter: true,
             }}
             effect="fade"
-            className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-white/50 [&_.swiper-pagination-bullet-active]:!bg-primary"
+            className="relative h-[400px] md:h-[450px] rounded-xl overflow-hidden shadow-2xl group [&_.swiper-pagination]:!bottom-4 [&_.swiper-pagination-bullet]:!bg-white/30 [&_.swiper-pagination-bullet-active]:!bg-primary"
         >
             {slides.map((slide) => (
                 <SwiperSlide key={slide.id}>
                     <SlideRenderer slide={slide} />
                 </SwiperSlide>
             ))}
-            <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 p-1 rounded-full bg-secondary/80 backdrop-blur-sm cursor-pointer text-secondary-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-secondary">
+            <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 p-1 rounded-full bg-white/30 backdrop-blur-sm cursor-pointer text-[hsl(var(--accent))] opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white/50">
                 <ChevronLeft className="h-5 w-5" />
             </div>
-            <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 p-1 rounded-full bg-secondary/80 backdrop-blur-sm cursor-pointer text-secondary-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-secondary">
+            <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 p-1 rounded-full bg-white/30 backdrop-blur-sm cursor-pointer text-[hsl(var(--accent))] opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white/50">
                 <ChevronRight className="h-5 w-5" />
             </div>
         </Swiper>
