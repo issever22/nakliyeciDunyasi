@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -16,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Search, AlertTriangle, icons, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, AlertTriangle, icons, ChevronLeft, ChevronRight  } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
@@ -60,7 +61,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                     <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
                         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
                         {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl mb-8 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
-                        {s.buttonText && s.buttonUrl && <Button asChild size="lg"><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
+                        {s.buttonText && s.buttonUrl && <Button asChild size="lg" style={s.buttonColor ? { backgroundColor: s.buttonColor } : {}}><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
                     </div>
                 </div>
             );
@@ -76,7 +77,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                         <div className="max-w-2xl" style={{ color: s.textColor || '#FFFFFF' }}>
                             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
                             {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl mb-8 drop-shadow-md">{s.subtitle}</p>}
-                            {s.buttonText && s.buttonUrl && <Button asChild size="lg"><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
+                            {s.buttonText && s.buttonUrl && <Button asChild size="lg" style={s.buttonColor ? { backgroundColor: s.buttonColor } : {}}><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
                         </div>
                     </div>
                 </div>
@@ -94,7 +95,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                         {s.subtitle && <p className="text-lg text-neutral-200 mb-6 max-w-2xl drop-shadow-md">{s.subtitle}</p>}
                         <form onSubmit={handleFormSubmit} className="flex w-full max-w-lg items-center gap-2 bg-white/20 p-2 rounded-full border border-white/30 backdrop-blur-sm">
                             <Input name="query" placeholder={s.inputPlaceholder || "Arama yap..."} className="bg-transparent text-white placeholder:text-neutral-300 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-base" />
-                            <Button type="submit" size="lg" className="rounded-full"><Icon name={s.buttonIcon || 'Search'} className="mr-2 h-4 w-4"/> {s.buttonText}</Button>
+                            <Button type="submit" size="lg" className="rounded-full" style={s.buttonColor ? { backgroundColor: s.buttonColor } : {}}><Icon name={s.buttonIcon || 'Search'} className="mr-2 h-4 w-4"/> {s.buttonText}</Button>
                         </form>
                     </div>
                 </div>
@@ -108,7 +109,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                     <div className="flex flex-col justify-center p-8 md:p-12 text-left">
                         <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">{s.title}</h1>
                         {s.subtitle && <p className="text-lg text-muted-foreground mb-8">{s.subtitle}</p>}
-                        {s.buttonText && s.buttonUrl && <Button asChild size="lg" className="self-start"><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
+                        {s.buttonText && s.buttonUrl && <Button asChild size="lg" className="self-start" style={s.buttonColor ? { backgroundColor: s.buttonColor } : {}}><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
                     </div>
                     <div className="relative h-64 md:h-full">
                         {s.mediaType === 'image' && s.mediaUrl ? (
@@ -144,7 +145,7 @@ const SlideRenderer = ({ slide }: { slide: HeroSlide }) => {
                      <div className={cn(contentWrapperBaseStyles, "items-center justify-center text-center")} style={{ color: s.textColor || 'white' }}>
                         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 drop-shadow-lg">{s.title}</h1>
                         {s.subtitle && <p className="text-lg sm:text-xl md:text-2xl text-neutral-100 mb-8 max-w-3xl drop-shadow-md">{s.subtitle}</p>}
-                        {s.buttonText && s.buttonUrl && <Button asChild size="lg"><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
+                        {s.buttonText && s.buttonUrl && <Button asChild size="lg" style={s.buttonColor ? { backgroundColor: s.buttonColor } : {}}><Link href={s.buttonUrl}><Icon name={s.buttonIcon} className="mr-2 h-5 w-5"/>{s.buttonText}</Link></Button>}
                     </div>
                 </div>
             );
@@ -250,11 +251,16 @@ export default function HeroSlider() {
                     <SlideRenderer slide={slide} />
                 </SwiperSlide>
             ))}
-            <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 p-1 rounded-full bg-white/30 backdrop-blur-sm cursor-pointer text-[hsl(var(--accent))] opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white/50">
-                <ChevronLeft className="h-5 w-5" />
+            <div className="swiper-button-prev absolute top-1/2 -translate-y-1/2 left-4 z-30 
+                            w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
+                            opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <ChevronLeft className="w-6 h-6 text-[hsl(var(--accent))]" />
             </div>
-            <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 p-1 rounded-full bg-white/30 backdrop-blur-sm cursor-pointer text-[hsl(var(--accent))] opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white/50">
-                <ChevronRight className="h-5 w-5" />
+
+            <div className="swiper-button-next absolute top-1/2 -translate-y-1/2 right-4 z-30 
+                            w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer 
+                            opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <ChevronRight className="w-6 h-6 text-[hsl(var(--accent))]" />
             </div>
         </Swiper>
     );

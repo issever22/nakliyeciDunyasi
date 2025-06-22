@@ -117,7 +117,6 @@ export default function HeroSlidesPage() {
   const renderDialogFields = () => {
     const { type } = currentFormData;
 
-    // Helper to handle input changes
     const handleFieldChange = (field: keyof HeroSlide, value: any) => {
       setCurrentFormData(p => ({ ...p, [field]: value }));
     };
@@ -132,7 +131,23 @@ export default function HeroSlidesPage() {
       videoUrl: <div className="space-y-1.5" key="videoUrl"><Label>Video URL</Label><Input value={(currentFormData as any).videoUrl || ''} onChange={(e) => handleFieldChange('videoUrl' as any, e.target.value)} /></div>,
       buttonText: <div className="space-y-1.5" key="btnTxt"><Label>Buton Yazısı</Label><Input value={(currentFormData as any).buttonText || ''} onChange={(e) => handleFieldChange('buttonText' as any, e.target.value)} /></div>,
       buttonUrl: <div className="space-y-1.5" key="btnUrl"><Label>Buton URL</Label><Input value={(currentFormData as any).buttonUrl || ''} onChange={(e) => handleFieldChange('buttonUrl' as any, e.target.value)} /></div>,
-      buttonIcon: <div className="space-y-1.5" key="btnIcon"><Label>Buton İkonu (Lucide-react)</Label><Input value={(currentFormData as any).buttonIcon || ''} onChange={(e) => handleFieldChange('buttonIcon' as any, e.target.value)} placeholder="örn: ArrowRight" /></div>,
+      buttonIcon: (
+        <div className="space-y-1.5" key="btnIcon">
+            <div className="flex items-center justify-between">
+                <Label htmlFor="slideButtonIcon">Buton İkonu (Lucide)</Label>
+                <a href="https://lucide.dev/icons/" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:underline">
+                    İkonları Gör
+                </a>
+            </div>
+            <Input id="slideButtonIcon" value={(currentFormData as any).buttonIcon || ''} onChange={(e) => handleFieldChange('buttonIcon' as any, e.target.value)} placeholder="örn: ArrowRight" />
+        </div>
+      ),
+      buttonColor: (
+        <div className="space-y-1.5" key="btnColor">
+          <Label htmlFor="slideButtonColor">Buton Rengi (Opsiyonel)</Label>
+          <Input id="slideButtonColor" value={(currentFormData as any).buttonColor || ''} onChange={(e) => handleFieldChange('buttonColor' as any, e.target.value)} placeholder="örn: #e11d48" />
+        </div>
+      ),
       textColor: <div className="space-y-1.5" key="txtColor"><Label>Yazı Rengi (örn: #FFFFFF)</Label><Input placeholder="#FFFFFF" value={(currentFormData as any).textColor || ''} onChange={(e) => handleFieldChange('textColor' as any, e.target.value)} /></div>,
       overlayOpacity: <div className="space-y-1.5" key="overlay"><Label>Karartma Opaklığı (0-1)</Label><Input type="number" step="0.1" min="0" max="1" placeholder="0.5" value={(currentFormData as any).overlayOpacity ?? ''} onChange={(e) => handleNumericFieldChange('overlayOpacity' as any, e.target.value)} /></div>,
       inputPlaceholder: <div className="space-y-1.5" key="inputPl"><Label>Form Alanı İpucu</Label><Input value={(currentFormData as any).inputPlaceholder || ''} onChange={(e) => handleFieldChange('inputPlaceholder' as any, e.target.value)} /></div>,
@@ -146,22 +161,22 @@ export default function HeroSlidesPage() {
 
     switch (type) {
       case 'centered':
-        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.textColor, fields.overlayOpacity];
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.textColor, fields.overlayOpacity];
         break;
       case 'left-aligned':
-        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.textColor, fields.overlayOpacity];
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.textColor, fields.overlayOpacity];
         break;
       case 'with-input':
-        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.inputPlaceholder, fields.buttonText, fields.formActionUrl, fields.buttonIcon, fields.textColor, fields.overlayOpacity];
+        renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.inputPlaceholder, fields.buttonText, fields.formActionUrl, fields.buttonIcon, fields.buttonColor, fields.textColor, fields.overlayOpacity];
         break;
       case 'split':
-        renderedFields = [fields.title, fields.subtitle, fields.mediaType, fields.mediaUrl, fields.backgroundColor, fields.buttonText, fields.buttonUrl, fields.buttonIcon];
+        renderedFields = [fields.title, fields.subtitle, fields.mediaType, fields.mediaUrl, fields.backgroundColor, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor];
         break;
       case 'title-only':
         renderedFields = [fields.title, fields.subtitle, fields.backgroundImageUrl, fields.textColor, fields.overlayOpacity];
         break;
       case 'video-background':
-        renderedFields = [fields.title, fields.subtitle, fields.videoUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.textColor, fields.overlayOpacity];
+        renderedFields = [fields.title, fields.subtitle, fields.videoUrl, fields.buttonText, fields.buttonUrl, fields.buttonIcon, fields.buttonColor, fields.textColor, fields.overlayOpacity];
         break;
       default:
         renderedFields = [fields.title, fields.subtitle];
