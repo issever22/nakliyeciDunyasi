@@ -303,28 +303,23 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
     if (!companyData.username || !companyData.name || !companyData.category || !companyData.contactFullName || !companyData.mobilePhone || !companyData.companyType || !companyData.addressCountry || !companyData.addressCity || !companyData.fullAddress) {
         return { profile: null, error: "Lütfen tüm zorunlu alanları doldurun." };
     }
-
-    const finalProfileDataForFirestore: Omit<CompanyUserProfile, 'id' | 'membershipEndDate' | 'createdAt'> & { password: string, membershipEndDate?: Timestamp | null, createdAt: Timestamp } = {
+    
+    // Base object with required fields
+    const finalProfileDataForFirestore: any = {
       email: companyData.email,
-      role: 'company', 
+      role: 'company',
       name: companyData.name,
       password: password,
-      isActive: initialIsActive === undefined ? false : initialIsActive, // Default to false (pending approval)
+      isActive: initialIsActive === undefined ? false : initialIsActive,
       createdAt: Timestamp.fromDate(new Date()),
       username: companyData.username,
       category: companyData.category,
-      logoUrl: companyData.logoUrl || undefined,
       companyTitle: companyData.name,
       contactFullName: companyData.contactFullName,
-      workPhone: companyData.workPhone || undefined,
       mobilePhone: companyData.mobilePhone,
-      fax: companyData.fax || undefined,
-      website: companyData.website || undefined,
-      companyDescription: companyData.companyDescription || undefined,
       companyType: companyData.companyType,
       addressCountry: companyData.addressCountry,
       addressCity: companyData.addressCity,
-      addressDistrict: companyData.addressDistrict || undefined,
       fullAddress: companyData.fullAddress,
       workingMethods: Array.isArray(companyData.workingMethods) ? companyData.workingMethods : [],
       workingRoutes: Array.isArray(companyData.workingRoutes) ? companyData.workingRoutes : [],
@@ -336,6 +331,14 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
       authDocuments: [],
       sponsorships: [],
     };
+
+    // Conditionally add optional fields only if they have a value
+    if (companyData.logoUrl) finalProfileDataForFirestore.logoUrl = companyData.logoUrl;
+    if (companyData.workPhone) finalProfileDataForFirestore.workPhone = companyData.workPhone;
+    if (companyData.fax) finalProfileDataForFirestore.fax = companyData.fax;
+    if (companyData.website) finalProfileDataForFirestore.website = companyData.website;
+    if (companyData.companyDescription) finalProfileDataForFirestore.companyDescription = companyData.companyDescription;
+    if (companyData.addressDistrict) finalProfileDataForFirestore.addressDistrict = companyData.addressDistrict;
 
     const docRef = await addDoc(collection(db, USERS_COLLECTION), finalProfileDataForFirestore);
     const savedDoc = await getDoc(docRef);
