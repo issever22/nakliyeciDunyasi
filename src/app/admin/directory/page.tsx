@@ -41,6 +41,7 @@ export default function DirectoryPage() {
   const [isNotesLoading, setIsNotesLoading] = useState(false);
   const [viewingItem, setViewingItem] = useState<{ id: string; name: string; type: 'company' | 'manual' } | null>(null);
   const [noteFilter, setNoteFilter] = useState<'all' | 'note' | 'payment'>('all');
+  const [isAddingNote, setIsAddingNote] = useState(false);
 
   // State for Add/Edit Contact Modal
   const [isAddEditContactModalOpen, setIsAddEditContactModalOpen] = useState(false);
@@ -110,6 +111,7 @@ export default function DirectoryPage() {
     setViewingItem({ id: item.id, name: itemName, type: item.source });
     setNoteFilter('all');
     setIsNotesLoading(true);
+    setIsAddingNote(false); // Reset form state
     setIsViewNotesModalOpen(true);
     
     let notes: CompanyNote[] = [];
@@ -182,23 +184,25 @@ export default function DirectoryPage() {
     let success = false;
     try {
       if (viewingItem.type === 'company') {
-          success = await addCompanyNote(viewingItem.id, {
+          await addCompanyNote(viewingItem.id, {
               ...newNoteData,
               author: 'Admin',
               type: newNoteType
           });
       } else {
-          success = await addDirectoryContactNote(viewingItem.id, {
+          await addDirectoryContactNote(viewingItem.id, {
               ...newNoteData,
-              author: 'Admin',
-              type: 'note' 
+              author: 'Admin'
           });
       }
-
+      
+      success = true;
       if (success) {
           toast({ title: "Başarılı", description: "Not eklendi." });
           setNewNoteData({ title: '', content: '' });
           setNewNoteType('note');
+          setIsAddingNote(false); // Hide form on success
+
           // Refetch notes for the current modal
           setIsNotesLoading(true);
           let notes = [];
@@ -312,7 +316,10 @@ export default function DirectoryPage() {
       {/* View Notes Modal */}
       {viewingItem && (
         <Dialog open={isViewNotesModalOpen} onOpenChange={(open) => {
-            if (!open) setViewingItem(null);
+            if (!open) {
+                setViewingItem(null);
+                setIsAddingNote(false);
+            }
             setIsViewNotesModalOpen(open);
         }}>
           <DialogContent className="sm:max-w-3xl">
@@ -322,30 +329,41 @@ export default function DirectoryPage() {
               
               <Separator className="my-4"/>
               
-              <Card>
-                <CardHeader className="p-4"><CardTitle className="text-base">Yeni Not Ekle</CardTitle></CardHeader>
-                <CardContent className="p-4 pt-0">
-                    <form onSubmit={handleAddNewNote} className="space-y-4">
-                        {viewingItem?.type === 'company' && (
-                            <div className="space-y-1.5">
-                                <Label htmlFor="note-type">Not Tipi</Label>
-                                <Select value={newNoteType} onValueChange={(v) => setNewNoteType(v as 'note' | 'payment')}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="note">Genel Not</SelectItem>
-                                        <SelectItem value="payment">Ödeme Kaydı</SelectItem>
-                                    </SelectContent>
-                                </Select>
+              {isAddingNote ? (
+                  <Card>
+                    <CardHeader className="p-4 flex flex-row items-center justify-between">
+                        <CardTitle className="text-base">Yeni Not Ekle</CardTitle>
+                        <Button variant="ghost" size="sm" type="button" onClick={() => setIsAddingNote(false)}>İptal</Button>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        <form onSubmit={handleAddNewNote} className="space-y-4">
+                            {viewingItem?.type === 'company' && (
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="note-type">Not Tipi</Label>
+                                    <Select value={newNoteType} onValueChange={(v) => setNewNoteType(v as 'note' | 'payment')}>
+                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="note">Genel Not</SelectItem>
+                                            <SelectItem value="payment">Ödeme Kaydı</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                            <div className="space-y-1.5"><Label htmlFor="note-title">Başlık</Label><Input id="note-title" value={newNoteData.title} onChange={(e) => setNewNoteData(p => ({...p, title: e.target.value}))} required/></div>
+                            <div className="space-y-1.5"><Label htmlFor="note-content">İçerik</Label><Textarea id="note-content" value={newNoteData.content} onChange={(e) => setNewNoteData(p => ({...p, content: e.target.value}))} required rows={3}/></div>
+                            <div className="flex justify-end">
+                                <Button type="submit" disabled={isSubmittingNote}><FilePlus className="mr-2 h-4 w-4"/> {isSubmittingNote ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : 'Notu Kaydet'}</Button>
                             </div>
-                        )}
-                         <div className="space-y-1.5"><Label htmlFor="note-title">Başlık</Label><Input id="note-title" value={newNoteData.title} onChange={(e) => setNewNoteData(p => ({...p, title: e.target.value}))} required/></div>
-                         <div className="space-y-1.5"><Label htmlFor="note-content">İçerik</Label><Textarea id="note-content" value={newNoteData.content} onChange={(e) => setNewNoteData(p => ({...p, content: e.target.value}))} required rows={3}/></div>
-                        <div className="flex justify-end">
-                            <Button type="submit" disabled={isSubmittingNote}><FilePlus className="mr-2 h-4 w-4"/> {isSubmittingNote ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : 'Notu Kaydet'}</Button>
-                        </div>
-                    </form>
-                </CardContent>
-              </Card>
+                        </form>
+                    </CardContent>
+                </Card>
+              ) : (
+                <div className="flex justify-end">
+                    <Button onClick={() => setIsAddingNote(true)}>
+                        <FilePlus className="mr-2 h-4 w-4"/> Yeni Not Ekle
+                    </Button>
+                </div>
+              )}
 
               <DialogFooter><Button variant="outline" onClick={() => setIsViewNotesModalOpen(false)}>Kapat</Button></DialogFooter>
           </DialogContent>
@@ -384,3 +402,5 @@ export default function DirectoryPage() {
     </div>
   );
 }
+
+    
