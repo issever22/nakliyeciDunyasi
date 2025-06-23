@@ -29,6 +29,8 @@ export default function AdminLoginForm() {
       
       localStorage.setItem(ADMIN_AUTH_KEY, 'true'); 
       localStorage.setItem('admin_profile_info', JSON.stringify({ name: adminProfile.name, role: adminProfile.role }));
+      localStorage.setItem('admin_full_profile', JSON.stringify(adminProfile)); // Store full profile including ID
+
 
       toast({ title: "Giriş Başarılı", description: `Hoş geldin, ${adminProfile.name}! Panele yönlendiriliyorsunuz...` });
       router.push('/admin/dashboard');

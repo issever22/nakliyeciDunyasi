@@ -9,9 +9,11 @@ import {
   LogOut, LayoutDashboard, ShieldCheck, Settings, Users, Package,
   ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle, MessageSquare, Handshake,
   Image as HeroIcon,
-  BookUser
+  BookUser,
+  ShieldAlert
 } from 'lucide-react'; 
 import { Skeleton } from '@/components/ui/skeleton';
+import type { AdminProfile } from '@/types';
 
 const ADMIN_AUTH_KEY = 'isAdminAuthenticated';
 
@@ -20,6 +22,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [adminProfile, setAdminProfile] = useState<Omit<AdminProfile, 'password' | 'id'> | null>(null);
 
   const isSettingsRouteActive = useMemo(() => {
     return pathname.startsWith('/admin/settings') && 
@@ -44,6 +47,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
     const authStatus = localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
     setIsAdminAuthenticated(authStatus); 
+
+    if (authStatus) {
+        try {
+            const profileInfo = localStorage.getItem('admin_profile_info');
+            if(profileInfo) setAdminProfile(JSON.parse(profileInfo));
+        } catch(e) {
+            console.error("Error parsing admin profile info", e);
+            setAdminProfile(null);
+        }
+    }
 
     if (!authStatus && pathname !== '/admin/login') {
       router.push('/admin/login');
@@ -70,8 +83,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(ADMIN_AUTH_KEY);
       localStorage.removeItem('admin_profile_info');
+      localStorage.removeItem('admin_full_profile');
     }
     setIsAdminAuthenticated(false); 
+    setAdminProfile(null);
     router.push('/admin/login');
   };
 
@@ -115,6 +130,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            
+            {adminProfile?.role === 'superAdmin' && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/administrators')} tooltip={{content: "Yöneticiler", side: "right"}}>
+                  <Link href="/admin/administrators">
+                    <ShieldAlert /> <span>Yöneticiler</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             
             <SidebarMenuItem>
               <SidebarMenuButton 
