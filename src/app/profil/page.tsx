@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-import type { UserProfile, CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types'; 
+import type { CompanyUserProfile, VehicleTypeSetting, AuthDocSetting, MembershipSetting } from '@/types'; 
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
 import { getAllAuthDocs } from '@/services/authDocsService';
 import { getAllMemberships } from '@/services/membershipsService';
@@ -43,7 +43,7 @@ export default function ProfilePage() {
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeSetting[]>([]);
   const [authDocTypes, setAuthDocTypes] = useState<AuthDocSetting[]>([]);
   const [membershipPackages, setMembershipPackages] = useState<MembershipSetting[]>([]);
-  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [isEditCompanyDetailsModalOpen, setIsEditCompanyDetailsModalOpen] = useState(false);
@@ -63,12 +63,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (companyUser) { 
-      // Add console logs for debugging
-      console.log("--- Profil Sayfası Veri Kontrolü ---");
-      console.log("Görüntülenen firmanın araçları:", JSON.stringify(companyUser.ownedVehicles || []));
-      console.log("Görüntülenen firmanın belgeleri:", JSON.stringify(companyUser.authDocuments || []));
-      console.log("------------------------------------");
-
       const fetchCompanySettings = async () => {
         setSettingsLoading(true);
         try {
@@ -90,9 +84,12 @@ export default function ProfilePage() {
     }
   }, [companyUser]);
 
-  const handleProfileUpdate = () => {
-    if(refreshUser) refreshUser();
-  };
+  const handleProfileUpdate = useCallback(async () => {
+    if(refreshUser) {
+        await refreshUser();
+    }
+  }, [refreshUser]);
+
 
   const handleSendPasswordReset = async () => {
     toast({

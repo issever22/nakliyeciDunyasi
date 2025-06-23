@@ -8,10 +8,9 @@ import {
 } from '@/services/authService'; 
 import { useRouter } from 'next/navigation';
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
-// Firebase Auth imports removed
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase'; // db needed for querying users
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, limit, doc, onSnapshot } from 'firebase/firestore';
 
 const USER_SESSION_KEY = 'nakliyeci-dunyasi-session-user';
 
@@ -29,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<CompanyUserProfile | null>(null); 
-  const [loading, setLoading] = useState(true); // Start as true
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -49,24 +48,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
+    // 1. Initial load from localStorage for quick UI response
+    let currentUser: CompanyUserProfile | null = null;
     try {
       const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
       if (storedUserJson) {
-        const storedUser = JSON.parse(storedUserJson);
-        setUser(storedUser);
+        currentUser = JSON.parse(storedUserJson);
+        setUser(currentUser);
       }
     } catch (error) {
       console.error("Failed to parse user from localStorage", error);
       localStorage.removeItem(USER_SESSION_KEY);
-    } finally {
-      setLoading(false); // Set loading to false after checking storage
     }
-  }, []);
+    setLoading(false); // Initial loading is done
+
+    // 2. Set up real-time listener if a user is found
+    if (currentUser?.id) {
+      const userDocRef = doc(db, 'users', currentUser.id);
+      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const freshProfile = getUserProfileServerAction(docSnap.id).then(profile => {
+             if (profile) {
+                setUser(profile);
+                localStorage.setItem(USER_SESSION_KEY, JSON.stringify(profile));
+                console.log("Real-time user profile updated.");
+             }
+          });
+        } else {
+          // The user was deleted from the backend.
+          console.warn("User document deleted from backend. Logging out.");
+          logout();
+        }
+      }, (error) => {
+        console.error("Auth real-time listener error:", error);
+        toast({ title: "Oturum Hatası", description: "Oturumunuz senkronize edilirken bir hata oluştu.", variant: "destructive" });
+      });
+
+      // 3. Cleanup the listener on component unmount or when user logs out
+      return () => unsubscribe();
+    }
+  }, []); // Run only once on mount
 
   const refreshUser = useCallback(async () => {
     const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
     if (!storedUserJson) return;
-    const storedUser = JSON.parse(storedUserJson);
+    
+    let storedUser;
+    try {
+        storedUser = JSON.parse(storedUserJson);
+    } catch (e) {
+        console.error("Could not parse user for refresh", e);
+        return;
+    }
+    
     if (!storedUser?.id) return;
     
     try {
@@ -89,11 +123,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const usersRef = collection(db, "users");
       
-      // Try to find user by email first
       const emailQuery = query(usersRef, where("email", "==", identifier), limit(1));
       let querySnapshot = await getDocs(emailQuery);
 
-      // If not found by email, try by username
       if (querySnapshot.empty) {
           const usernameQuery = query(usersRef, where("username", "==", identifier), limit(1));
           querySnapshot = await getDocs(usernameQuery);
