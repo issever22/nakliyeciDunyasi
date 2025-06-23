@@ -12,7 +12,8 @@ import {
   Timestamp,
   DocumentData,
   doc,
-  updateDoc
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore';
 
 const REQUESTS_COLLECTION = 'membershipRequests';
@@ -66,3 +67,16 @@ export const updateMembershipRequestStatus = async (requestId: string, status: M
         return false;
     }
 };
+
+export const deleteMembershipRequest = async (requestId: string): Promise<boolean> => {
+    try {
+        const docRef = doc(db, REQUESTS_COLLECTION, requestId);
+        await deleteDoc(docRef);
+        return true;
+    } catch (error) {
+        console.error(`Error deleting membership request ${requestId}:`, error);
+        return false;
+    }
+};
+
+    

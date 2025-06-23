@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Handshake, Eye, User, Building, Phone, Mail, MessageCircle, FileText, CalendarIcon, UserPlus, Star, CreditCard, Search } from 'lucide-react';
+import { Loader2, Handshake, Eye, User, Building, Phone, Mail, MessageCircle, FileText, CalendarIcon, UserPlus, Star, CreditCard, Search, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isValid } from "date-fns";
 import { tr } from 'date-fns/locale';
 import type { MembershipRequest, CompanyUserProfile, MembershipSetting } from '@/types';
-import { getAllMembershipRequests, updateMembershipRequestStatus } from '@/services/membershipRequestsService';
+import { getAllMembershipRequests, updateMembershipRequestStatus, deleteMembershipRequest } from '@/services/membershipRequestsService';
 import { getUserProfile, updateUserProfile } from '@/services/authService';
 import { getAllMemberships } from '@/services/membershipsService';
 import { addCompanyNote } from '@/services/companyNotesService';
@@ -41,9 +41,13 @@ export default function MembershipRequestsPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<MembershipRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
   const [selectedRequest, setSelectedRequest] = useState<MembershipRequest | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isMakeMemberModalOpen, setIsMakeMemberModalOpen] = useState(false);
+  
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<MembershipRequest | null>(null);
 
   const [companyProfile, setCompanyProfile] = useState<CompanyUserProfile | null>(null);
   const [membershipOptions, setMembershipOptions] = useState<MembershipSetting[]>([]);
@@ -77,28 +81,14 @@ export default function MembershipRequestsPage() {
   
   const filteredRequests = useMemo(() => {
     return requests.filter(request => {
-        // User Type Filter
         if (userTypeFilter === 'registered' && !request.userId) return false;
         if (userTypeFilter === 'guest' && request.userId) return false;
-
-        // Status Filter
         if (statusFilter !== 'all' && request.status !== statusFilter) return false;
-
-        // Search Term Filter
         if (searchTerm) {
             const lowerCaseSearch = searchTerm.toLowerCase();
-            const searchIn = [
-                request.name,
-                request.phone,
-                request.email || '',
-                request.companyName || '',
-            ].join(' ').toLowerCase();
-
-            if (!searchIn.includes(lowerCaseSearch)) {
-                return false;
-            }
+            const searchIn = [ request.name, request.phone, request.email || '', request.companyName || '' ].join(' ').toLowerCase();
+            if (!searchIn.includes(lowerCaseSearch)) return false;
         }
-
         return true;
     });
   }, [requests, searchTerm, userTypeFilter, statusFilter]);
@@ -127,7 +117,6 @@ export default function MembershipRequestsPage() {
       params.append('phone', selectedRequest.phone);
       if(selectedRequest.email) params.append('email', selectedRequest.email);
       if(selectedRequest.companyName) params.append('companyName', selectedRequest.companyName);
-
       router.push(`/admin/users/add?${params.toString()}`);
   }
 
@@ -136,13 +125,9 @@ export default function MembershipRequestsPage() {
       if(pkg) {
           setSelectedMembership(pkg);
           const newEndDate = new Date();
-           if (pkg.durationUnit === 'Ay') {
-                newEndDate.setMonth(newEndDate.getMonth() + pkg.duration);
-            } else if (pkg.durationUnit === 'Yıl') {
-                newEndDate.setFullYear(newEndDate.getFullYear() + pkg.duration);
-            } else if (pkg.durationUnit === 'Gün') {
-                newEndDate.setDate(newEndDate.getDate() + pkg.duration);
-            }
+           if (pkg.durationUnit === 'Ay') newEndDate.setMonth(newEndDate.getMonth() + pkg.duration);
+           else if (pkg.durationUnit === 'Yıl') newEndDate.setFullYear(newEndDate.getFullYear() + pkg.duration);
+           else if (pkg.durationUnit === 'Gün') newEndDate.setDate(newEndDate.getDate() + pkg.duration);
           setMembershipEndDate(newEndDate);
       }
   }
@@ -162,26 +147,22 @@ export default function MembershipRequestsPage() {
                return;
           }
 
-          // 1. Update user profile
           const profileUpdateSuccess = await updateUserProfile(companyProfile.id, {
               membershipStatus: selectedMembership.name as any,
               membershipEndDate: format(membershipEndDate, 'yyyy-MM-dd')
           });
           if(!profileUpdateSuccess) throw new Error("Firma profili güncellenemedi.");
 
-          // 2. Add payment note
-          const noteSuccess = await addCompanyNote(companyProfile.id, {
+          await addCompanyNote(companyProfile.id, {
               title: `Üyelik Satışı: ${selectedMembership.name}`,
               content: `"${selectedRequest.name}" talebi üzerinden "${selectedMembership.name}" paketi ${fee} TL karşılığında satıldı. Bitiş tarihi: ${format(membershipEndDate, 'dd.MM.yyyy')}`,
               author: 'Admin',
               type: 'payment'
           });
-          if(!noteSuccess) console.warn("Ödeme notu oluşturulamadı ancak üyelik güncellendi.");
+          
+          await deleteMembershipRequest(selectedRequest.id);
 
-          // 3. Update request status
-          await updateMembershipRequestStatus(selectedRequest.id, 'converted');
-
-          toast({ title: "Başarılı", description: `${companyProfile.name} firması üye yapıldı.` });
+          toast({ title: "Başarılı", description: `${companyProfile.name} firması üye yapıldı ve talep listeden kaldırıldı.` });
           setIsMakeMemberModalOpen(false);
           fetchRequests();
 
@@ -195,16 +176,33 @@ export default function MembershipRequestsPage() {
       }
   }
 
-  const handleStatusChange = async (requestId: string, status: MembershipRequest['status']) => {
-      const success = await updateMembershipRequestStatus(requestId, status);
-      if(success) {
-          toast({title: "Başarılı", description: "Talep durumu güncellendi."});
-          fetchRequests();
+  const handleStatusChange = async (request: MembershipRequest, status: MembershipRequest['status']) => {
+      if (status === 'converted') {
+          setRequestToDelete(request);
+          setIsDeleteConfirmOpen(true);
       } else {
-          toast({title: "Hata", description: "Durum güncellenemedi.", variant: "destructive"});
+        const success = await updateMembershipRequestStatus(request.id, status);
+        if(success) {
+            toast({title: "Başarılı", description: "Talep durumu güncellendi."});
+            fetchRequests();
+        } else {
+            toast({title: "Hata", description: "Durum güncellenemedi.", variant: "destructive"});
+        }
       }
   };
 
+  const handleDeleteRequest = async () => {
+    if (!requestToDelete) return;
+    const success = await deleteMembershipRequest(requestToDelete.id);
+    if(success) {
+        toast({ title: "Talep Silindi", description: `"${requestToDelete.name}" adlı talep listeden kaldırıldı.`, variant: "destructive"});
+        fetchRequests();
+    } else {
+        toast({ title: "Hata", description: "Talep silinemedi.", variant: "destructive" });
+    }
+    setIsDeleteConfirmOpen(false);
+    setRequestToDelete(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -217,18 +215,11 @@ export default function MembershipRequestsPage() {
            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
                 <div className="relative w-full sm:max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="İsteklerde ara (isim, firma, tel...)"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-8 w-full"
-                    />
+                    <Input placeholder="İsteklerde ara (isim, firma, tel...)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-8 w-full" />
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Select value={userTypeFilter} onValueChange={(v) => setUserTypeFilter(v as any)}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Kullanıcı Tipi" />
-                        </SelectTrigger>
+                        <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Kullanıcı Tipi" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Tüm Kullanıcılar</SelectItem>
                             <SelectItem value="registered">Kayıtlı Firmalar</SelectItem>
@@ -236,9 +227,7 @@ export default function MembershipRequestsPage() {
                         </SelectContent>
                     </Select>
                     <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Durum" />
-                        </SelectTrigger>
+                        <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Durum" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Tüm Durumlar</SelectItem>
                             <SelectItem value="new">Yeni</SelectItem>
@@ -250,11 +239,7 @@ export default function MembershipRequestsPage() {
                 </div>
             </div>
           {isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
+            <div className="space-y-4"> <Skeleton className="h-12 w-full" /> <Skeleton className="h-16 w-full" /> <Skeleton className="h-16 w-full" /> </div>
           ) : (
             <div className="rounded-md border overflow-x-auto">
               <Table>
@@ -265,7 +250,7 @@ export default function MembershipRequestsPage() {
                     <TableHead>Firma Adı</TableHead>
                     <TableHead>Tarih</TableHead>
                     <TableHead>Durum</TableHead>
-                    <TableHead className="w-[100px] text-right">Eylemler</TableHead>
+                    <TableHead className="w-[120px] text-right">Eylemler</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -276,10 +261,8 @@ export default function MembershipRequestsPage() {
                       <TableCell>{request.companyName || '-'}</TableCell>
                       <TableCell>{format(parseISO(request.createdAt), "dd.MM.yyyy HH:mm", { locale: tr })}</TableCell>
                       <TableCell>
-                         <Select value={request.status} onValueChange={(value) => handleStatusChange(request.id, value as MembershipRequest['status'])}>
-                            <SelectTrigger className="w-[150px] h-8 text-xs">
-                                <SelectValue />
-                            </SelectTrigger>
+                         <Select value={request.status} onValueChange={(value) => handleStatusChange(request, value as MembershipRequest['status'])}>
+                            <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="new">Yeni</SelectItem>
                                 <SelectItem value="contacted">İletişime Geçildi</SelectItem>
@@ -288,18 +271,25 @@ export default function MembershipRequestsPage() {
                             </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleViewRequest(request)} title="Detayları Gör">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                      <TableCell className="text-right flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleViewRequest(request)} title="Detayları Gör"><Eye className="h-4 w-4" /></Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" title="Talebi Sil"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Talebi Silmek İstediğinize Emin Misiniz?</AlertDialogTitle>
+                                    <AlertDialogDescription>"{request.name}" adlı kişinin talebini kalıcı olarak sileceksiniz. Bu işlem geri alınamaz.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>İptal</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => { setRequestToDelete(request); handleDeleteRequest(); }}>Onayla ve Sil</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   )) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                        {searchTerm || statusFilter !== 'all' || userTypeFilter !== 'all' ? 'Arama kriterlerine uygun talep bulunamadı.' : 'Henüz üyelik talebi bulunmamaktadır.'}
-                      </TableCell>
-                    </TableRow>
+                    <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">{searchTerm || statusFilter !== 'all' || userTypeFilter !== 'all' ? 'Arama kriterlerine uygun talep bulunamadı.' : 'Henüz üyelik talebi bulunmamaktadır.'}</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -308,38 +298,25 @@ export default function MembershipRequestsPage() {
         </CardContent>
       </Card>
       
-      {/* View Request Modal */}
       {selectedRequest && (
         <Dialog open={isViewModalOpen} onOpenChange={(open) => !open && setIsViewModalOpen(false)}>
           <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Üyelik Talebi: {selectedRequest.name}</DialogTitle>
-              <DialogDescription>
-                  {format(parseISO(selectedRequest.createdAt), "dd MMMM yyyy, HH:mm", { locale: tr })}
-              </DialogDescription>
+              <DialogDescription>{format(parseISO(selectedRequest.createdAt), "dd MMMM yyyy, HH:mm", { locale: tr })}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
                 <p><strong className="text-muted-foreground w-28 inline-block">Ad Soyad:</strong> {selectedRequest.name}</p>
                 <p><strong className="text-muted-foreground w-28 inline-block">Telefon:</strong> {selectedRequest.phone}</p>
                 <p><strong className="text-muted-foreground w-28 inline-block">E-posta:</strong> {selectedRequest.email || '-'}</p>
                 <p><strong className="text-muted-foreground w-28 inline-block">Firma Adı:</strong> {selectedRequest.companyName || '-'}</p>
-                <div className="border-t pt-3">
-                     <p className="font-semibold mb-1">Talep Detayları:</p>
-                     <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedRequest.details}</p>
-                </div>
+                <div className="border-t pt-3"><p className="font-semibold mb-1">Talep Detayları:</p><p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedRequest.details}</p></div>
                 {companyProfile && <p className="text-sm text-green-600 border-t pt-3"><User className="inline h-4 w-4 mr-1"/> Bu talep mevcut bir firma ({companyProfile.name}) ile ilişkili.</p>}
             </div>
             <DialogFooter className="sm:justify-between flex-wrap gap-2">
+                <div className="flex gap-2"><Button asChild size="sm"><a href={`tel:${selectedRequest.phone}`}><Phone className="mr-2 h-4 w-4"/> Ara</a></Button><Button asChild size="sm" variant="secondary"><a href={`https://wa.me/${formatWhatsAppNumber(selectedRequest.phone)}`} target="_blank"><MessageCircle className="mr-2 h-4 w-4"/> WhatsApp</a></Button></div>
                 <div className="flex gap-2">
-                    <Button asChild size="sm"><a href={`tel:${selectedRequest.phone}`}><Phone className="mr-2 h-4 w-4"/> Ara</a></Button>
-                    <Button asChild size="sm" variant="secondary"><a href={`https://wa.me/${formatWhatsAppNumber(selectedRequest.phone)}`} target="_blank"><MessageCircle className="mr-2 h-4 w-4"/> WhatsApp</a></Button>
-                </div>
-                <div className="flex gap-2">
-                    {companyProfile ? (
-                        <Button onClick={handleMakeMemberClick} size="sm" variant="default" className="bg-green-600 hover:bg-green-700"><Star className="mr-2 h-4 w-4"/> Üye Yap</Button>
-                    ) : (
-                         <Button onClick={handleCreateCompanyClick} size="sm"><UserPlus className="mr-2 h-4 w-4"/> Firma Oluştur</Button>
-                    )}
+                    {companyProfile ? ( <Button onClick={handleMakeMemberClick} size="sm" variant="default" className="bg-green-600 hover:bg-green-700"><Star className="mr-2 h-4 w-4"/> Üye Yap</Button>) : (<Button onClick={handleCreateCompanyClick} size="sm"><UserPlus className="mr-2 h-4 w-4"/> Firma Oluştur</Button>)}
                      <DialogClose asChild><Button variant="outline" size="sm">Kapat</Button></DialogClose>
                 </div>
             </DialogFooter>
@@ -347,62 +324,48 @@ export default function MembershipRequestsPage() {
         </Dialog>
       )}
 
-      {/* Make Member Modal */}
       {isMakeMemberModalOpen && companyProfile && (
         <Dialog open={isMakeMemberModalOpen} onOpenChange={(open) => !open && setIsMakeMemberModalOpen(false)}>
-            <DialogContent>
-                <form onSubmit={handleConfirmMembership}>
-                    <DialogHeader>
-                        <DialogTitle>Üyelik Ata: {companyProfile.name}</DialogTitle>
-                        <DialogDescription>Firma için bir üyelik paketi seçin, bitiş tarihini ve ücreti onaylayın.</DialogDescription>
-                    </DialogHeader>
+            <form onSubmit={handleConfirmMembership}>
+                <DialogHeader>
+                    <DialogTitle>Üyelik Ata: {companyProfile.name}</DialogTitle>
+                    <DialogDescription>Firma için bir üyelik paketi seçin, bitiş tarihini ve ücreti onaylayın.</DialogDescription>
+                </DialogHeader>
                      <div className="grid gap-4 py-4">
-                        <div className="space-y-1.5">
-                            <Label>Üyelik Paketi (*)</Label>
-                            <Select onValueChange={handleMembershipPackageSelect} required>
-                                <SelectTrigger><SelectValue placeholder="Paket seçin..."/></SelectTrigger>
-                                <SelectContent>
-                                    {membershipOptions.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.name} ({opt.duration} {opt.durationUnit})</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <div className="space-y-1.5"><Label>Üyelik Paketi (*)</Label><Select onValueChange={handleMembershipPackageSelect} required><SelectTrigger><SelectValue placeholder="Paket seçin..."/></SelectTrigger><SelectContent>{membershipOptions.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.name} ({opt.duration} {opt.durationUnit})</SelectItem>)}</SelectContent></Select></div>
                         {selectedMembership && (
                             <>
                                 <div className="space-y-1.5">
                                     <Label>Üyelik Bitiş Tarihi</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <Button variant={"outline"} className="w-full justify-start text-left font-normal">
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {membershipEndDate ? format(membershipEndDate, "PPP", { locale: tr }) : <span>Tarih seçin</span>}
-                                        </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar mode="single" selected={membershipEndDate} onSelect={setMembershipEndDate} initialFocus locale={tr} />
-                                        </PopoverContent>
-                                    </Popover>
+                                    <Popover><PopoverTrigger asChild><Button variant={"outline"} className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{membershipEndDate ? format(membershipEndDate, "PPP", { locale: tr }) : <span>Tarih seçin</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={membershipEndDate} onSelect={setMembershipEndDate} initialFocus locale={tr} /></PopoverContent></Popover>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="fee">Alınan Ücret (TL) (*)</Label>
-                                    <div className="relative">
-                                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
-                                      <Input id="fee" type="number" value={membershipFee} onChange={e => setMembershipFee(e.target.value)} required placeholder="Örn: 249.90" className="pl-10"/>
-                                    </div>
-                                </div>
+                                <div className="space-y-1.5"><Label htmlFor="fee">Alınan Ücret (TL) (*)</Label><div className="relative"><CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/><Input id="fee" type="number" value={membershipFee} onChange={e => setMembershipFee(e.target.value)} required placeholder="Örn: 249.90" className="pl-10"/></div></div>
                             </>
                         )}
                     </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="outline" type="button" disabled={isSubmitting}>İptal</Button></DialogClose>
-                        <Button type="submit" disabled={isSubmitting || !selectedMembership}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            Onayla ve Üye Yap
-                        </Button>
-                    </DialogFooter>
+                    <DialogFooter><DialogClose asChild><Button variant="outline" type="button" disabled={isSubmitting}>İptal</Button></DialogClose><Button type="submit" disabled={isSubmitting || !selectedMembership}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Onayla ve Üye Yap</Button></DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog open={isDeleteConfirmOpen && requestToDelete?.status === 'converted'} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Onayla ve Sil</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Bu talebi "Üye Yapıldı" olarak işaretleyip listeden kalıcı olarak kaldırmak istediğinize emin misiniz? Bu eylem geri alınamaz.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRequestToDelete(null)}>İptal</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteRequest}>Onayla</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
+
+    
