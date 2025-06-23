@@ -176,6 +176,18 @@ export default function MembershipRequestsPage() {
       }
   }
 
+  const handleDeleteRequest = async (request: MembershipRequest) => {
+    const success = await deleteMembershipRequest(request.id);
+    if(success) {
+        toast({ title: "Talep Silindi", description: `"${request.name}" adlı talep listeden kaldırıldı.`, variant: "destructive"});
+        fetchRequests();
+    } else {
+        toast({ title: "Hata", description: "Talep silinemedi.", variant: "destructive" });
+    }
+    setIsDeleteConfirmOpen(false);
+    setRequestToDelete(null);
+  };
+
   const handleStatusChange = async (request: MembershipRequest, status: MembershipRequest['status']) => {
       if (status === 'converted') {
           setRequestToDelete(request);
@@ -189,19 +201,6 @@ export default function MembershipRequestsPage() {
             toast({title: "Hata", description: "Durum güncellenemedi.", variant: "destructive"});
         }
       }
-  };
-
-  const handleDeleteRequest = async () => {
-    if (!requestToDelete) return;
-    const success = await deleteMembershipRequest(requestToDelete.id);
-    if(success) {
-        toast({ title: "Talep Silindi", description: `"${requestToDelete.name}" adlı talep listeden kaldırıldı.`, variant: "destructive"});
-        fetchRequests();
-    } else {
-        toast({ title: "Hata", description: "Talep silinemedi.", variant: "destructive" });
-    }
-    setIsDeleteConfirmOpen(false);
-    setRequestToDelete(null);
   };
 
   return (
@@ -282,7 +281,7 @@ export default function MembershipRequestsPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>İptal</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => { setRequestToDelete(request); handleDeleteRequest(); }}>Onayla ve Sil</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => handleDeleteRequest(request)}>Onayla ve Sil</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
@@ -326,12 +325,13 @@ export default function MembershipRequestsPage() {
 
       {isMakeMemberModalOpen && companyProfile && (
         <Dialog open={isMakeMemberModalOpen} onOpenChange={(open) => !open && setIsMakeMemberModalOpen(false)}>
-            <form onSubmit={handleConfirmMembership}>
-                <DialogHeader>
-                    <DialogTitle>Üyelik Ata: {companyProfile.name}</DialogTitle>
-                    <DialogDescription>Firma için bir üyelik paketi seçin, bitiş tarihini ve ücreti onaylayın.</DialogDescription>
-                </DialogHeader>
-                     <div className="grid gap-4 py-4">
+            <DialogContent>
+                <form onSubmit={handleConfirmMembership}>
+                    <DialogHeader>
+                        <DialogTitle>Üyelik Ata: {companyProfile.name}</DialogTitle>
+                        <DialogDescription>Firma için bir üyelik paketi seçin, bitiş tarihini ve ücreti onaylayın.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
                         <div className="space-y-1.5"><Label>Üyelik Paketi (*)</Label><Select onValueChange={handleMembershipPackageSelect} required><SelectTrigger><SelectValue placeholder="Paket seçin..."/></SelectTrigger><SelectContent>{membershipOptions.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.name} ({opt.duration} {opt.durationUnit})</SelectItem>)}</SelectContent></Select></div>
                         {selectedMembership && (
                             <>
@@ -343,7 +343,10 @@ export default function MembershipRequestsPage() {
                             </>
                         )}
                     </div>
-                    <DialogFooter><DialogClose asChild><Button variant="outline" type="button" disabled={isSubmitting}>İptal</Button></DialogClose><Button type="submit" disabled={isSubmitting || !selectedMembership}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Onayla ve Üye Yap</Button></DialogFooter>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline" type="button" disabled={isSubmitting}>İptal</Button></DialogClose>
+                        <Button type="submit" disabled={isSubmitting || !selectedMembership}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Onayla ve Üye Yap</Button>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
@@ -359,7 +362,7 @@ export default function MembershipRequestsPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setRequestToDelete(null)}>İptal</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteRequest}>Onayla</AlertDialogAction>
+                <AlertDialogAction onClick={() => requestToDelete && handleDeleteRequest(requestToDelete)}>Onayla</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
