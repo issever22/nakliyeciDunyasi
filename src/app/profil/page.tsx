@@ -205,7 +205,7 @@ export default function ProfilePage() {
                     )}
                   >
                     <TabsTrigger value="details" className="text-xs sm:text-sm"><Building className="mr-1.5 h-4 w-4 hidden sm:inline"/>Firma Detayları</TabsTrigger>
-                    <TabsTrigger value="myListings" className="text-xs sm:text-sm"><ListChecks className="mr-1.5 h-4 w-4 hidden sm:inline"/>Yük İlanlarım</TabsTrigger>
+                    <TabsTrigger value="myListings" className="text-xs sm:text-sm"><ListChecks className="mr-1.5 h-4 w-4 hidden sm:inline"/>İlanlarım</TabsTrigger>
                     <TabsTrigger value="vehicles" className="text-xs sm:text-sm"><Truck className="mr-1.5 h-4 w-4 hidden sm:inline"/>Araçlarım</TabsTrigger>
                     <TabsTrigger value="authDocs" className="text-xs sm:text-sm"><FileTextIcon className="mr-1.5 h-4 w-4 hidden sm:inline"/>Belgelerim</TabsTrigger>
                     <TabsTrigger value="membership" className="text-xs sm:text-sm"><Star className="mr-1.5 h-4 w-4 hidden sm:inline"/>Üyeliğim</TabsTrigger>
