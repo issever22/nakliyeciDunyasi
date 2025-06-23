@@ -259,15 +259,6 @@ export default function AdminDashboardPage() {
             </CardContent>
         </Card>
       </div>
-
-       <div className="mt-10 p-4 border-l-4 border-destructive bg-destructive/10 rounded-md">
-        <h3 className="text-lg font-semibold text-destructive mb-1">Güvenlik Uyarısı</h3>
-        <p className="text-sm text-destructive/80">
-          Bu admin paneli şu anda <strong>sadece gösterim amaçlı</strong> istemci tarafı kimlik doğrulaması kullanmaktadır. 
-          Bu, <strong>üretim kullanımı için GÜVENLİ DEĞİLDİR</strong>. 
-          Gerçek bir uygulama için güçlü sunucu tarafı kimlik doğrulama ve yetkilendirme uygulayın.
-        </p>
-      </div>
       
     </div>
   );
