@@ -107,7 +107,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
           console.warn("!!! EKSİK FIRESTORE INDEX (İlanlarım Sekmesi) !!!");
           console.warn("!!! Düzeltmek için, aşağıdaki bağlantıyı ziyaret ederek bileşik dizini oluşturun:");
           console.warn(`!!! ${result.error.indexCreationUrl}`);
-          console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
           toast({
             title: "Firestore Index Hatası (İlanlarım)",
             description: `Eksik bir Firestore dizini var. Tarayıcı konsolunu kontrol edin. URL: ${result.error.indexCreationUrl}`,
@@ -186,7 +185,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     const requiredFieldsBase: (keyof Freight)[] = ['freightType', 'companyName', 'contactPerson', 'mobilePhone', 'originCity', 'destinationCity', 'loadingDate', 'description'];
     let specificRequiredFields: (keyof Freight)[] = [];
 
-    if (currentFormData.freightType === 'Yük') { // Changed 'Ticari'
+    if (currentFormData.freightType === 'Yük') { 
         specificRequiredFields = ['cargoType', 'vehicleNeeded', 'loadingType', 'cargoForm', 'cargoWeight'];
     } else if (currentFormData.freightType === 'Evden Eve') {
         specificRequiredFields = ['residentialTransportType', 'residentialPlaceType', 'residentialElevatorStatus', 'residentialFloorLevel'];
@@ -198,7 +197,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
     for (const field of allRequiredFields) {
         let valueToCheck: any;
         switch (currentFormData.freightType) {
-            case 'Yük': valueToCheck = (currentFormData as Partial<CommercialFreight>)[field as keyof CommercialFreight]; break; // Changed 'Ticari'
+            case 'Yük': valueToCheck = (currentFormData as Partial<CommercialFreight>)[field as keyof CommercialFreight]; break;
             case 'Evden Eve': valueToCheck = (currentFormData as Partial<ResidentialFreight>)[field as keyof ResidentialFreight]; break;
             case 'Boş Araç': valueToCheck = (currentFormData as Partial<EmptyVehicleListing>)[field as keyof EmptyVehicleListing]; break;
             default: valueToCheck = (currentFormData as any)[field];
@@ -221,7 +220,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
       loadingDate: currentFormData.loadingDate ? format(parseISO(currentFormData.loadingDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
     } as FreightUpdateData; 
 
-    const { id, postedAt, userId: listingUserId, ...updatePayloadForService } = dataPayload;
+    const { id, postedAt, userId: listingUserId, isActive, ...updatePayloadForService } = dataPayload;
 
 
     try {
@@ -324,8 +323,8 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
             {userListings.map((listing) => (
               <TableRow key={listing.id} className="hover:bg-muted/50">
                 <TableCell>
-                  <Badge variant={listing.freightType === 'Yük' ? 'default' : (listing.freightType === 'Evden Eve' ? 'secondary' : 'outline')} className="text-xs"> {/* Changed 'Ticari' to 'Yük' */}
-                    {listing.freightType === 'Yük' ? <Truck size={14} className="mr-1.5"/> : (listing.freightType === 'Evden Eve' ? <Home size={14} className="mr-1.5"/> : <PackageIcon size={14} className="mr-1.5" />)} {/* Changed 'Ticari' to 'Yük' */}
+                  <Badge variant={listing.freightType === 'Yük' ? 'default' : (listing.freightType === 'Evden Eve' ? 'secondary' : 'outline')} className="text-xs">
+                    {listing.freightType === 'Yük' ? <Truck size={14} className="mr-1.5"/> : (listing.freightType === 'Evden Eve' ? <Home size={14} className="mr-1.5"/> : <PackageIcon size={14} className="mr-1.5" />)}
                     {listing.freightType}
                   </Badge>
                 </TableCell>
@@ -425,9 +424,9 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
               </CardContent>
             </Card>
 
-            {currentFormData.freightType === 'Yük' && ( // Changed 'Ticari'
+            {currentFormData.freightType === 'Yük' && (
               <Card className="border shadow-sm">
-                  <CardHeader className="bg-muted/30"><CardTitle className="text-base">Yük Detayları</CardTitle></CardHeader> {/* Changed */}
+                  <CardHeader className="bg-muted/30"><CardTitle className="text-base">Yük Detayları</CardTitle></CardHeader>
                   <CardContent className="pt-6 space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-1.5">
@@ -636,10 +635,6 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
               <Label htmlFor="dlg-my-listingDescription">Açıklama (*)</Label>
               <Textarea id="dlg-my-listingDescription" value={currentFormData.description || ''} onChange={(e) => setCurrentFormData({...currentFormData, description: e.target.value})} required rows={3}/>
             </div>
-            <div className="flex items-center space-x-2 pt-2">
-                <Switch id="dlg-my-listingIsActive" checked={currentFormData.isActive === undefined ? true : currentFormData.isActive} onCheckedChange={(checked) => setCurrentFormData({...currentFormData, isActive: checked})} />
-              <Label htmlFor="dlg-my-listingIsActive" className="font-medium cursor-pointer">İlan Aktif mi?</Label>
-            </div>
           </div>
           <DialogFooter className="p-6 pt-0 border-t sticky bottom-0 bg-background">
                 <DialogClose asChild>
@@ -656,5 +651,7 @@ export default function MyListingsTab({ userId }: MyListingsTabProps) {
   </Card>
   );
 }
+
+    
 
     
