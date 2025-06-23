@@ -64,9 +64,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    if (!user?.id) return;
+    const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
+    if (!storedUserJson) return;
+    const storedUser = JSON.parse(storedUserJson);
+    if (!storedUser?.id) return;
+    
     try {
-        const freshProfile = await getUserProfileServerAction(user.id);
+        const freshProfile = await getUserProfileServerAction(storedUser.id);
         if (freshProfile) {
             setUser(freshProfile);
             localStorage.setItem(USER_SESSION_KEY, JSON.stringify(freshProfile));
@@ -77,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Failed to refresh user:", error);
         toast({ title: "Veri Yenileme Hatası", description: "Profil bilgileri yenilenirken bir sorun oluştu.", variant: "destructive" });
     }
-  }, [user, logout, toast]);
+  }, [logout, toast]);
 
 
   const login = useCallback(async (identifier: string, pass: string): Promise<CompanyUserProfile | null> => {
