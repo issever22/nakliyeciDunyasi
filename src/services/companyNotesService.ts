@@ -6,6 +6,9 @@ import {
   collection, 
   addDoc, 
   getDocs, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
   query, 
   orderBy,
   Timestamp,
@@ -30,7 +33,7 @@ const convertToCompanyNote = (docData: DocumentData, id: string): CompanyNote =>
     content: data.content || '',
     author: data.author || 'Admin',
     createdAt: createdAtStr,
-    type: data.type || 'note', // Default to 'note' for older notes
+    type: data.type || 'note',
   };
 };
 
@@ -53,12 +56,36 @@ export const addCompanyNote = async (companyId: string, data: Omit<CompanyNote, 
     const notesRef = collection(db, USERS_COLLECTION, companyId, NOTES_SUBCOLLECTION);
     const docRef = await addDoc(notesRef, {
         ...data,
-        type: data.type || 'note', // Save with type, default to 'note'
+        type: data.type || 'note',
         createdAt: Timestamp.fromDate(new Date()),
     });
     return docRef.id;
   } catch (error) {
     console.error(`Error adding note for company ${companyId}: `, error);
     return null;
+  }
+};
+
+export const updateCompanyNote = async (companyId: string, noteId: string, data: Partial<Omit<CompanyNote, 'id' | 'createdAt' | 'author'>>): Promise<boolean> => {
+  if (!companyId || !noteId) return false;
+  try {
+    const noteRef = doc(db, USERS_COLLECTION, companyId, NOTES_SUBCOLLECTION, noteId);
+    await updateDoc(noteRef, data);
+    return true;
+  } catch (error) {
+    console.error(`Error updating note ${noteId} for company ${companyId}: `, error);
+    return false;
+  }
+};
+
+export const deleteCompanyNote = async (companyId: string, noteId: string): Promise<boolean> => {
+  if (!companyId || !noteId) return false;
+  try {
+    const noteRef = doc(db, USERS_COLLECTION, companyId, NOTES_SUBCOLLECTION, noteId);
+    await deleteDoc(noteRef);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting note ${noteId} for company ${companyId}: `, error);
+    return false;
   }
 };

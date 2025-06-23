@@ -6,6 +6,9 @@ import {
   collection, 
   addDoc, 
   getDocs, 
+  doc,
+  updateDoc,
+  deleteDoc,
   query, 
   orderBy,
   Timestamp,
@@ -47,19 +50,41 @@ export const getDirectoryContactNotes = async (contactId: string): Promise<Compa
   }
 };
 
-export const addDirectoryContactNote = async (contactId: string, data: Omit<CompanyNote, 'id' | 'createdAt'>): Promise<boolean> => {
-  if (!contactId) return false;
+export const addDirectoryContactNote = async (contactId: string, data: Omit<CompanyNote, 'id' | 'createdAt'>): Promise<string | null> => {
+  if (!contactId) return null;
   try {
     const notesRef = collection(db, DIRECTORY_CONTACTS_COLLECTION, contactId, NOTES_SUBCOLLECTION);
-    await addDoc(notesRef, {
+    const docRef = await addDoc(notesRef, {
         ...data,
         createdAt: Timestamp.fromDate(new Date()),
     });
-    return true;
+    return docRef.id;
   } catch (error) {
     console.error(`Error adding note for directory contact ${contactId}: `, error);
+    return null;
+  }
+};
+
+export const updateDirectoryContactNote = async (contactId: string, noteId: string, data: Partial<Omit<CompanyNote, 'id' | 'createdAt' | 'author'>>): Promise<boolean> => {
+  if (!contactId || !noteId) return false;
+  try {
+    const noteRef = doc(db, DIRECTORY_CONTACTS_COLLECTION, contactId, NOTES_SUBCOLLECTION, noteId);
+    await updateDoc(noteRef, data);
+    return true;
+  } catch (error) {
+    console.error(`Error updating note ${noteId} for contact ${contactId}: `, error);
     return false;
   }
 };
 
-    
+export const deleteDirectoryContactNote = async (contactId: string, noteId: string): Promise<boolean> => {
+  if (!contactId || !noteId) return false;
+  try {
+    const noteRef = doc(db, DIRECTORY_CONTACTS_COLLECTION, contactId, NOTES_SUBCOLLECTION, noteId);
+    await deleteDoc(noteRef);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting note ${noteId} for contact ${contactId}: `, error);
+    return false;
+  }
+};
