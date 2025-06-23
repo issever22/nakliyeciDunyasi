@@ -8,9 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { loginAdmin } from '@/services/authService';
 
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = '123'; 
 const ADMIN_AUTH_KEY = 'isAdminAuthenticated';
 
 export default function AdminLoginForm() {
@@ -21,44 +20,23 @@ export default function AdminLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
 
-    // Simulate async check (can be removed if not needed for UI, but helps with perceived responsiveness)
-    setTimeout(() => {
-      if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem(ADMIN_AUTH_KEY, 'true');
-            // Log to confirm item is set and what its value is immediately after setting
-            console.log('ADMIN_AUTH_KEY set in localStorage. Value:', localStorage.getItem(ADMIN_AUTH_KEY));
-          } catch (e) {
-            console.error('Failed to set ADMIN_AUTH_KEY in localStorage:', e);
-            toast({ 
-              title: "LocalStorage Hatası", 
-              description: "Oturum bilgisi kaydedilemedi. Tarayıcı ayarlarınızı (örneğin, gizli modda depolama izni) kontrol edin veya site verilerini temizlemeyi deneyin.", 
-              variant: "destructive",
-              duration: 7000 // Show for longer
-            });
-            setIsLoading(false);
-            return; // Stop further execution if localStorage fails
-          }
-        } else {
-          console.warn('window object not available when trying to set localStorage for admin auth. This should not happen in a client component event handler.');
-           toast({ title: "İstemci Hatası", description: "Beklenmedik bir durum oluştu, lütfen tekrar deneyin.", variant: "destructive" });
-           setIsLoading(false);
-           return;
-        }
-        
-        toast({ title: "Giriş Başarılı", description: "Panele yönlendiriliyorsunuz..." });
-        router.push('/admin/dashboard');
-        // setIsLoading(false) is not strictly necessary here as navigation will unmount or change context
-      } else {
-        toast({ title: "Giriş Başarısız", description: "Geçersiz kullanıcı adı veya şifre.", variant: "destructive" });
-        setIsLoading(false);
-      }
-    }, 500); 
+    try {
+      const adminProfile = await loginAdmin(username, password);
+      
+      localStorage.setItem(ADMIN_AUTH_KEY, 'true'); 
+      localStorage.setItem('admin_profile_info', JSON.stringify({ name: adminProfile.name, role: adminProfile.role }));
+
+      toast({ title: "Giriş Başarılı", description: `Hoş geldin, ${adminProfile.name}! Panele yönlendiriliyorsunuz...` });
+      router.push('/admin/dashboard');
+      
+    } catch (error: any) {
+       toast({ title: "Giriş Başarısız", description: error.message || "Bilinmeyen bir hata oluştu.", variant: "destructive" });
+       setIsLoading(false);
+    } 
   };
 
   return (

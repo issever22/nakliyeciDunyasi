@@ -3,7 +3,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory, CompanyFilterOptions, SponsorshipLocation } from '@/types';
+import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory, CompanyFilterOptions, SponsorshipLocation, AdminProfile } from '@/types';
 import {
   collection,
   doc,
@@ -90,6 +90,34 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
     membershipEndDate: membershipEndDateStr,
   };
 };
+
+export async function loginAdmin(userName: string, password_input: string): Promise<Omit<AdminProfile, 'password'>> {
+    const adminsRef = collection(db, "admins");
+    const q = query(adminsRef, where("userName", "==", userName));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        throw new Error("Kullanıcı adı bulunamadı.");
+    }
+
+    const adminDoc = querySnapshot.docs[0];
+    const adminData = adminDoc.data();
+
+    if (adminData.password !== password_input) {
+        throw new Error("Hatalı şifre.");
+    }
+    
+    if (adminData.isActive !== true) {
+        throw new Error("Bu yönetici hesabı aktif değil.");
+    }
+
+    const { password, ...adminProfile } = adminData;
+
+    return {
+        id: adminDoc.id,
+        ...adminProfile
+    } as Omit<AdminProfile, 'password'>;
+}
 
 export async function getPaginatedAdminUsers(options: {
   lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;

@@ -399,3 +399,12 @@ export type HeroSlide =
 
 export type HeroSlideCreationData = Omit<HeroSlide, 'id' | 'createdAt'>;
 export type HeroSlideUpdateData = Partial<Omit<HeroSlide, 'id' | 'createdAt'>>;
+
+export interface AdminProfile {
+    id: string;
+    name: string;
+    userName: string;
+    password?: string;
+    role: 'admin' | 'superAdmin';
+    isActive: boolean;
+}

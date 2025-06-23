@@ -69,6 +69,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(ADMIN_AUTH_KEY);
+      localStorage.removeItem('admin_profile_info');
     }
     setIsAdminAuthenticated(false); 
     router.push('/admin/login');
