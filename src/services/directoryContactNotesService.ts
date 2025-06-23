@@ -30,7 +30,7 @@ const convertToDirectoryContactNote = (docData: DocumentData, id: string): Compa
     content: data.content || '',
     author: data.author || 'Admin',
     createdAt: createdAtStr,
-    type: 'note', // Manual contacts can only have 'note' type
+    type: data.type || 'note',
   };
 };
 
@@ -47,13 +47,12 @@ export const getDirectoryContactNotes = async (contactId: string): Promise<Compa
   }
 };
 
-export const addDirectoryContactNote = async (contactId: string, data: Omit<CompanyNote, 'id' | 'createdAt' | 'type'>): Promise<boolean> => {
+export const addDirectoryContactNote = async (contactId: string, data: Omit<CompanyNote, 'id' | 'createdAt'>): Promise<boolean> => {
   if (!contactId) return false;
   try {
     const notesRef = collection(db, DIRECTORY_CONTACTS_COLLECTION, contactId, NOTES_SUBCOLLECTION);
     await addDoc(notesRef, {
         ...data,
-        type: 'note', // Enforce note type
         createdAt: Timestamp.fromDate(new Date()),
     });
     return true;
@@ -62,3 +61,5 @@ export const addDirectoryContactNote = async (contactId: string, data: Omit<Comp
     return false;
   }
 };
+
+    
