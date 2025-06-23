@@ -16,8 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone, Users as UsersIcon } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting, CompanyNote } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
@@ -525,7 +525,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Rehber Yönetimi</CardTitle>
+          <CardTitle className="text-2xl flex items-center gap-2"><UsersIcon className="h-6 w-6 text-primary" /> Kullanıcı Yönetimi</CardTitle>
           <CardDescription>Onaylanmış firma kayıtlarını ve iletişim bilgilerini yönetin. Kişisel notlar ekleyebilirsiniz.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -533,7 +533,7 @@ export default function UsersPage() {
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Rehberde ara (Firma, Yetkili, E-posta)..."
+                placeholder="Kullanıcı ara (Firma, Yetkili, E-posta)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-full"
@@ -541,7 +541,7 @@ export default function UsersPage() {
             </div>
             <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90">
               <Link href="/admin/users/add">
-                <PlusCircle className="mr-2 h-4 w-4" /> Yeni Kayıt Ekle
+                <PlusCircle className="mr-2 h-4 w-4" /> Yeni Firma Ekle
               </Link>
             </Button>
           </div>

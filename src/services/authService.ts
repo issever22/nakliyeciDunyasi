@@ -157,6 +157,41 @@ export async function getPaginatedAdminUsers(options: {
   }
 }
 
+export async function getActiveCompanyProfiles(): Promise<{ companies: CompanyUserProfile[], error?: { message: string; indexCreationUrl?: string } }> {
+  try {
+    const usersRef = collection(db, USERS_COLLECTION);
+    const q = query(
+      usersRef,
+      where('role', '==', 'company'),
+      where('isActive', '==', true),
+      orderBy('name', 'asc')
+    );
+    const querySnapshot = await getDocs(q);
+
+    const companies = querySnapshot.docs
+      .map(doc => convertToUserProfile(doc.data(), doc.id))
+      .filter((profile): profile is CompanyUserProfile => profile !== null);
+
+    return { companies };
+  } catch (error: any) {
+    console.error("[authService.ts - getActiveCompanyProfiles] Error:", error);
+    let errorMessage = "Aktif firmalar yüklenirken bilinmeyen bir hata oluştu.";
+    let indexCreationUrl: string | undefined = undefined;
+
+    if (error.code === 'failed-precondition') {
+        errorMessage = error.message || "Eksik Firestore dizini. Lütfen sunucu konsolunu kontrol edin.";
+        const urlRegex = /(https:\/\/console\.firebase\.google\.com\/project\/[^/]+\/firestore\/indexes\?create_composite=[^ ]+)/;
+        const match = errorMessage.match(urlRegex);
+        if (match && match[0]) {
+            indexCreationUrl = match[0];
+        }
+    } else {
+        errorMessage = error.message;
+    }
+    return { companies: [], error: { message: errorMessage, indexCreationUrl } };
+  }
+}
+
 export async function getPaginatedCompanies(options: {
   lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;
   pageSize?: number;

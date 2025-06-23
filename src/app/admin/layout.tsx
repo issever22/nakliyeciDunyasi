@@ -29,8 +29,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsRouteActive);
 
-  const isDirectoryRouteActive = useMemo(() => pathname.startsWith('/admin/users'), [pathname]);
-  const [isDirectoryOpen, setIsDirectoryOpen] = useState(isDirectoryRouteActive);
+  const isUsersRouteActive = useMemo(() => pathname.startsWith('/admin/users'), [pathname]);
+  const [isUsersOpen, setIsUsersOpen] = useState(isUsersRouteActive);
 
   const isSponsorsRouteActive = useMemo(() => pathname.startsWith('/admin/sponsors'), [pathname]);
   const [isSponsorsOpen, setIsSponsorsOpen] = useState(isSponsorsRouteActive);
@@ -58,13 +58,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     if (isSettingsRouteActive && !isSettingsOpen) {
       setIsSettingsOpen(true);
     }
-    if (isDirectoryRouteActive && !isDirectoryOpen) {
-      setIsDirectoryOpen(true);
+    if (isUsersRouteActive && !isUsersOpen) {
+      setIsUsersOpen(true);
     }
     if (isSponsorsRouteActive && !isSponsorsOpen) {
       setIsSponsorsOpen(true);
     }
-  }, [isSettingsRouteActive, isSettingsOpen, isDirectoryRouteActive, isDirectoryOpen, isSponsorsRouteActive, isSponsorsOpen]);
+  }, [isSettingsRouteActive, isSettingsOpen, isUsersRouteActive, isUsersOpen, isSponsorsRouteActive, isSponsorsOpen]);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -117,33 +117,41 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             
             <SidebarMenuItem>
               <SidebarMenuButton 
-                onClick={() => setIsDirectoryOpen(!isDirectoryOpen)} 
-                isActive={isDirectoryRouteActive} 
-                tooltip={{content: "Rehber", side: "right"}}
+                onClick={() => setIsUsersOpen(!isUsersOpen)} 
+                isActive={isUsersRouteActive} 
+                tooltip={{content: "Kullanıcılar", side: "right"}}
                 className="w-full flex justify-between items-center" 
               >
-                <div className="flex items-center gap-2"><BookUser /> <span>Rehber</span></div>
-                {isDirectoryOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                <div className="flex items-center gap-2"><Users /> <span>Kullanıcılar</span></div>
+                {isUsersOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {isDirectoryOpen && (
+            {isUsersOpen && (
               <>
                 <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/users'} tooltip={{content: "Rehber Listesi", side: "right"}}>
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/users'} tooltip={{content: "Kullanıcı Listesi", side: "right"}}>
                     <Link href="/admin/users">
-                      <List size={18}/> <span className="text-sm">Rehber Listesi</span>
+                      <List size={18}/> <span className="text-sm">Kullanıcı Listesi</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/users/add'} tooltip={{content: "Yeni Kayıt Ekle", side: "right"}}>
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/users/add'} tooltip={{content: "Yeni Firma Ekle", side: "right"}}>
                     <Link href="/admin/users/add">
-                      <PlusCircle size={18}/> <span className="text-sm">Yeni Kayıt Ekle</span>
+                      <PlusCircle size={18}/> <span className="text-sm">Yeni Firma Ekle</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </>
             )}
+
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/directory')} tooltip={{content: "Firma Rehberi", side: "right"}}>
+                <Link href="/admin/directory">
+                  <BookUser /> <span>Rehber</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
 
              <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/listings')} tooltip={{content: "İlanları Yönet", side: "right"}}>

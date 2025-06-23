@@ -164,7 +164,7 @@ function AddCompanyForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Rehbere Yeni Kayıt Ekle</CardTitle>
+            <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Yeni Firma Ekle</CardTitle>
             <div className="flex gap-2 w-full sm:w-auto">
                 <Button variant="outline" asChild className="w-full sm:w-auto">
                     <Link href="/admin/users">İptal</Link>
