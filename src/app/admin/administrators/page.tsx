@@ -34,10 +34,6 @@ export default function AdministratorsPage() {
     const adminInfo = localStorage.getItem('admin_profile_info');
     if(adminInfo) {
       try {
-         // Although the full profile is stored, we only need the ID here.
-         const parsedInfo = JSON.parse(adminInfo); 
-         // Assuming login saves the full profile with ID now. Let's adjust for that.
-         // Let's assume the profile from login has an ID.
          const profile = JSON.parse(localStorage.getItem('admin_full_profile') || '{}');
          setCurrentAdminId(profile.id || null);
       } catch (e) {
@@ -60,13 +56,14 @@ export default function AdministratorsPage() {
   useEffect(() => {
     if (editingAdmin) {
       setFormData({
+        name: editingAdmin.name,
         userName: editingAdmin.userName,
         role: editingAdmin.role,
         isActive: editingAdmin.isActive,
         password: '' // Always clear password field for editing
       });
     } else {
-      setFormData({ userName: '', role: 'admin', isActive: true, password: '' });
+      setFormData({ name: '', userName: '', role: 'admin', isActive: true, password: '' });
     }
   }, [editingAdmin, isModalOpen]);
 
@@ -82,8 +79,8 @@ export default function AdministratorsPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!formData.userName) {
-        toast({ title: "Hata", description: "Kullanıcı adı boş bırakılamaz.", variant: "destructive" });
+    if (!formData.name || !formData.userName) {
+        toast({ title: "Hata", description: "Ad Soyad ve Kullanıcı Adı boş bırakılamaz.", variant: "destructive" });
         return;
     }
     if (!editingAdmin && (!formData.password || formData.password.length < 6)) {
@@ -107,7 +104,8 @@ export default function AdministratorsPage() {
             result = await updateAdmin(editingAdmin.id, updateData);
         } else {
             result = await addAdmin({
-                userName: formData.userName,
+                name: formData.name!,
+                userName: formData.userName!,
                 password: formData.password!,
                 role: formData.role || 'admin',
                 isActive: formData.isActive === undefined ? true : formData.isActive
@@ -166,6 +164,7 @@ export default function AdministratorsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Ad Soyad</TableHead>
                     <TableHead>Kullanıcı Adı</TableHead>
                     <TableHead>Rol</TableHead>
                     <TableHead>Durum</TableHead>
@@ -175,7 +174,8 @@ export default function AdministratorsPage() {
                 <TableBody>
                   {filteredAdmins.length > 0 ? filteredAdmins.map((admin) => (
                     <TableRow key={admin.id}>
-                      <TableCell className="font-medium">{admin.userName}</TableCell>
+                      <TableCell className="font-medium">{admin.name}</TableCell>
+                      <TableCell>{admin.userName}</TableCell>
                       <TableCell><Badge variant={admin.role === 'superAdmin' ? 'default' : 'secondary'}>{admin.role}</Badge></TableCell>
                       <TableCell>
                         <Badge variant={admin.isActive ? "default" : "outline"} className={admin.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-red-500/10 text-red-700 border-red-400"}>
@@ -190,7 +190,7 @@ export default function AdministratorsPage() {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                              <AlertDialogDescription>"{admin.userName}" kullanıcısını kalıcı olarak sileceksiniz. Bu işlem geri alınamaz.</AlertDialogDescription>
+                              <AlertDialogDescription>"{admin.name}" ({admin.userName}) kullanıcısını kalıcı olarak sileceksiniz. Bu işlem geri alınamaz.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>İptal</AlertDialogCancel>
@@ -201,7 +201,7 @@ export default function AdministratorsPage() {
                       </TableCell>
                     </TableRow>
                   )) : (
-                    <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">Başka yönetici bulunmamaktadır.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Başka yönetici bulunmamaktadır.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -216,12 +216,16 @@ export default function AdministratorsPage() {
                   <DialogHeader>
                       <DialogTitle>{editingAdmin ? 'Yöneticiyi Düzenle' : 'Yeni Yönetici Ekle'}</DialogTitle>
                       <DialogDescription>
-                          {editingAdmin ? `"${editingAdmin.userName}" kullanıcısının bilgilerini düzenleyin.` : 'Yeni bir yönetici hesabı oluşturun.'}
+                          {editingAdmin ? `"${editingAdmin.name}" kullanıcısının bilgilerini düzenleyin.` : 'Yeni bir yönetici hesabı oluşturun.'}
                       </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                       <div className="space-y-1.5">
-                          <Label htmlFor="userName">Kullanıcı Adı</Label>
+                          <Label htmlFor="name">Ad Soyad (*)</Label>
+                          <Input id="name" value={formData.name || ''} onChange={e => setFormData(p => ({...p, name: e.target.value}))} required disabled={!!editingAdmin}/>
+                      </div>
+                       <div className="space-y-1.5">
+                          <Label htmlFor="userName">Kullanıcı Adı (*)</Label>
                           <Input id="userName" value={formData.userName || ''} onChange={e => setFormData(p => ({...p, userName: e.target.value}))} required disabled={!!editingAdmin}/>
                       </div>
                       <div className="space-y-1.5">
