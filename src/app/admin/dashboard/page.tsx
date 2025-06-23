@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
         ] = await Promise.all([
           getDocs(allCompaniesQuery),
           getDocs(pendingCompaniesQuery),
-          getDocs(recentCompaniesSnap),
+          getDocs(recentCompaniesQuery),
           getDocs(activeListingsQuery),
           getDocs(recentListingsQuery),
           getDocs(allRequestsQuery),
