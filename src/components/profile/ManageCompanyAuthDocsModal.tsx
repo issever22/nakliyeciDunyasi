@@ -17,13 +17,13 @@ interface ManageCompanyAuthDocsModalProps {
   onClose: () => void;
   companyUser: CompanyUserProfile;
   availableAuthDocTypes: AuthDocSetting[];
-  onProfileUpdate: (updatedProfile: CompanyUserProfile) => void;
+  onProfileUpdate: () => void;
 }
 
 export default function ManageCompanyAuthDocsModal({ isOpen, onClose, companyUser, availableAuthDocTypes, onProfileUpdate }: ManageCompanyAuthDocsModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedDocs, setSelectedDocs] = useState<string[]>(companyUser.authDocuments || []);
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -51,7 +51,7 @@ export default function ManageCompanyAuthDocsModal({ isOpen, onClose, companyUse
       const success = await updateUserProfile(companyUser.id, updateData);
       if (success) {
         toast({ title: "Başarılı", description: "Yetki belgeleriniz güncellendi." });
-        onProfileUpdate({ ...companyUser, ...updateData });
+        onProfileUpdate();
         onClose();
       } else {
         throw new Error("Yetki belgeleri güncellenemedi.");

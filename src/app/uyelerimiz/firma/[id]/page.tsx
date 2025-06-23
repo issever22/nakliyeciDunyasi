@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FreightCard from '@/components/freight/FreightCard';
 import {
   Mail, Phone, Smartphone, Globe, MapPin, Building, Info, Star,
-  Briefcase, Route as RouteIcon, ListChecks, AlertTriangle, MessageCircle
+  Briefcase, Route as RouteIcon, ListChecks, AlertTriangle, MessageCircle, Truck, FileText
 } from 'lucide-react';
 import { WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import { COUNTRIES } from '@/lib/locationData';
@@ -101,6 +101,17 @@ function CompanyProfileContent() {
         );
     };
 
+    const renderSimpleBadges = (items: string[] | undefined, emptyText: string) => {
+        if (!items || items.length === 0) {
+            return <p className="text-sm text-muted-foreground italic">{emptyText}</p>;
+        }
+        return (
+            <div className="flex flex-wrap gap-2">
+                {items.map((item, index) => <Badge key={index} variant="outline">{item}</Badge>)}
+            </div>
+        );
+    };
+
     if (isLoading) {
         return (
             <div className="space-y-6">
@@ -175,7 +186,7 @@ function CompanyProfileContent() {
                         <TabsTrigger value="about"><Info className="mr-2 h-4 w-4"/>Firma Hakkında</TabsTrigger>
                         <TabsTrigger value="listings"><ListChecks className="mr-2 h-4 w-4"/>Boş Araç İlanları ({listings.length})</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="about" className="mt-4">
+                    <TabsContent value="about" className="mt-4 space-y-6">
                         <Card>
                              <CardHeader><CardTitle className="text-xl">Firma Detayları</CardTitle></CardHeader>
                              <CardContent className="space-y-6">
@@ -185,6 +196,18 @@ function CompanyProfileContent() {
                                 <div className="space-y-1"><Label>Uzmanlık Bölgeleri (İl)</Label>{renderItemBadges(company.preferredCities, [], "Tercih edilen şehir belirtilmemiş.")}</div>
                                 <div className="space-y-1"><Label>Uzmanlık Bölgeleri (Ülke)</Label>{renderItemBadges(company.preferredCountries, COUNTRIES, "Tercih edilen ülke belirtilmemiş.")}</div>
                              </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader><CardTitle className="text-xl flex items-center gap-2"><Truck size={20} /> Sahip Olunan Araçlar</CardTitle></CardHeader>
+                            <CardContent>
+                                {renderSimpleBadges(company.ownedVehicles, "Firma sahip olduğu araçları belirtmemiştir.")}
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader><CardTitle className="text-xl flex items-center gap-2"><FileText size={20} /> Yetki Belgeleri</CardTitle></CardHeader>
+                            <CardContent>
+                                {renderSimpleBadges(company.authDocuments, "Firma sahip olduğu yetki belgelerini belirtmemiştir.")}
+                            </CardContent>
                         </Card>
                     </TabsContent>
                     <TabsContent value="listings" className="mt-4">

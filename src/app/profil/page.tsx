@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRequireAuth, useAuth } from '@/hooks/useAuth'; 
+import { useAuth } from '@/hooks/useAuth'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -34,8 +34,7 @@ import { COUNTRIES } from '@/lib/locationData';
 
 
 export default function ProfilePage() {
-  const { user, loading: authLoading, isAuthenticated } = useRequireAuth();
-  const { logout } = useAuth();
+  const { user, loading: authLoading, isAuthenticated, logout, refreshUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -53,6 +52,13 @@ export default function ProfilePage() {
   const [isViewMembershipsModalOpen, setIsViewMembershipsModalOpen] = useState(false);
   const [isSendMessageModalOpen, setIsSendMessageModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
+
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+        router.push('/auth/giris');
+    }
+  }, [authLoading, isAuthenticated, router]);
 
 
   useEffect(() => {
@@ -78,8 +84,8 @@ export default function ProfilePage() {
     }
   }, [companyUser]);
 
-  const handleProfileUpdate = (updatedProfile: CompanyUserProfile) => {
-    // The useAuth hook will update the user state globally
+  const handleProfileUpdate = () => {
+    if(refreshUser) refreshUser();
   };
 
   const handleSendPasswordReset = async () => {
@@ -91,7 +97,7 @@ export default function ProfilePage() {
   };
 
 
-  if (authLoading || (companyUser && settingsLoading && !['myListings'].includes(activeTab) )) {
+  if (authLoading || !isAuthenticated || (companyUser && settingsLoading && !['myListings'].includes(activeTab) )) {
     return (
       <div className="space-y-6 container mx-auto px-4 py-8">
         <Skeleton className="h-10 w-1/3 mb-6" />
@@ -321,7 +327,7 @@ export default function ProfilePage() {
                 isOpen={isEditProfileModalOpen}
                 onClose={() => setIsEditProfileModalOpen(false)}
                 user={companyUser} 
-                onProfileUpdate={handleProfileUpdate as (updatedProfile: UserProfile) => void} 
+                onProfileUpdate={handleProfileUpdate} 
             />
             {isSendMessageModalOpen && ( 
                 <SendMessageModal

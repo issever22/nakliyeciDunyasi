@@ -15,7 +15,7 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: CompanyUserProfile; // Now always CompanyUserProfile
-  onProfileUpdate: (updatedProfile: CompanyUserProfile) => void; // Expects CompanyUserProfile
+  onProfileUpdate: () => void; 
 }
 
 export default function EditProfileModal({ isOpen, onClose, user, onProfileUpdate }: EditProfileModalProps) {
@@ -71,7 +71,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onProfileUpdat
       const success = await updateUserProfile(user.id, updateData);
       if (success) {
         toast({ title: "Başarılı", description: "Firma temel bilgileri güncellendi." });
-        onProfileUpdate({ ...user, ...updateData }); 
+        onProfileUpdate(); 
         onClose();
       } else {
         throw new Error("Profil güncellenemedi.");
@@ -143,5 +143,3 @@ export default function EditProfileModal({ isOpen, onClose, user, onProfileUpdat
     </Dialog>
   );
 }
-
-    

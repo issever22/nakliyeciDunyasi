@@ -17,13 +17,13 @@ interface ManageCompanyVehiclesModalProps {
   onClose: () => void;
   companyUser: CompanyUserProfile;
   availableVehicleTypes: VehicleTypeSetting[];
-  onProfileUpdate: (updatedProfile: CompanyUserProfile) => void;
+  onProfileUpdate: () => void;
 }
 
 export default function ManageCompanyVehiclesModal({ isOpen, onClose, companyUser, availableVehicleTypes, onProfileUpdate }: ManageCompanyVehiclesModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedVehicles, setSelectedVehicles] = useState<string[]>(companyUser.ownedVehicles || []);
+  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -51,7 +51,7 @@ export default function ManageCompanyVehiclesModal({ isOpen, onClose, companyUse
       const success = await updateUserProfile(companyUser.id, updateData);
       if (success) {
         toast({ title: "Başarılı", description: "Araç listeniz güncellendi." });
-        onProfileUpdate({ ...companyUser, ...updateData });
+        onProfileUpdate();
         onClose();
       } else {
         throw new Error("Araç listesi güncellenemedi.");

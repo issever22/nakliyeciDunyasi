@@ -22,6 +22,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   loading: boolean;
   isAuthenticated: boolean; 
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +32,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true); // Start as true
   const router = useRouter();
   const { toast } = useToast();
+
+  const logout = useCallback(async () => {
+    setLoading(true);
+    try {
+      setUser(null); 
+      localStorage.removeItem(USER_SESSION_KEY);
+      router.push('/auth/giris');
+    } catch (error: any) {
+      console.error("Logout error (custom):", error);
+      toast({ title: "Çıkış Hatası", description: error.message, variant: "destructive"});
+    } finally {
+      setLoading(false);
+    }
+  }, [router, toast]);
+
 
   useEffect(() => {
     try {
@@ -46,6 +62,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false); // Set loading to false after checking storage
     }
   }, []);
+
+  const refreshUser = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+        const freshProfile = await getUserProfileServerAction(user.id);
+        if (freshProfile) {
+            setUser(freshProfile);
+            localStorage.setItem(USER_SESSION_KEY, JSON.stringify(freshProfile));
+        } else {
+            await logout();
+        }
+    } catch (error) {
+        console.error("Failed to refresh user:", error);
+        toast({ title: "Veri Yenileme Hatası", description: "Profil bilgileri yenilenirken bir sorun oluştu.", variant: "destructive" });
+    }
+  }, [user, logout, toast]);
+
 
   const login = useCallback(async (identifier: string, pass: string): Promise<CompanyUserProfile | null> => {
     setLoading(true);
@@ -119,25 +152,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   }, [toast]);
-
-  const logout = useCallback(async () => {
-    setLoading(true);
-    try {
-      setUser(null); 
-      localStorage.removeItem(USER_SESSION_KEY);
-      router.push('/auth/giris');
-    } catch (error: any) {
-      console.error("Logout error (custom):", error);
-      toast({ title: "Çıkış Hatası", description: error.message, variant: "destructive"});
-    } finally {
-      setLoading(false);
-    }
-  }, [router, toast]);
   
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, isAuthenticated, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -24,7 +24,7 @@ interface EditCompanyDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   companyUser: CompanyUserProfile;
-  onProfileUpdate: (updatedProfile: CompanyUserProfile) => void;
+  onProfileUpdate: () => void;
 }
 
 export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, onProfileUpdate }: EditCompanyDetailsModalProps) {
@@ -137,7 +137,7 @@ export default function EditCompanyDetailsModal({ isOpen, onClose, companyUser, 
       const success = await updateUserProfile(companyUser.id, updateData);
       if (success) {
         toast({ title: "Başarılı", description: "Firma detayları güncellendi." });
-        onProfileUpdate({ ...companyUser, ...updateData });
+        onProfileUpdate();
         onClose();
       } else {
         throw new Error("Firma detayları güncellenemedi.");
