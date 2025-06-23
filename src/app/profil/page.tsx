@@ -63,6 +63,12 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (companyUser) { 
+      // Add console logs for debugging
+      console.log("--- Profil Sayfası Veri Kontrolü ---");
+      console.log("Görüntülenen firmanın araçları:", JSON.stringify(companyUser.ownedVehicles || []));
+      console.log("Görüntülenen firmanın belgeleri:", JSON.stringify(companyUser.authDocuments || []));
+      console.log("------------------------------------");
+
       const fetchCompanySettings = async () => {
         setSettingsLoading(true);
         try {
