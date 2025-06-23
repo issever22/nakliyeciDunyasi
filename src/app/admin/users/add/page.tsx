@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent, useEffect, Suspense } from 'react';
@@ -18,6 +19,7 @@ import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { transferNotesAndDeleteContact } from '@/services/directoryContactsService';
 
 
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
@@ -153,6 +155,17 @@ function AddCompanyForm() {
         const result = await createCompanyUserServerAction(payload);
         if (result.profile) {
             toast({ title: "Başarılı", description: `Firma "${result.profile.name}" başarıyla oluşturuldu.` });
+            
+            const contactId = searchParams.get('contactId');
+            if (contactId) {
+                const transferResult = await transferNotesAndDeleteContact(contactId, result.profile.id);
+                if (transferResult.success) {
+                    toast({ title: "Rehber Güncellendi", description: transferResult.message });
+                } else {
+                    toast({ title: "Rehber Güncelleme Hatası", description: transferResult.message, variant: "destructive" });
+                }
+            }
+            
             router.push('/admin/users');
         } else {
             toast({ title: "Hata", description: result.error || "Firma oluşturulurken bir hata oluştu.", variant: "destructive" });

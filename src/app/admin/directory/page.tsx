@@ -139,6 +139,7 @@ export default function DirectoryPage() {
 
   const handleConvertToCompany = (contact: DirectoryContact) => {
     const params = new URLSearchParams();
+    params.append('contactId', contact.id);
     if (contact.name) params.append('name', contact.name);
     if (contact.phone) params.append('phone', contact.phone);
     if (contact.email) params.append('email', contact.email);
@@ -282,7 +283,3 @@ export default function DirectoryPage() {
     </div>
   );
 }
-
-    
-
-    

@@ -12,7 +12,8 @@ import {
   query,
   orderBy,
   Timestamp,
-  DocumentData
+  DocumentData,
+  writeBatch
 } from 'firebase/firestore';
 
 const CONTACTS_COLLECTION = 'directoryContacts';
@@ -72,4 +73,39 @@ export const deleteDirectoryContact = async (id: string): Promise<boolean> => {
     console.error("Error deleting directory contact: ", error);
     return false;
   }
+};
+
+export const transferNotesAndDeleteContact = async (contactId: string, companyId: string): Promise<{ success: boolean; message: string }> => {
+    if (!contactId || !companyId) {
+        return { success: false, message: "Contact ID or Company ID is missing." };
+    }
+
+    const contactNotesRef = collection(db, 'directoryContacts', contactId, 'notes');
+    const contactDocRef = doc(db, 'directoryContacts', contactId);
+
+    try {
+        const notesSnapshot = await getDocs(contactNotesRef);
+        
+        if (!notesSnapshot.empty) {
+            const notesBatch = writeBatch(db);
+            notesSnapshot.forEach(noteDoc => {
+                const newNoteRef = doc(collection(db, 'users', companyId, 'notes'));
+                notesBatch.set(newNoteRef, noteDoc.data());
+            });
+            await notesBatch.commit();
+        }
+
+        const deleteBatch = writeBatch(db);
+        notesSnapshot.forEach(noteDoc => {
+            deleteBatch.delete(noteDoc.ref);
+        });
+        deleteBatch.delete(contactDocRef);
+        await deleteBatch.commit();
+
+        return { success: true, message: "Kişi firmaya dönüştürüldü. Notlar aktarıldı ve eski kayıt silindi." };
+
+    } catch (error: any) {
+        console.error("Error during contact conversion:", error);
+        return { success: false, message: error.message || "Dönüştürme işlemi sırasında bir hata oluştu." };
+    }
 };
