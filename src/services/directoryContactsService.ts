@@ -24,7 +24,6 @@ const convertToDirectoryContact = (docData: DocumentData, id: string): Directory
     companyName: docData.companyName || undefined,
     phone: docData.phone || '',
     email: docData.email || undefined,
-    notes: docData.notes || undefined,
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt.toDate().toISOString() : new Date().toISOString(),
   };
 };

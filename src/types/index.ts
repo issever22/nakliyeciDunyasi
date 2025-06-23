@@ -293,13 +293,12 @@ export interface DirectoryContact {
   companyName?: string;
   phone: string;
   email?: string;
-  notes?: string;
   createdAt: string;
 }
 
 
 // HERO SLIDER TYPES
-export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'title-only' | 'video-background' | 'split-screen';
+export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'title-only' | 'video-background';
 
 export interface BaseHeroSlide {
   id: string;
@@ -375,27 +374,12 @@ export interface VideoBackgroundHeroSlide extends BaseHeroSlide {
     overlayOpacity?: number;
 }
 
-export interface SplitScreenHeroSlide extends BaseHeroSlide {
-  type: 'split-screen';
-  imageUrl: string;
-  contentBackgroundColor?: string;
-  backgroundImageUrl?: string;
-  textColor?: string;
-  buttonText?: string;
-  buttonUrl?: string;
-  buttonIcon?: string;
-  buttonColor?: string;
-  buttonTextColor?: string;
-  buttonShape?: 'default' | 'rounded';
-}
-
 export type HeroSlide = 
   | CenteredHeroSlide
   | LeftAlignedHeroSlide
   | WithInputHeroSlide
   | TitleOnlyHeroSlide
-  | VideoBackgroundHeroSlide
-  | SplitScreenHeroSlide;
+  | VideoBackgroundHeroSlide;
 
 export type HeroSlideCreationData = Omit<HeroSlide, 'id' | 'createdAt'>;
 export type HeroSlideUpdateData = Partial<Omit<HeroSlide, 'id'>>;
