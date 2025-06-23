@@ -525,7 +525,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2"><UsersIcon className="h-6 w-6 text-primary" /> Kullanıcı Yönetimi</CardTitle>
+          <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Firma Yönetimi</CardTitle>
           <CardDescription>Onaylanmış firma kayıtlarını ve iletişim bilgilerini yönetin. Kişisel notlar ekleyebilirsiniz.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -533,7 +533,7 @@ export default function UsersPage() {
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Kullanıcı ara (Firma, Yetkili, E-posta)..."
+                placeholder="Firma ara (Firma, Yetkili, E-posta)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-full"

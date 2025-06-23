@@ -287,6 +287,16 @@ export type CompanyFilterOptions = {
     country?: string;
 };
 
+export interface DirectoryContact {
+  id: string;
+  name: string;
+  companyName?: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+  createdAt: string;
+}
+
 
 // HERO SLIDER TYPES
 export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'title-only' | 'video-background' | 'split-screen';

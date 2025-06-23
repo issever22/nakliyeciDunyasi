@@ -119,19 +119,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <SidebarMenuButton 
                 onClick={() => setIsUsersOpen(!isUsersOpen)} 
                 isActive={isUsersRouteActive} 
-                tooltip={{content: "Kullanıcılar", side: "right"}}
+                tooltip={{content: "Firmalar", side: "right"}}
                 className="w-full flex justify-between items-center" 
               >
-                <div className="flex items-center gap-2"><Users /> <span>Kullanıcılar</span></div>
+                <div className="flex items-center gap-2"><Building /> <span>Firmalar</span></div>
                 {isUsersOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </SidebarMenuButton>
             </SidebarMenuItem>
             {isUsersOpen && (
               <>
                 <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/users'} tooltip={{content: "Kullanıcı Listesi", side: "right"}}>
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/users'} tooltip={{content: "Firma Listesi", side: "right"}}>
                     <Link href="/admin/users">
-                      <List size={18}/> <span className="text-sm">Kullanıcı Listesi</span>
+                      <List size={18}/> <span className="text-sm">Firma Listesi</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
