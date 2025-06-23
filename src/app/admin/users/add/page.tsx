@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent, useEffect, Suspense } from 'react';
+import { useState, type FormEvent, useEffect, Suspense, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,14 +13,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createCompanyUser as createCompanyUserServerAction } from '@/services/authService';
 import { COMPANY_CATEGORIES, COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
 import { COUNTRIES, TURKISH_CITIES, DISTRICTS_BY_CITY_TR, type TurkishCity, type CountryCode } from '@/lib/locationData';
-import type { CompanyCategory, CompanyRegisterData, CompanyUserType, WorkingMethodType, WorkingRouteType } from '@/types';
-import { Loader2, PlusCircle, Building, CheckSquare, UploadCloud, User, Lock, Mail, Phone, Smartphone, Globe, Info, MapPin, Briefcase, Link as LinkIcon, List } from 'lucide-react';
+import type { CompanyCategory, CompanyRegisterData, CompanyUserType, WorkingMethodType, WorkingRouteType, VehicleTypeSetting, AuthDocSetting } from '@/types';
+import { Loader2, PlusCircle, Building, CheckSquare, UploadCloud, User, Lock, Mail, Phone, Smartphone, Globe, Info, MapPin, Briefcase, Link as LinkIcon, List, Truck, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { transferNotesAndDeleteContact } from '@/services/directoryContactsService';
-
+import { getAllVehicleTypes } from '@/services/vehicleTypesService';
+import { getAllAuthDocs } from '@/services/authDocsService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
 const MAX_PREFERRED_LOCATIONS = 5;
@@ -52,7 +54,34 @@ function AddCompanyForm() {
     workingRoutes: [],
     preferredCities: Array(MAX_PREFERRED_LOCATIONS).fill(''),
     preferredCountries: Array(MAX_PREFERRED_LOCATIONS).fill(''),
+    ownedVehicles: [],
+    authDocuments: [],
   });
+
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeSetting[]>([]);
+  const [authDocTypes, setAuthDocTypes] = useState<AuthDocSetting[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+
+  const fetchOptions = useCallback(async () => {
+    setOptionsLoading(true);
+    try {
+      const [vehicles, authDocs] = await Promise.all([
+        getAllVehicleTypes(),
+        getAllAuthDocs()
+      ]);
+      setVehicleTypes(vehicles.filter(v => v.isActive));
+      setAuthDocTypes(authDocs.filter(d => d.isActive));
+    } catch (err) {
+      toast({ title: "Hata", description: "Sayfa seçenekleri yüklenemedi.", variant: "destructive" });
+    } finally {
+      setOptionsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchOptions();
+  }, [fetchOptions]);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -73,7 +102,7 @@ function AddCompanyForm() {
 
   const handleMultiCheckboxChange = (
     value: string, 
-    key: 'workingMethods' | 'workingRoutes'
+    key: 'workingMethods' | 'workingRoutes' | 'ownedVehicles' | 'authDocuments'
   ) => {
     const currentValues = formData[key] || [];
     const newValues = currentValues.includes(value as never)
@@ -151,6 +180,8 @@ function AddCompanyForm() {
             fullAddress: formData.fullAddress!,
             preferredCities: formData.preferredCities?.filter(c => c) || [],
             preferredCountries: formData.preferredCountries?.filter(c => c) || [],
+            ownedVehicles: formData.ownedVehicles || [],
+            authDocuments: formData.authDocuments || [],
         };
         const result = await createCompanyUserServerAction(payload);
         if (result.profile) {
@@ -177,6 +208,12 @@ function AddCompanyForm() {
     }
   };
 
+  const renderOptionsSkeletons = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+      {Array.from({length: 6}).map((_, i) => <Skeleton key={i} className="h-8 w-full"/>)}
+    </div>
+  )
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -185,8 +222,8 @@ function AddCompanyForm() {
                 <Button variant="outline" asChild className="w-full sm:w-auto">
                     <Link href="/admin/users">İptal</Link>
                 </Button>
-                <Button type="submit" disabled={formSubmitting} className="w-full sm:w-auto">
-                    {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" disabled={formSubmitting || optionsLoading} className="w-full sm:w-auto">
+                    {(formSubmitting || optionsLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <CheckSquare size={18} className="mr-2"/> Firmayı Kaydet
                 </Button>
             </div>
@@ -396,6 +433,48 @@ function AddCompanyForm() {
             </CardContent>
         </Card>
 
+        <Card>
+            <CardHeader>
+                <CardTitle>Araçlar ve Belgeler</CardTitle>
+                <CardDescription>Firmanın sahip olduğu araçları ve yetki belgelerini işaretleyin.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div>
+                    <Label className="font-medium text-sm mb-2 block">Sahip Olunan Araç Tipleri</Label>
+                    {optionsLoading ? renderOptionsSkeletons() : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {vehicleTypes.map(vehicle => (
+                            <div key={vehicle.id} className="flex items-center space-x-2">
+                            <Checkbox
+                                id={`vehicle-${vehicle.id}`}
+                                checked={formData.ownedVehicles?.includes(vehicle.name)}
+                                onCheckedChange={() => handleMultiCheckboxChange(vehicle.name, 'ownedVehicles')}
+                            />
+                            <Label htmlFor={`vehicle-${vehicle.id}`} className="font-normal text-sm cursor-pointer">{vehicle.name}</Label>
+                            </div>
+                        ))}
+                        </div>
+                    )}
+                </div>
+                <div className="border-t pt-6">
+                    <Label className="font-medium text-sm mb-2 block">Yetki Belgeleri</Label>
+                    {optionsLoading ? renderOptionsSkeletons() : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {authDocTypes.map(doc => (
+                             <div key={doc.id} className="flex items-center space-x-2">
+                             <Checkbox
+                                 id={`doc-${doc.id}`}
+                                 checked={formData.authDocuments?.includes(doc.name)}
+                                 onCheckedChange={() => handleMultiCheckboxChange(doc.name, 'authDocuments')}
+                             />
+                             <Label htmlFor={`doc-${doc.id}`} className="font-normal text-sm cursor-pointer">{doc.name}</Label>
+                             </div>
+                        ))}
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
 
         <div className="flex items-center space-x-2 pt-2">
             <Switch id="isActive" checked={formData.isActive} onCheckedChange={(checked) => setFormData(prev => ({...prev, isActive: checked}))} />
@@ -405,8 +484,8 @@ function AddCompanyForm() {
             <Button variant="outline" asChild className="w-full sm:w-auto">
                 <Link href="/admin/users">İptal</Link>
             </Button>
-            <Button type="submit" disabled={formSubmitting} className="w-full sm:w-auto">
-                {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={formSubmitting || optionsLoading} className="w-full sm:w-auto">
+                {(formSubmitting || optionsLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                  <CheckSquare size={18} className="mr-2"/> Firmayı Kaydet
             </Button>
         </CardFooter>

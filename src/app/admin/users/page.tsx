@@ -16,10 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone, Users as UsersIcon } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone, Users as UsersIcon, Truck, FileText } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting, CompanyNote } from '@/types';
+import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting, CompanyNote, VehicleTypeSetting, AuthDocSetting } from '@/types';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { COMPANY_CATEGORIES, COMPANY_TYPES, WORKING_METHODS, WORKING_ROUTES } from '@/lib/constants';
@@ -30,6 +30,8 @@ import {
   deleteUserProfile,
 } from '@/services/authService'; 
 import { getAllMemberships } from '@/services/membershipsService';
+import { getAllVehicleTypes } from '@/services/vehicleTypesService';
+import { getAllAuthDocs } from '@/services/authDocsService';
 import { addCompanyNote } from '@/services/companyNotesService';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
@@ -65,6 +67,8 @@ export default function UsersPage() {
   const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
   
   const [membershipOptions, setMembershipOptions] = useState<MembershipSetting[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeSetting[]>([]);
+  const [authDocTypes, setAuthDocTypes] = useState<AuthDocSetting[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(true);
   
   // State for new features
@@ -132,19 +136,25 @@ export default function UsersPage() {
   }, [activeFilter]);
 
   useEffect(() => {
-    const fetchMembershipOptions = async () => {
+    const fetchOptions = async () => {
         setOptionsLoading(true);
         try {
-            const membershipsFromDb = await getAllMemberships();
+            const [membershipsFromDb, vehicles, authDocs] = await Promise.all([
+                getAllMemberships(),
+                getAllVehicleTypes(),
+                getAllAuthDocs()
+            ]);
             setMembershipOptions(membershipsFromDb.filter(m => m.isActive));
+            setVehicleTypes(vehicles.filter(v => v.isActive));
+            setAuthDocTypes(authDocs.filter(d => d.isActive));
         } catch (error) {
-             console.error("Error fetching membership options:", error);
-             toast({ title: "Hata", description: "Üyelik seçenekleri yüklenirken bir sorun oluştu.", variant: "destructive" });
+             console.error("Error fetching options:", error);
+             toast({ title: "Hata", description: "Sayfa seçenekleri yüklenirken bir sorun oluştu.", variant: "destructive" });
         }
         setOptionsLoading(false);
     };
 
-    fetchMembershipOptions();
+    fetchOptions();
   }, [toast]);
 
 
@@ -269,7 +279,10 @@ export default function UsersPage() {
     });
   }, [allCompanyUsers, searchTerm]);
   
-  const handleDialogMultiCheckboxChange = (value: string, key: 'workingMethods' | 'workingRoutes') => {
+  const handleDialogMultiCheckboxChange = (
+    value: string, 
+    key: 'workingMethods' | 'workingRoutes' | 'ownedVehicles' | 'authDocuments'
+  ) => {
     const currentValues = currentFormData[key] || [];
     const newValues = currentValues.includes(value as never)
       ? currentValues.filter(item => item !== value)
@@ -371,6 +384,11 @@ export default function UsersPage() {
     setPendingMembershipSelection(null);
   };
 
+  const renderOptionsSkeletons = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+      {Array.from({length: 6}).map((_, i) => <Skeleton key={i} className="h-8 w-full"/>)}
+    </div>
+  )
 
   const renderUserTable = (userList: CompanyUserProfile[]) => (
     <div className="rounded-md border overflow-x-auto">
@@ -762,6 +780,46 @@ export default function UsersPage() {
                 </CardContent>
             </Card>
 
+            <Card>
+                <CardHeader><CardTitle>Araçlar ve Belgeler</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    <div>
+                        <Label className="font-medium text-sm mb-2 block">Sahip Olunan Araç Tipleri</Label>
+                        {optionsLoading ? renderOptionsSkeletons() : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                {vehicleTypes.map(vehicle => (
+                                    <div key={vehicle.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`edit-vehicle-${vehicle.id}`}
+                                            checked={(currentFormData.ownedVehicles || []).includes(vehicle.name)}
+                                            onCheckedChange={() => handleDialogMultiCheckboxChange(vehicle.name, 'ownedVehicles')}
+                                        />
+                                        <Label htmlFor={`edit-vehicle-${vehicle.id}`} className="font-normal text-sm cursor-pointer">{vehicle.name}</Label>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="border-t pt-6">
+                        <Label className="font-medium text-sm mb-2 block">Yetki Belgeleri</Label>
+                        {optionsLoading ? renderOptionsSkeletons() : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                {authDocTypes.map(doc => (
+                                    <div key={doc.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`edit-doc-${doc.id}`}
+                                            checked={(currentFormData.authDocuments || []).includes(doc.name)}
+                                            onCheckedChange={() => handleDialogMultiCheckboxChange(doc.name, 'authDocuments')}
+                                        />
+                                        <Label htmlFor={`edit-doc-${doc.id}`} className="font-normal text-sm cursor-pointer">{doc.name}</Label>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
              <Card>
                 <CardHeader><CardTitle>Üyelik ve Durum</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -900,4 +958,3 @@ export default function UsersPage() {
     </div>
   );
 }
-

@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { db } from '@/lib/firebase';
@@ -327,8 +328,8 @@ export async function createCompanyUser(registrationData: CompanyRegisterData): 
       preferredCountries: Array.isArray(companyData.preferredCountries) ? companyData.preferredCountries.filter(c => c) : [],
       membershipStatus: 'Yok',
       membershipEndDate: null,
-      ownedVehicles: [],
-      authDocuments: [],
+      ownedVehicles: Array.isArray(companyData.ownedVehicles) ? companyData.ownedVehicles : [],
+      authDocuments: Array.isArray(companyData.authDocuments) ? companyData.authDocuments : [],
       sponsorships: [],
     };
 

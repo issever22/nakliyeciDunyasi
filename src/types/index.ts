@@ -103,7 +103,7 @@ export type CompanyCategoryDetail = typeof COMPANY_CATEGORIES[number];
 
 export type WorkingMethodType = typeof WORKING_METHODS[number]['id'];
 export type WorkingRouteType = typeof WORKING_ROUTES[number]['id'];
-export type MembershipStatus = 'Yok' | 'Standart' | 'Premium';
+export type MembershipStatus = 'Yok' | 'Standart' | 'Premium' | string;
 
 export interface SponsorshipLocation {
   type: 'country' | 'city';
@@ -177,6 +177,8 @@ export interface CompanyRegisterData extends BaseRegisterData {
   workingRoutes: WorkingRouteType[];
   preferredCities: (TurkishCity | string)[];
   preferredCountries: (CountryCode | string)[];
+  ownedVehicles: string[];
+  authDocuments: string[];
   isActive?: boolean; 
 }
 
@@ -298,7 +300,7 @@ export interface DirectoryContact {
 
 
 // HERO SLIDER TYPES
-export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'title-only' | 'video-background';
+export type HeroSlideType = 'centered' | 'left-aligned' | 'with-input' | 'title-only' | 'video-background' | 'split-screen';
 
 export interface BaseHeroSlide {
   id: string;
@@ -374,12 +376,26 @@ export interface VideoBackgroundHeroSlide extends BaseHeroSlide {
     overlayOpacity?: number;
 }
 
+export interface SplitScreenHeroSlide extends BaseHeroSlide {
+  type: 'split-screen';
+  imageUrl: string;
+  contentBackgroundColor?: string;
+  buttonText?: string;
+  buttonUrl?: string;
+  buttonIcon?: string;
+  buttonColor?: string;
+  buttonTextColor?: string;
+  buttonShape?: 'default' | 'rounded';
+  textColor?: string;
+}
+
 export type HeroSlide = 
   | CenteredHeroSlide
   | LeftAlignedHeroSlide
   | WithInputHeroSlide
   | TitleOnlyHeroSlide
-  | VideoBackgroundHeroSlide;
+  | VideoBackgroundHeroSlide
+  | SplitScreenHeroSlide;
 
 export type HeroSlideCreationData = Omit<HeroSlide, 'id' | 'createdAt'>;
-export type HeroSlideUpdateData = Partial<Omit<HeroSlide, 'id'>>;
+export type HeroSlideUpdateData = Partial<Omit<HeroSlide, 'id' | 'createdAt'>>;
