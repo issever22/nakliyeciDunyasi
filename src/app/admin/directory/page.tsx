@@ -12,10 +12,11 @@ import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
-import { BookUser, Search, AlertTriangle, Loader2, StickyNote, PlusCircle, Edit, Trash2, UserPlus } from 'lucide-react';
+import { BookUser, Search, AlertTriangle, Loader2, StickyNote, PlusCircle, Edit, Trash2, UserPlus, Building, User as UserIcon } from 'lucide-react';
 import type { CompanyUserProfile, DirectoryContact } from '@/types';
 import { getActiveCompanyProfiles } from '@/services/authService'; 
 import { getAllDirectoryContacts, addDirectoryContact, updateDirectoryContact, deleteDirectoryContact } from '@/services/directoryContactsService';
+import { Badge } from '@/components/ui/badge';
 
 type DirectoryItem = (CompanyUserProfile & { source: 'company' }) | (DirectoryContact & { source: 'manual' });
 
@@ -27,6 +28,7 @@ export default function DirectoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'company' | 'manual'>('all');
 
   // State for Add/Edit Contact Modal
   const [isAddEditContactModalOpen, setIsAddEditContactModalOpen] = useState(false);
@@ -71,21 +73,27 @@ export default function DirectoryPage() {
   }, [fetchDirectoryData]);
 
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return allDirectoryItems;
-    const lowerCaseSearch = searchTerm.toLowerCase();
     return allDirectoryItems.filter(item => {
-      const name = item.source === 'company' ? item.name : item.companyName || item.name;
-      const contactPerson = item.source === 'company' ? item.contactFullName : item.name;
-      const phone = item.source === 'company' ? item.mobilePhone : item.phone;
-      const email = item.email || '';
-      return (
-        name.toLowerCase().includes(lowerCaseSearch) ||
-        contactPerson.toLowerCase().includes(lowerCaseSearch) ||
-        phone.toLowerCase().includes(lowerCaseSearch) ||
-        email.toLowerCase().includes(lowerCaseSearch)
-      );
-    });
-  }, [allDirectoryItems, searchTerm]);
+        // Source Filter
+        const sourceMatch = sourceFilter === 'all' || item.source === sourceFilter;
+        if (!sourceMatch) return false;
+
+        // Search Term Filter
+        if (!searchTerm.trim()) return true;
+        const lowerCaseSearch = searchTerm.toLowerCase();
+        const name = item.source === 'company' ? item.name : item.companyName || item.name;
+        const contactPerson = item.source === 'company' ? item.contactFullName : item.name;
+        const phone = item.source === 'company' ? item.mobilePhone : item.phone;
+        const email = item.email || '';
+        
+        return (
+          name.toLowerCase().includes(lowerCaseSearch) ||
+          contactPerson.toLowerCase().includes(lowerCaseSearch) ||
+          phone.toLowerCase().includes(lowerCaseSearch) ||
+          email.toLowerCase().includes(lowerCaseSearch)
+        );
+      });
+  }, [allDirectoryItems, searchTerm, sourceFilter]);
 
   const handleViewNotes = (item: DirectoryItem) => {
     const itemName = 'companyName' in item ? item.companyName || item.name : item.name;
@@ -149,16 +157,23 @@ export default function DirectoryPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rehberde ara (Firma, Kişi, Telefon, E-posta)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 w-full"
-              />
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                <div className="relative w-full sm:max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Rehberde ara..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8 w-full"
+                    />
+                </div>
+                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+                    <Button size="sm" variant={sourceFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setSourceFilter('all')}>Tümü</Button>
+                    <Button size="sm" variant={sourceFilter === 'company' ? 'secondary' : 'ghost'} onClick={() => setSourceFilter('company')}>Firmalar</Button>
+                    <Button size="sm" variant={sourceFilter === 'manual' ? 'secondary' : 'ghost'} onClick={() => setSourceFilter('manual')}>Kişiler</Button>
+                </div>
             </div>
-            <Button onClick={() => handleOpenAddEditContactModal(null)}>
+            <Button onClick={() => handleOpenAddEditContactModal(null)} className="w-full md:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" /> Yeni Kişi Ekle
             </Button>
           </div>
@@ -181,8 +196,8 @@ export default function DirectoryPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[180px]">Firma Adı</TableHead>
-                    <TableHead className="min-w-[150px]">Yetkili/Kişi Adı</TableHead>
+                    <TableHead className="min-w-[180px]">Firma/Kişi</TableHead>
+                    <TableHead className="w-[100px]">Tip</TableHead>
                     <TableHead className="min-w-[150px]">Telefon</TableHead>
                     <TableHead className="min-w-[180px]">E-posta</TableHead>
                     <TableHead className="w-[180px] text-right">Eylemler</TableHead>
@@ -191,8 +206,14 @@ export default function DirectoryPage() {
                 <TableBody>
                   {filteredItems.length > 0 ? filteredItems.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">{item.source === 'company' ? item.name : (item.companyName || <span className="text-muted-foreground italic">(Kişi)</span>)}</TableCell>
-                      <TableCell>{item.source === 'company' ? item.contactFullName : item.name}</TableCell>
+                      <TableCell className="font-medium">{item.source === 'company' ? item.name : item.companyName || item.name}</TableCell>
+                      <TableCell>
+                        {item.source === 'company' ? (
+                          <Badge variant="outline" className="text-blue-600 border-blue-400"><Building className="h-3 w-3 mr-1.5"/> Firma</Badge>
+                        ) : (
+                           <Badge variant="outline" className="text-green-600 border-green-400"><UserIcon className="h-3 w-3 mr-1.5"/> Kişi</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>{item.source === 'company' ? item.mobilePhone : item.phone}</TableCell>
                       <TableCell className="text-sm">{item.email || '-'}</TableCell>
                       <TableCell className="text-right">
@@ -206,7 +227,7 @@ export default function DirectoryPage() {
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild><Button variant="ghost" size="icon" title="Sil" className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                   <AlertDialogContent>
-                                    <AlertDialogHeader><AlertDialogTitle>Emin misiniz?</AlertDialogTitle><AlertDialogDescription>"{item.name}" adlı kişiyi rehberden kalıcı olarak silmek üzeresiniz.</AlertDialogDescription></AlertDialogHeader>
+                                    <AlertDialogHeader><AlertDialogTitle>Emin misiniz?</AlertDialogTitle><AlertDialogDescription>"{'companyName' in item ? item.companyName || item.name : item.name}" kaydını rehberden kalıcı olarak silmek üzeresiniz.</AlertDialogDescription></AlertDialogHeader>
                                     <AlertDialogFooter><AlertDialogCancel>İptal</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteContact(item.id)} className="bg-destructive hover:bg-destructive/90">Sil</AlertDialogAction></AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
