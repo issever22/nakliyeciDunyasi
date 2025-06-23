@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, type FormEvent, useEffect, Suspense } from 'react';
@@ -55,7 +54,11 @@ function AddCompanyForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    if (id === 'companyTitle') {
+        setFormData(prev => ({ ...prev, companyTitle: value, name: value }));
+    } else {
+        setFormData(prev => ({ ...prev, [id]: value }));
+    }
   };
   
   const handleSelectChange = (id: keyof CompanyRegisterData, value: string) => {
