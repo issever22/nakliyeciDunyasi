@@ -352,7 +352,7 @@ export default function MembershipRequestsPage() {
         </Dialog>
       )}
 
-      <AlertDialog open={isDeleteConfirmOpen && requestToDelete?.status === 'converted'} onOpenChange={setIsDeleteConfirmOpen}>
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Onayla ve Sil</AlertDialogTitle>
