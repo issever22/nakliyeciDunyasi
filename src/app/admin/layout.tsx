@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { 
   LogOut, LayoutDashboard, ShieldCheck, Settings, Users, Package,
   ChevronDown, ChevronUp, Truck, FileText, Star, Boxes, Route as RouteIcon, Megaphone, StickyNote, Award, Building, List, PlusCircle, MessageSquare, Handshake,
-  Image as HeroIcon
+  Image as HeroIcon,
+  BookUser
 } from 'lucide-react'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -20,7 +21,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Updated to exclude the moved pages from highlighting the "Ayarlar" group
   const isSettingsRouteActive = useMemo(() => {
     return pathname.startsWith('/admin/settings') && 
            !pathname.startsWith('/admin/settings/memberships') && 
@@ -29,8 +29,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsRouteActive);
 
-  const isUsersRouteActive = useMemo(() => pathname.startsWith('/admin/users'), [pathname]);
-  const [isUsersOpen, setIsUsersOpen] = useState(isUsersRouteActive);
+  const isDirectoryRouteActive = useMemo(() => pathname.startsWith('/admin/users'), [pathname]);
+  const [isDirectoryOpen, setIsDirectoryOpen] = useState(isDirectoryRouteActive);
 
   const isSponsorsRouteActive = useMemo(() => pathname.startsWith('/admin/sponsors'), [pathname]);
   const [isSponsorsOpen, setIsSponsorsOpen] = useState(isSponsorsRouteActive);
@@ -58,13 +58,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     if (isSettingsRouteActive && !isSettingsOpen) {
       setIsSettingsOpen(true);
     }
-    if (isUsersRouteActive && !isUsersOpen) {
-      setIsUsersOpen(true);
+    if (isDirectoryRouteActive && !isDirectoryOpen) {
+      setIsDirectoryOpen(true);
     }
     if (isSponsorsRouteActive && !isSponsorsOpen) {
       setIsSponsorsOpen(true);
     }
-  }, [isSettingsRouteActive, isSettingsOpen, isUsersRouteActive, isUsersOpen, isSponsorsRouteActive, isSponsorsOpen]);
+  }, [isSettingsRouteActive, isSettingsOpen, isDirectoryRouteActive, isDirectoryOpen, isSponsorsRouteActive, isSponsorsOpen]);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -117,28 +117,28 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             
             <SidebarMenuItem>
               <SidebarMenuButton 
-                onClick={() => setIsUsersOpen(!isUsersOpen)} 
-                isActive={isUsersRouteActive} 
-                tooltip={{content: "Firmalar", side: "right"}}
+                onClick={() => setIsDirectoryOpen(!isDirectoryOpen)} 
+                isActive={isDirectoryRouteActive} 
+                tooltip={{content: "Rehber", side: "right"}}
                 className="w-full flex justify-between items-center" 
               >
-                <div className="flex items-center gap-2"><Building /> <span>Firmalar</span></div>
-                {isUsersOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                <div className="flex items-center gap-2"><BookUser /> <span>Rehber</span></div>
+                {isDirectoryOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {isUsersOpen && (
+            {isDirectoryOpen && (
               <>
                 <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/users'} tooltip={{content: "Firma Listesi", side: "right"}}>
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/users'} tooltip={{content: "Rehber Listesi", side: "right"}}>
                     <Link href="/admin/users">
-                      <List size={18}/> <span className="text-sm">Firma Listesi</span>
+                      <List size={18}/> <span className="text-sm">Rehber Listesi</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/users/add'} tooltip={{content: "Firma Ekle", side: "right"}}>
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/users/add'} tooltip={{content: "Yeni Kayıt Ekle", side: "right"}}>
                     <Link href="/admin/users/add">
-                      <PlusCircle size={18}/> <span className="text-sm">Firma Ekle</span>
+                      <PlusCircle size={18}/> <span className="text-sm">Yeni Kayıt Ekle</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

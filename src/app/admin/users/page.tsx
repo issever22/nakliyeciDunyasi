@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting, CompanyNote } from '@/types';
@@ -258,42 +258,18 @@ export default function UsersPage() {
     }
   };
 
-  const calculateRemainingDays = (endDateIso?: string): string => {
-    if (!endDateIso) return '-';
-    const endDate = parseISO(endDateIso);
-    if (!isValid(endDate)) return '-';
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const end = new Date(endDate);
-    end.setHours(0,0,0,0);
-
-    const diff = differenceInDays(end, today);
-
-    if (diff < 0) return 'Süresi Doldu';
-    if (diff === 0) return 'Bugün Sona Eriyor';
-    return `${diff} gün kaldı`;
-  };
-
   const filteredCompanyUsers = useMemo(() => {
     if (!searchTerm) return allCompanyUsers;
     return allCompanyUsers.filter(user => {
       const companyUser = user as CompanyUserProfile;
       const matchesSearch = companyUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             companyUser.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (companyUser.contactFullName && companyUser.contactFullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
                             (companyUser.username && companyUser.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
                             (companyUser.category && companyUser.category.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchesSearch;
     });
   }, [allCompanyUsers, searchTerm]);
-
-  const getMembershipBadge = (status?: string) => {
-    if (!status || status === 'Yok') return <Badge variant="outline" className="text-xs">Yok</Badge>;
-    if (status === 'Standart') return <Badge variant="default" className="bg-orange-500 hover:bg-orange-600 text-xs flex items-center gap-1"><Star size={12}/> Standart</Badge>;
-    if (status === 'Premium') return <Badge variant="default" className="bg-purple-500 hover:bg-purple-600 text-xs flex items-center gap-1"><Star size={12}/> Premium</Badge>;
-    return <Badge variant="outline" className="text-xs">{status}</Badge>;
-  };
   
   const handleDialogMultiCheckboxChange = (value: string, key: 'workingMethods' | 'workingRoutes') => {
     const currentValues = currentFormData[key] || [];
@@ -420,10 +396,9 @@ export default function UsersPage() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[60px] px-2"></TableHead>
             <TableHead className="min-w-[180px]">Firma Adı</TableHead>
-            <TableHead className="min-w-[150px] hidden md:table-cell">Kategori</TableHead>
-            <TableHead className="min-w-[120px] hidden md:table-cell">Üyelik</TableHead>
+            <TableHead className="min-w-[150px] hidden md:table-cell">Yetkili Kişi</TableHead>
+            <TableHead className="min-w-[150px]">İletişim</TableHead>
             <TableHead className="w-[100px] text-center hidden sm:table-cell">Durum</TableHead>
             <TableHead className="w-[120px] text-right">Eylemler</TableHead>
           </TableRow>
@@ -431,31 +406,25 @@ export default function UsersPage() {
         <TableBody>
           {userList.length > 0 ? userList.map((user) => {
             const isSponsor = user.sponsorships && user.sponsorships.length > 0;
-            const isMember = user.membershipStatus && user.membershipStatus !== 'Yok';
             return (
-            <TableRow key={user.id} className={cn("transition-colors hover:bg-muted/50", isMember && !isSponsor && "bg-green-500/5")}>
-              <TableCell className="px-2">
-                <div className="flex flex-col items-center gap-1">
-                  <Avatar className={cn("h-9 w-9", isSponsor && "ring-2 ring-yellow-400 ring-offset-2 ring-offset-background", isMember && !isSponsor && "ring-2 ring-green-500 ring-offset-2 ring-offset-background")}>
-                    <AvatarImage src={user.logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="company logo"/>
-                    <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  {isSponsor && (
-                    <Badge variant="outline" className="text-xs px-1 py-0 border-yellow-500 text-yellow-600">
-                      Sponsor
-                    </Badge>
-                  )}
-                </div>
-              </TableCell>
+            <TableRow key={user.id} className="transition-colors hover:bg-muted/50">
               <TableCell className="font-medium">
-                  {user.name}
-                  <div className="text-xs text-muted-foreground md:hidden">{user.category}</div>
-                  <div className="text-xs text-muted-foreground">K.Adı: {user.username}</div>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-9 w-9">
+                        <AvatarImage src={user.logoUrl || `https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="company logo"/>
+                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        {user.name}
+                        {isSponsor && <Badge variant="outline" className="text-xs ml-2 px-1 py-0 border-yellow-500 text-yellow-600">Sponsor</Badge>}
+                        <div className="text-xs text-muted-foreground md:hidden">{user.contactFullName}</div>
+                    </div>
+                  </div>
               </TableCell>
-              <TableCell className="hidden md:table-cell"><Badge variant="secondary" className="text-xs">{user.category}</Badge></TableCell>
-              <TableCell className="hidden md:table-cell">
-                  {getMembershipBadge(user.membershipStatus)}
-                  <div className="text-xs text-muted-foreground mt-1">{calculateRemainingDays(user.membershipEndDate)}</div>
+              <TableCell className="hidden md:table-cell">{user.contactFullName}</TableCell>
+              <TableCell className="text-sm">
+                {user.mobilePhone && <div className="flex items-center gap-1.5"><Phone size={12}/>{user.mobilePhone}</div>}
+                {user.email && <div className="text-xs text-muted-foreground flex items-center gap-1.5"><Mail size={12}/>{user.email}</div>}
               </TableCell>
               <TableCell className="text-center hidden sm:table-cell">
                   <Badge variant={user.isActive ? "default" : "outline"} className={user.isActive ? "bg-green-500/10 text-green-700 border-green-400" : "bg-yellow-500/10 text-yellow-700 border-yellow-400"}>
@@ -556,15 +525,15 @@ export default function UsersPage() {
     <div className="space-y-6">
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Firma Listesi</CardTitle>
-          <CardDescription>Uygulamadaki firma kullanıcılarını yönetin ve onay durumlarını kontrol edin.</CardDescription>
+          <CardTitle className="text-2xl flex items-center gap-2"><Building className="h-6 w-6 text-primary" /> Rehber Yönetimi</CardTitle>
+          <CardDescription>Onaylanmış firma kayıtlarını ve iletişim bilgilerini yönetin. Kişisel notlar ekleyebilirsiniz.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Firma ara (Ad, E-posta, K.Adı, Kategori)..."
+                placeholder="Rehberde ara (Firma, Yetkili, E-posta)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-full"
@@ -572,7 +541,7 @@ export default function UsersPage() {
             </div>
             <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90">
               <Link href="/admin/users/add">
-                <PlusCircle className="mr-2 h-4 w-4" /> Yeni Firma Ekle
+                <PlusCircle className="mr-2 h-4 w-4" /> Yeni Kayıt Ekle
               </Link>
             </Button>
           </div>
