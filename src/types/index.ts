@@ -369,6 +369,7 @@ export interface SplitScreenHeroSlide extends BaseHeroSlide {
   type: 'split-screen';
   imageUrl: string;
   contentBackgroundColor?: string;
+  backgroundImageUrl?: string;
   textColor?: string;
   buttonText?: string;
   buttonUrl?: string;
