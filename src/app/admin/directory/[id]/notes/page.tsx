@@ -152,8 +152,8 @@ function NotesPageContent() {
     return (
         <div className="space-y-6">
             <div>
-                <Button variant="outline" size="sm" onClick={() => router.push('/admin/directory')} className="mb-4">
-                    <ArrowLeft className="mr-2 h-4 w-4"/> Rehbere Geri Dön
+                <Button variant="outline" size="sm" onClick={() => router.back()} className="mb-4">
+                    <ArrowLeft className="mr-2 h-4 w-4"/> Geri Dön
                 </Button>
                 <h1 className="text-3xl font-bold tracking-tight text-foreground">"{itemName}" için Notlar</h1>
                 <p className="text-muted-foreground mt-1">Bu kayıt için girilmiş tüm yönetici notları ve ödeme kayıtları.</p>
