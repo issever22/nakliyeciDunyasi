@@ -168,9 +168,9 @@ export default function DirectoryPage() {
                     />
                 </div>
                 <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-                    <Button size="sm" variant={sourceFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setSourceFilter('all')}>Tümü</Button>
-                    <Button size="sm" variant={sourceFilter === 'company' ? 'secondary' : 'ghost'} onClick={() => setSourceFilter('company')}>Firmalar</Button>
-                    <Button size="sm" variant={sourceFilter === 'manual' ? 'secondary' : 'ghost'} onClick={() => setSourceFilter('manual')}>Kişiler</Button>
+                    <Button size="sm" variant={sourceFilter === 'all' ? 'accent' : 'ghost'} onClick={() => setSourceFilter('all')}>Tümü</Button>
+                    <Button size="sm" variant={sourceFilter === 'company' ? 'accent' : 'ghost'} onClick={() => setSourceFilter('company')}>Firmalar</Button>
+                    <Button size="sm" variant={sourceFilter === 'manual' ? 'accent' : 'ghost'} onClick={() => setSourceFilter('manual')}>Kişiler</Button>
                 </div>
             </div>
             <Button onClick={() => handleOpenAddEditContactModal(null)} className="w-full md:w-auto">
@@ -282,5 +282,7 @@ export default function DirectoryPage() {
     </div>
   );
 }
+
+    
 
     
