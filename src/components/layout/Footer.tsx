@@ -13,7 +13,7 @@ export default function Footer() {
           <div className="md:col-span-4 lg:col-span-5 text-center md:text-left">
             <Link href="/" className="flex items-center justify-center md:justify-start gap-2 mb-4">
                <Image
-                src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo-white.svg"
+                src="https://issever.co/wp-content/uploads/2025/06/n-logo-white.svg"
                 alt="Nakliyeci Dünyası Logo"
                 width={200}
                 height={45}

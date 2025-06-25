@@ -277,7 +277,7 @@ export default function Header() {
         <div className="container mx-auto px-4 h-20 flex items-center justify-between">
           <Link href="/">
              <Image
-                src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo.svg"
+                src="https://issever.co/wp-content/uploads/2025/06/n-logo.svg"
                 alt="Nakliyeci Dünyası Logo"
                 priority
                 width={160}
@@ -353,7 +353,7 @@ export default function Header() {
                   <SheetTitle>
                       <Link href="/" className="flex items-center" onClick={closeMobileMenu}>
                            <Image
-                            src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo.svg"
+                            src="https://issever.co/wp-content/uploads/2025/06/n-logo.svg"
                             alt="Nakliyeci Dünyası Logo"
                             width={160}
                             height={45}

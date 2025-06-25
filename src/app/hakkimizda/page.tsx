@@ -17,7 +17,7 @@ export default function AboutUsPage() {
           </div>
           <div className="hidden md:flex items-center justify-center p-8">
             <Image
-              src="https://issever.co/wp-content/uploads/2025/06/nakliyeci-logo-white.svg"
+              src="https://issever.co/wp-content/uploads/2025/06/n-logo-white.svg"
               alt="Nakliyeci Dünyası Beyaz Logo"
               width={300}
               height={80}
