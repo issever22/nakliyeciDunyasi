@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone, Users as UsersIcon, Truck, FileText, KeyRound } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone, Users as UsersIcon, Truck, FileText, KeyRound, Eye } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { CompanyUserProfile } from '@/types';
@@ -30,6 +30,7 @@ type MainFilterType = 'all' | 'pending' | 'sponsors' | 'membership';
 
 export default function UsersPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [allCompanyUsers, setAllCompanyUsers] = useState<CompanyUserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -161,17 +162,17 @@ export default function UsersPage() {
             return (
             <TableRow key={user.id} className="transition-colors hover:bg-muted/50">
               <TableCell className="font-medium">
-                  <Link href={`/admin/users/${user.id}`} className="flex items-center gap-3 group">
+                  <div className="flex items-center gap-3">
                       <Avatar className={cn("h-12 w-12 rounded-sm", isSponsor && "border-2 border-yellow-400 p-0.5")}>
                           <AvatarImage src={user.logoUrl || `https://placehold.co/48x48.png?text=${user.name.charAt(0)}`} alt={user.name} className="rounded-sm" data-ai-hint="company logo"/>
                           <AvatarFallback className="rounded-sm">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col">
-                          <span className="group-hover:underline group-hover:text-primary">{user.name}</span>
+                          <span>{user.name}</span>
                           {isSponsor && <Badge variant="outline" className="text-xs w-fit mt-1 px-1.5 py-0 border-yellow-500 text-yellow-600 bg-yellow-500/10">Sponsor</Badge>}
                           <div className="text-xs text-muted-foreground md:hidden">{user.contactFullName}</div>
                       </div>
-                  </Link>
+                  </div>
               </TableCell>
               <TableCell className="hidden md:table-cell">{user.contactFullName}</TableCell>
               <TableCell>
@@ -199,6 +200,12 @@ export default function UsersPage() {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex gap-1 justify-end">
+                    <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/users/${user.id}`)} title="Detayları Görüntüle">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/directory/${user.id}/notes?source=company&name=${encodeURIComponent(user.name)}`)} title="Notları Görüntüle">
+                      <StickyNote className="h-4 w-4" />
+                    </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon" title="Sil" className="text-destructive hover:text-destructive hover:bg-destructive/10">
@@ -341,4 +348,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
