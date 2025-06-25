@@ -36,6 +36,10 @@ export default function ChangePasswordByAdminModal({ isOpen, onClose, user, onUp
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (newPassword.length < 6) {
+        toast({ title: "Hata", description: "Yeni şifre en az 6 karakter olmalıdır.", variant: "destructive" });
+        return;
+    }
     if (newPassword !== confirmNewPassword) {
       toast({ title: "Hata", description: "Yeni şifreler eşleşmiyor.", variant: "destructive" });
       return;
@@ -65,6 +69,7 @@ export default function ChangePasswordByAdminModal({ isOpen, onClose, user, onUp
             <DialogTitle>"{user.name}" için Şifre Değiştir</DialogTitle>
             <DialogDescription>
               Bu işlem, kullanıcının veritabanındaki şifre kaydını günceller.
+              Kullanıcının giriş yapabilmesi için Firebase Auth şifresi ayrıca güncellenmelidir.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-6">
