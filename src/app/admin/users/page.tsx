@@ -47,6 +47,9 @@ const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
 const MAX_PREFERRED_LOCATIONS = 5;
 const PAGE_SIZE = 15;
 
+type MembershipFilterType = 'none' | 'has_membership' | 'no_membership' | 'expires_in_15' | 'expires_in_5';
+type MainFilterType = 'all' | 'pending' | 'sponsors' | 'membership';
+
 
 export default function UsersPage() {
   const { toast } = useToast();
@@ -62,7 +65,11 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<CompanyUserProfile | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'members' | 'pending' | 'sponsors'>('all');
+  
+  const [activeMainFilter, setActiveMainFilter] = useState<MainFilterType>('all');
+  const [activeMembershipFilter, setActiveMembershipFilter] = useState<MembershipFilterType>('none');
+  const [showMembershipSubFilters, setShowMembershipSubFilters] = useState(false);
+
   
   const [currentFormData, setCurrentFormData] = useState<Partial<CompanyUserProfile>>({});
   const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
@@ -89,10 +96,20 @@ export default function UsersPage() {
         setFetchError(null);
     }
     
+    let membershipFilter: 'none' | 'has' | 'has_not' | number = 'none';
+    if (activeMainFilter === 'membership') {
+        switch (activeMembershipFilter) {
+            case 'has_membership': membershipFilter = 'has'; break;
+            case 'no_membership': membershipFilter = 'has_not'; break;
+            case 'expires_in_15': membershipFilter = 15; break;
+            case 'expires_in_5': membershipFilter = 5; break;
+        }
+    }
+
     const filters = {
-        showOnlyMembers: activeFilter === 'members',
-        showOnlyPendingApproval: activeFilter === 'pending',
-        showOnlySponsors: activeFilter === 'sponsors',
+        showOnlyPendingApproval: activeMainFilter === 'pending',
+        showOnlySponsors: activeMainFilter === 'sponsors',
+        membershipFilter: membershipFilter
     };
 
     try {
@@ -121,7 +138,7 @@ export default function UsersPage() {
             setIsLoading(false);
         }
     }
-  }, [activeFilter, toast]);
+  }, [activeMainFilter, activeMembershipFilter, toast]);
 
 
   const handleRefreshAndRefetch = () => {
@@ -135,7 +152,21 @@ export default function UsersPage() {
     setAllCompanyUsers([]);
     fetchUsers(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilter]);
+  }, [activeMainFilter, activeMembershipFilter]);
+
+  const handleMainFilterClick = (filter: MainFilterType) => {
+    setActiveMainFilter(filter);
+    if (filter !== 'membership') {
+      setShowMembershipSubFilters(false);
+      setActiveMembershipFilter('none');
+    } else {
+      setShowMembershipSubFilters(true);
+      // When membership tab is clicked, default to "has membership"
+      if (activeMembershipFilter === 'none') {
+        setActiveMembershipFilter('has_membership');
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -559,24 +590,36 @@ export default function UsersPage() {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-muted/30 rounded-lg border">
-            <Button size="sm" variant={activeFilter === 'all' ? 'default' : 'ghost'} onClick={() => setActiveFilter('all')} className="h-8 px-3">Tümü</Button>
-            <Button size="sm" variant={activeFilter === 'members' ? 'default' : 'ghost'} onClick={() => setActiveFilter('members')} className="h-8 px-3">Üyeliği Olanlar</Button>
-            <Button size="sm" variant={activeFilter === 'pending' ? 'default' : 'ghost'} onClick={() => setActiveFilter('pending')} className="h-8 px-3">Onay Bekleyenler</Button>
-            <Button size="sm" variant={activeFilter === 'sponsors' ? 'default' : 'ghost'} onClick={() => setActiveFilter('sponsors')} className="h-8 px-3">Sponsorlar</Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/30 rounded-lg border">
+                <Button size="sm" variant={activeMainFilter === 'all' ? 'default' : 'ghost'} onClick={() => handleMainFilterClick('all')} className="h-8 px-3">Tümü</Button>
+                <Button size="sm" variant={activeMainFilter === 'pending' ? 'default' : 'ghost'} onClick={() => handleMainFilterClick('pending')} className="h-8 px-3">Onay Bekleyenler</Button>
+                <Button size="sm" variant={activeMainFilter === 'sponsors' ? 'default' : 'ghost'} onClick={() => handleMainFilterClick('sponsors')} className="h-8 px-3">Sponsorlar</Button>
+                <Button size="sm" variant={activeMainFilter === 'membership' ? 'default' : 'ghost'} onClick={() => handleMainFilterClick('membership')} className="h-8 px-3">Üyelik Durumu</Button>
+            </div>
+            {showMembershipSubFilters && (
+                <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-lg border border-dashed">
+                    <Button size="sm" variant={activeMembershipFilter === 'has_membership' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('has_membership')}>Üyeliği Olanlar</Button>
+                    <Button size="sm" variant={activeMembershipFilter === 'no_membership' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('no_membership')}>Üyeliği Olmayanlar</Button>
+                    <Button size="sm" variant={activeMembershipFilter === 'expires_in_15' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('expires_in_15')}>Üyeliği 15 Gün İçinde Bitecekler</Button>
+                    <Button size="sm" variant={activeMembershipFilter === 'expires_in_5' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('expires_in_5')}>Üyeliği 5 Gün İçinde Bitecekler</Button>
+                </div>
+            )}
           </div>
           
-          {isLoading && allCompanyUsers.length === 0 ? (
-                <div><Skeleton className="h-64 w-full"/></div>
-            ) : fetchError ? (
-                <div className="text-center py-10 bg-destructive/10 border border-destructive rounded-lg">
-                    <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
-                    <h3 className="text-lg font-semibold text-destructive-foreground mb-2">Firmalar Yüklenemedi</h3>
-                    <p className="text-sm text-destructive-foreground/80 px-4">{fetchError}</p>
-                    <p className="text-xs text-destructive-foreground/70 mt-1 px-4">Eksik bir Firestore dizini olabilir. Lütfen tarayıcı konsolunu kontrol edin.</p>
-                    <Button onClick={handleRefreshAndRefetch} variant="destructive" className="mt-4">Tekrar Dene</Button>
-                </div>
-            ) : renderUserTable(filteredCompanyUsers)}
+          <div className="mt-6">
+            {isLoading && allCompanyUsers.length === 0 ? (
+                    <div><Skeleton className="h-64 w-full"/></div>
+                ) : fetchError ? (
+                    <div className="text-center py-10 bg-destructive/10 border border-destructive rounded-lg">
+                        <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+                        <h3 className="text-lg font-semibold text-destructive-foreground mb-2">Firmalar Yüklenemedi</h3>
+                        <p className="text-sm text-destructive-foreground/80 px-4">{fetchError}</p>
+                        <p className="text-xs text-destructive-foreground/70 mt-1 px-4">Eksik bir Firestore dizini olabilir. Lütfen tarayıcı konsolunu kontrol edin.</p>
+                        <Button onClick={handleRefreshAndRefetch} variant="destructive" className="mt-4">Tekrar Dene</Button>
+                    </div>
+                ) : renderUserTable(filteredCompanyUsers)}
+          </div>
           
         </CardContent>
       </Card>

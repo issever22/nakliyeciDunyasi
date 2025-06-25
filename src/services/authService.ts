@@ -121,9 +121,9 @@ export async function getPaginatedAdminUsers(options: {
   lastVisibleDoc?: QueryDocumentSnapshot<DocumentData> | null;
   pageSize?: number;
   filters?: {
-    showOnlyMembers?: boolean;
     showOnlyPendingApproval?: boolean;
     showOnlySponsors?: boolean;
+    membershipFilter?: 'none' | 'has' | 'has_not' | number;
   };
 }): Promise<{
   users: CompanyUserProfile[];
@@ -138,15 +138,30 @@ export async function getPaginatedAdminUsers(options: {
 
     queryConstraints.push(where('role', '==', 'company'));
 
-    if (filters.showOnlyMembers) {
-      queryConstraints.push(where('membershipStatus', '!=', 'Yok'));
-    }
     if (filters.showOnlyPendingApproval) {
       queryConstraints.push(where('isActive', '==', false));
     }
     if (filters.showOnlySponsors) {
       queryConstraints.push(where('sponsorships', '!=', []));
     }
+
+    const { membershipFilter = 'none' } = filters;
+    if (membershipFilter === 'has') {
+      queryConstraints.push(where('membershipStatus', '!=', 'Yok'));
+    } else if (membershipFilter === 'has_not') {
+      queryConstraints.push(where('membershipStatus', '==', 'Yok'));
+    } else if (typeof membershipFilter === 'number' && membershipFilter > 0) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const futureDate = new Date();
+      futureDate.setDate(today.getDate() + membershipFilter);
+      futureDate.setHours(23, 59, 59, 999);
+      
+      queryConstraints.push(where('membershipEndDate', '>=', Timestamp.fromDate(today)));
+      queryConstraints.push(where('membershipEndDate', '<=', Timestamp.fromDate(futureDate)));
+    }
+
 
     queryConstraints.push(orderBy('createdAt', 'desc'));
 
