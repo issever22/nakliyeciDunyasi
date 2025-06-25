@@ -270,9 +270,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                  <SidebarMenuItem className="pl-4">
-                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/hero-slides'} tooltip={{content: "Hero Alanı", side: "right"}}>
+                  <SidebarMenuButton asChild isActive={pathname === '/admin/settings/hero-slides'} tooltip={{content: "Giriş Slaytı", side: "right"}}>
                     <Link href="/admin/settings/hero-slides">
-                      <HeroIcon size={18}/> <span className="text-sm">Hero Alanı</span>
+                      <HeroIcon size={18}/> <span className="text-sm">Giriş Slaytı</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

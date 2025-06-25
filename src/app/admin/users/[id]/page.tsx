@@ -359,7 +359,7 @@ function CompanyDetailsAdminContent() {
                             <CardDescription>{company.category}</CardDescription>
                         </CardHeader>
                         <CardFooter className="flex flex-col gap-2 p-4">
-                            <Button onClick={() => handleEdit(company)} className="w-full"><Edit size={16} /> Profili Düzenle</Button>
+                            <Button onClick={() => handleEdit(company)} className="w-full"><Edit size={16} /> Firmayı Düzenle</Button>
                              <Button onClick={() => router.push(`/admin/directory/${company.id}/notes?source=company&name=${encodeURIComponent(company.name)}`)} variant="outline" className="w-full"><StickyNote size={16}/> Notları Görüntüle</Button>
                         </CardFooter>
                     </Card>
