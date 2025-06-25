@@ -28,6 +28,7 @@ import {
   getPaginatedAdminUsers, 
   updateUserProfile,
   deleteUserProfile,
+  sendPasswordResetEmailByAdmin,
 } from '@/services/authService'; 
 import { getAllMemberships } from '@/services/membershipsService';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -284,9 +285,24 @@ export default function UsersPage() {
     setIsEditDialogOpen(false);
   };
 
-  const handleOpenChangePasswordModal = (user: CompanyUserProfile) => {
-    setUserToChangePassword(user);
-    setIsChangePasswordModalOpen(true);
+  const handleOpenChangePasswordModal = async (user: CompanyUserProfile) => {
+    try {
+      const result = await sendPasswordResetEmailByAdmin(user.email);
+      if (result.success) {
+        toast({
+          title: "Başarılı",
+          description: `${user.email} adresine şifre sıfırlama e-postası gönderildi.`,
+        });
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      toast({
+        title: "E-posta Gönderme Hatası",
+        description: error.message || "Şifre sıfırlama e-postası gönderilemedi.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -601,8 +617,8 @@ export default function UsersPage() {
                 <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-lg border border-dashed">
                     <Button size="sm" variant={activeMembershipFilter === 'has_membership' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('has_membership')}>Üyeliği Olanlar</Button>
                     <Button size="sm" variant={activeMembershipFilter === 'no_membership' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('no_membership')}>Üyeliği Olmayanlar</Button>
-                    <Button size="sm" variant={activeMembershipFilter === 'expires_in_15' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('expires_in_15')}>Üyeliği 15 Gün İçinde Bitecekler</Button>
-                    <Button size="sm" variant={activeMembershipFilter === 'expires_in_5' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('expires_in_5')}>Üyeliği 5 Gün İçinde Bitecekler</Button>
+                    <Button size="sm" variant={activeMembershipFilter === 'expires_in_15' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('expires_in_15')}>Son 15 Gün</Button>
+                    <Button size="sm" variant={activeMembershipFilter === 'expires_in_5' ? 'secondary' : 'ghost'} onClick={() => setActiveMembershipFilter('expires_in_5')}>Son 5 Gün</Button>
                 </div>
             )}
           </div>
@@ -660,23 +676,12 @@ export default function UsersPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <Label htmlFor="edit-password">Kayıtlı Şifre (Veritabanı)</Label>
-                            <Input 
-                                id="edit-password" 
-                                type="text" 
-                                value={currentFormData.password || ''} 
-                                onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} 
-                                placeholder="Şifre bilgisi yok"
-                            />
-                            <p className="text-xs text-muted-foreground">Bu, yalnızca veritabanında saklanan şifredir.</p>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Şifreyi Değiştir</Label>
+                            <Label>Kullanıcıya Şifre Sıfırlama E-postası Gönder</Label>
                             <Button type="button" variant="secondary" onClick={() => editingUser && handleOpenChangePasswordModal(editingUser)} className="w-full">
                                 <KeyRound className="mr-2 h-4 w-4" />
-                                Firma Şifresini Değiştir
+                                Sıfırlama E-postası Gönder
                             </Button>
-                             <p className="text-xs text-muted-foreground pt-1">Bu işlem, kullanıcının veritabanındaki şifresini günceller.</p>
+                             <p className="text-xs text-muted-foreground pt-1">Bu işlem, kullanıcının e-postasına güvenli bir şifre değiştirme bağlantısı gönderir.</p>
                         </div>
                     </div>
                      <div className="space-y-1.5">
