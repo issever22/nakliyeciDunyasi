@@ -308,6 +308,7 @@ export async function createCompanyUser(uid: string, registrationData: CompanyRe
   try {
     const userDocRef = doc(db, USERS_COLLECTION, uid);
 
+    // The password is now coming in registrationData, so no need to extract it separately.
     const { password, ...profileDataFromForm } = registrationData;
     
     const finalProfileDataForFirestore = {
@@ -318,7 +319,7 @@ export async function createCompanyUser(uid: string, registrationData: CompanyRe
       membershipStatus: 'Yok',
       membershipEndDate: null,
       sponsorships: [],
-      password: password,
+      password: password, // Store password here
     };
 
     await setDoc(userDocRef, finalProfileDataForFirestore);
@@ -431,6 +432,17 @@ export async function updateUserProfile(uid: string, data: Partial<CompanyUserPr
     return true;
   } catch (error) {
     console.error("[authService.ts - updateUserProfile] Error updating user profile in Firestore: ", error);
+    return false;
+  }
+}
+
+export async function updateFirestorePassword(uid: string, newPassword_input: string): Promise<boolean> {
+  try {
+    const docRef = doc(db, USERS_COLLECTION, uid);
+    await updateDoc(docRef, { password: newPassword_input });
+    return true;
+  } catch (error) {
+    console.error("Error updating user password in Firestore: ", error);
     return false;
   }
 }

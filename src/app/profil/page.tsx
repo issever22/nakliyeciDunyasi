@@ -16,6 +16,7 @@ import ManageCompanyVehiclesModal from '@/components/profile/ManageCompanyVehicl
 import ManageCompanyAuthDocsModal from '@/components/profile/ManageCompanyAuthDocsModal';
 import ViewMembershipsModal from '@/components/profile/ViewMembershipsModal';
 import SendMessageModal from '@/components/profile/SendMessageModal';
+import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import MyListingsTab from '@/components/profile/MyListingsTab';
 import { useRouter } from 'next/navigation';
@@ -51,6 +52,7 @@ export default function ProfilePage() {
   const [isManageAuthDocsModalOpen, setIsManageAuthDocsModalOpen] = useState(false);
   const [isViewMembershipsModalOpen, setIsViewMembershipsModalOpen] = useState(false);
   const [isSendMessageModalOpen, setIsSendMessageModalOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
 
 
@@ -89,16 +91,6 @@ export default function ProfilePage() {
         await refreshUser();
     }
   }, [refreshUser]);
-
-
-  const handleSendPasswordReset = async () => {
-    toast({
-        title: "İşlev Devre Dışı",
-        description: "Şifre değiştirme işlevi şu anda aktif değildir.",
-        variant: "destructive",
-    });
-  };
-
 
   if (authLoading || !isAuthenticated || (companyUser && settingsLoading && !['myListings'].includes(activeTab) )) {
     return (
@@ -173,16 +165,14 @@ export default function ProfilePage() {
               )}
               <CardTitle className="text-2xl">{companyUser.name}</CardTitle>
               <CardDescription className="flex items-center gap-1.5"><Mail size={14}/>{companyUser.email}</CardDescription>
-               {companyUser.username && (
-                 <Badge variant="outline" className="mt-1 text-xs">@{companyUser.username}</Badge>
-               )}
+              
             </CardHeader>
             <CardContent className="text-center space-y-2">
               <Button onClick={() => setIsEditProfileModalOpen(true)} variant="outline" className="w-full">
                 <Edit3 className="mr-2 h-4 w-4" /> Temel Bilgileri Düzenle
               </Button>
-              <Button onClick={handleSendPasswordReset} variant="outline" className="w-full" disabled>
-                <KeyRound className="mr-2 h-4 w-4" /> Şifre Değiştir (Devre Dışı)
+              <Button onClick={() => setIsChangePasswordModalOpen(true)} variant="outline" className="w-full">
+                <KeyRound className="mr-2 h-4 w-4" /> Şifre Değiştir
               </Button>
               <TooltipProvider>
                 <Tooltip>
@@ -365,6 +355,10 @@ export default function ProfilePage() {
                 onClose={() => setIsViewMembershipsModalOpen(false)}
                 availableMemberships={membershipPackages}
                 companyUser={companyUser}
+            />
+            <ChangePasswordModal 
+                isOpen={isChangePasswordModalOpen}
+                onClose={() => setIsChangePasswordModalOpen(false)}
             />
         </>
       )}

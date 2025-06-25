@@ -2,12 +2,12 @@
 "use client";
 
 import type { CompanyUserProfile, CompanyRegisterData } from '@/types'; 
-import { createCompanyUser as createCompanyUserServerAction, getUserProfile as getUserProfileServerAction } from '@/services/authService'; 
+import { createCompanyUser as createCompanyUserServerAction, getUserProfile as getUserProfileServerAction, updateFirestorePassword } from '@/services/authService'; 
 import { useRouter } from 'next/navigation';
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, type User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, type User as FirebaseUser, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -19,6 +19,7 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean; 
   refreshUser: () => Promise<void>;
+  changePassword: (currentPassword_input: string, newPassword_input: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -164,11 +165,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Çıkış Hatası", description: error.message, variant: "destructive"});
     }
   }, [router, toast]);
+  
+  const changePassword = useCallback(async (currentPassword_input: string, newPassword_input: string) => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser || !firebaseUser.email) {
+      throw new Error("Oturum açmış kullanıcı bulunamadı veya kullanıcının e-postası yok.");
+    }
+    
+    const credential = EmailAuthProvider.credential(firebaseUser.email, currentPassword_input);
+
+    try {
+      await reauthenticateWithCredential(firebaseUser, credential);
+      // User re-authenticated. Now, change the password in Auth.
+      await updatePassword(firebaseUser, newPassword_input);
+      // And now update it in Firestore
+      const firestoreSuccess = await updateFirestorePassword(firebaseUser.uid, newPassword_input);
+      if (!firestoreSuccess) {
+          // This is a state where auth password changed but firestore failed.
+          // It's a tricky situation. We'll just log it and inform the user to contact support.
+          console.error("Firebase Auth password updated, but Firestore update failed for user:", firebaseUser.uid);
+          throw new Error("Kimlik doğrulama şifresi güncellendi, ancak veritabanı kaydı güncellenemedi. Lütfen yönetici ile iletişime geçin.");
+      }
+    } catch (error: any) {
+        console.error("Password change error:", error.code);
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            throw new Error("Mevcut şifreniz yanlış.");
+        }
+        if(error.code === 'auth/weak-password') {
+            throw new Error("Yeni şifre en az 6 karakter olmalıdır.");
+        }
+        throw new Error(error.message || "Şifre değiştirilirken bir hata oluştu.");
+    }
+  }, []);
 
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, isAuthenticated, refreshUser }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, isAuthenticated, refreshUser, changePassword }}>
       {children}
     </AuthContext.Provider>
   );
