@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation'; 
 
 export default function LoginForm() {
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -22,21 +22,13 @@ export default function LoginForm() {
     event.preventDefault();
     setIsLoading(true);
     try {
-      const userProfile = await login(identifier, password);
-      if (userProfile) {
-        toast({
-          title: "Başarılı Giriş",
-          description: `Hoş geldiniz, ${userProfile.name}! Ana sayfaya yönlendiriliyorsunuz...`,
-        });
-        router.push('/'); 
-      } else {
-        // This case might not be reached if login always throws for failures
-        toast({
-          title: "Giriş Başarısız",
-          description: "E-posta/kullanıcı adı veya şifre hatalı. Lütfen tekrar deneyin.",
-          variant: "destructive",
-        });
-      }
+      await login(email, password);
+      // The onAuthStateChanged listener in useAuth will handle redirection and user state setting.
+      toast({
+        title: "Başarılı Giriş",
+        description: `Giriş yapıldı. Yönlendiriliyorsunuz...`,
+      });
+      router.push('/'); 
     } catch (error: any) {
       console.error("Login form error:", error);
       toast({
@@ -52,18 +44,18 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="identifier">E-posta veya Kullanıcı Adı</Label>
+        <Label htmlFor="email">E-posta Adresi</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
-            id="identifier"
-            type="text"
-            placeholder="E-posta veya kullanıcı adı"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            id="email"
+            type="email"
+            placeholder="E-posta adresiniz"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
             className="pl-10"
-            autoComplete="username"
+            autoComplete="email"
           />
         </div>
       </div>

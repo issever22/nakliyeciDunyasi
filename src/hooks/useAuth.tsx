@@ -2,22 +2,19 @@
 "use client";
 
 import type { CompanyUserProfile, CompanyRegisterData } from '@/types'; 
-import { 
-  createCompanyUser as createCompanyUserServerAction,
-  getUserProfile as getUserProfileServerAction
-} from '@/services/authService'; 
+import { createCompanyUser as createCompanyUserServerAction, getUserProfile as getUserProfileServerAction } from '@/services/authService'; 
 import { useRouter } from 'next/navigation';
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, type User as FirebaseUser } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, limit, doc, onSnapshot } from 'firebase/firestore';
-
-const USER_SESSION_KEY = 'nakliyeci-dunyasi-session-user';
 
 interface AuthContextType {
   user: CompanyUserProfile | null; 
-  login: (identifier: string, pass: string) => Promise<CompanyUserProfile | null>;
-  register: (data: CompanyRegisterData) => Promise<CompanyUserProfile | null>; 
+  login: (email: string, pass: string) => Promise<FirebaseUser | null>;
+  register: (data: CompanyRegisterData) => Promise<FirebaseUser | null>; 
   logout: () => Promise<void>;
   loading: boolean;
   isAuthenticated: boolean; 
@@ -32,163 +29,143 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const { toast } = useToast();
 
-  const logout = useCallback(async () => {
-    setLoading(true);
-    try {
-      setUser(null); 
-      localStorage.removeItem(USER_SESSION_KEY);
-      router.push('/auth/giris');
-    } catch (error: any) {
-      console.error("Logout error (custom):", error);
-      toast({ title: "Çıkış Hatası", description: error.message, variant: "destructive"});
-    } finally {
-      setLoading(false);
-    }
-  }, [router, toast]);
-
-
   useEffect(() => {
-    // 1. Initial load from localStorage for quick UI response
-    let currentUser: CompanyUserProfile | null = null;
-    try {
-      const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
-      if (storedUserJson) {
-        currentUser = JSON.parse(storedUserJson);
-        setUser(currentUser);
-      }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem(USER_SESSION_KEY);
-    }
-    setLoading(false); // Initial loading is done
-
-    // 2. Set up real-time listener if a user is found
-    if (currentUser?.id) {
-      const userDocRef = doc(db, 'users', currentUser.id);
-      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const freshProfile = getUserProfileServerAction(docSnap.id).then(profile => {
-             if (profile) {
-                setUser(profile);
-                localStorage.setItem(USER_SESSION_KEY, JSON.stringify(profile));
-                console.log("Real-time user profile updated.");
-             }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in, see docs for a list of available properties
+        // https://firebase.google.com/docs/reference/js/firebase.User
+        const profile = await getUserProfileServerAction(firebaseUser.uid);
+        if (profile) {
+          setUser(profile);
+          // Set up a real-time listener for the user's profile document
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const freshProfile = getUserProfileServerAction(docSnap.id);
+              freshProfile.then(p => {
+                if (p) setUser(p);
+              });
+            } else {
+              // User doc deleted from backend
+              logout();
+            }
           });
         } else {
-          // The user was deleted from the backend.
-          console.warn("User document deleted from backend. Logging out.");
-          logout();
+          // Profile doesn't exist in Firestore, might be an inconsistent state
+          setUser(null);
+          await signOut(auth);
         }
-      }, (error) => {
-        console.error("Auth real-time listener error:", error);
-        toast({ title: "Oturum Hatası", description: "Oturumunuz senkronize edilirken bir hata oluştu.", variant: "destructive" });
-      });
+      } else {
+        // User is signed out
+        setUser(null);
+      }
+      setLoading(false);
+    });
 
-      // 3. Cleanup the listener on component unmount or when user logs out
-      return () => unsubscribe();
-    }
-  }, []); // Run only once on mount
+    return () => unsubscribe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshUser = useCallback(async () => {
-    const storedUserJson = localStorage.getItem(USER_SESSION_KEY);
-    if (!storedUserJson) return;
-    
-    let storedUser;
-    try {
-        storedUser = JSON.parse(storedUserJson);
-    } catch (e) {
-        console.error("Could not parse user for refresh", e);
-        return;
+    if (auth.currentUser) {
+      const freshProfile = await getUserProfileServerAction(auth.currentUser.uid);
+      if (freshProfile) {
+        setUser(freshProfile);
+      }
     }
-    
-    if (!storedUser?.id) return;
-    
-    try {
-        const freshProfile = await getUserProfileServerAction(storedUser.id);
-        if (freshProfile) {
-            setUser(freshProfile);
-            localStorage.setItem(USER_SESSION_KEY, JSON.stringify(freshProfile));
-        } else {
-            await logout();
-        }
-    } catch (error) {
-        console.error("Failed to refresh user:", error);
-        toast({ title: "Veri Yenileme Hatası", description: "Profil bilgileri yenilenirken bir sorun oluştu.", variant: "destructive" });
-    }
-  }, [logout, toast]);
+  }, []);
 
-
-  const login = useCallback(async (identifier: string, pass: string): Promise<CompanyUserProfile | null> => {
+  const login = useCallback(async (email: string, pass: string): Promise<FirebaseUser | null> => {
     setLoading(true);
     try {
-      const usersRef = collection(db, "users");
-      
-      const emailQuery = query(usersRef, where("email", "==", identifier), limit(1));
-      let querySnapshot = await getDocs(emailQuery);
-
-      if (querySnapshot.empty) {
-          const usernameQuery = query(usersRef, where("username", "==", identifier), limit(1));
-          querySnapshot = await getDocs(usernameQuery);
+      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      return userCredential.user;
+    } catch (error: any) {
+      console.error("Firebase login error:", error);
+      let errorMessage = "Giriş sırasında bir hata oluştu.";
+      if (error.code) {
+        switch (error.code) {
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential':
+                errorMessage = "E-posta veya şifre hatalı.";
+                break;
+            case 'auth/invalid-email':
+                errorMessage = "Geçersiz e-posta formatı.";
+                break;
+            case 'auth/user-disabled':
+                errorMessage = "Bu kullanıcı hesabı devre dışı bırakılmış.";
+                break;
+            default:
+                errorMessage = "Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.";
+        }
       }
-
-      if (querySnapshot.empty) {
-        throw new Error("Kullanıcı bulunamadı.");
-      }
-
-      const userDoc = querySnapshot.docs[0];
-      const userData = userDoc.data() as CompanyUserProfile;
-
-      if (userData.password !== pass) {
-        throw new Error("Hatalı şifre.");
-      }
-      
-      if (userData.role !== 'company') {
-        throw new Error("Giriş yapılan hesap bir firma hesabı değil.");
-      }
-      
-      const profile = await getUserProfileServerAction(userDoc.id);
-      if (profile) {
-        setUser(profile);
-        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(profile));
-        return profile;
-      } else {
-        throw new Error("Kullanıcı profili yüklenemedi veya geçersiz.");
-      }
-    } catch(error: any) {
-      console.error("Custom login error:", error);
-      if (error.message === "Kullanıcı bulunamadı." || error.message === "Hatalı şifre.") {
-          throw new Error("E-posta/kullanıcı adı veya şifre hatalı.");
-      }
-      throw error; 
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const register = useCallback(async (data: CompanyRegisterData): Promise<CompanyUserProfile | null> => {
+  const register = useCallback(async (data: CompanyRegisterData): Promise<FirebaseUser | null> => {
     setLoading(true);
     if (!data.password) {
-        setLoading(false);
-        toast({ title: "Kayıt Hatası", description: "Şifre zorunludur.", variant: "destructive" });
-        throw new Error("Şifre zorunludur.");
+      setLoading(false);
+      throw new Error("Şifre kayıt için zorunludur.");
     }
     try {
-      const result = await createCompanyUserServerAction(data);
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const firebaseUser = userCredential.user;
+
+      // 2. Create user profile in Firestore
+      const { password, ...profileData } = data; // Don't pass password to server action
+      const result = await createCompanyUserServerAction(firebaseUser.uid, profileData);
+      
       if (result.profile) {
-        setUser(result.profile); 
-        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(result.profile));
-        return result.profile;
+        setUser(result.profile);
+        return firebaseUser;
       } else {
-        throw new Error(result.error || "Firma profili oluşturulamadı.");
+        // If Firestore profile creation fails, we should ideally delete the Auth user
+        // This requires Admin SDK, so for now we'll just throw the error.
+        await firebaseUser.delete();
+        throw new Error(result.error || "Firma profili oluşturulamadı. Auth kullanıcısı silindi.");
       }
     } catch (error: any) {
-      console.error("Custom registration error:", error);
-      throw error; 
+      console.error("Firebase registration error:", error);
+      let errorMessage = "Kayıt sırasında bir hata oluştu.";
+      if (error.code) {
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                errorMessage = "Bu e-posta adresi zaten kayıtlı.";
+                break;
+            case 'auth/weak-password':
+                errorMessage = "Şifre en az 6 karakter olmalıdır.";
+                break;
+            case 'auth/invalid-email':
+                errorMessage = "Geçersiz e-posta formatı.";
+                break;
+            default:
+                errorMessage = error.message || "Beklenmedik bir hata oluştu.";
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
   
+  const logout = useCallback(async () => {
+    try {
+      await signOut(auth);
+      setUser(null); 
+      router.push('/auth/giris');
+    } catch (error: any) {
+      console.error("Logout error:", error);
+      toast({ title: "Çıkış Hatası", description: error.message, variant: "destructive"});
+    }
+  }, [router, toast]);
+
   const isAuthenticated = !!user;
 
   return (

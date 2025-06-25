@@ -1,9 +1,8 @@
 
-
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { UserProfile, CompanyUserProfile, RegisterData, CompanyRegisterData, UserRole, CompanyCategory, CompanyFilterOptions, SponsorshipLocation, AdminProfile } from '@/types';
+import type { CompanyUserProfile, CompanyRegisterData, CompanyCategory, CompanyFilterOptions, SponsorshipLocation, AdminProfile } from '@/types';
 import {
   collection,
   doc,
@@ -17,7 +16,6 @@ import {
   DocumentData,
   getDocs,
   where,
-  addDoc,
   limit,
   startAfter,
   type QueryConstraint,
@@ -38,14 +36,12 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
   const roleToAssign: 'company' = 'company';
   const displayName = data.companyTitle || data.name; 
 
-  const companyProfileBase: Omit<CompanyUserProfile, 'createdAt' | 'membershipEndDate'> = {
+  const companyProfileBase: Omit<CompanyUserProfile, 'createdAt' | 'membershipEndDate' | 'password'> = {
     id,
     email: data.email || '',
-    password: data.password || '', 
     role: roleToAssign,
     name: displayName || '',
     isActive: data.isActive === true, 
-    username: data.username || '',
     logoUrl: data.logoUrl || undefined,
     companyTitle: displayName || '', 
     category: data.category || 'Nakliyeci',
@@ -86,6 +82,7 @@ const convertToUserProfile = (docData: DocumentData, id: string): CompanyUserPro
 
   return {
     ...companyProfileBase,
+    password: data.password || undefined,
     createdAt: createdAtStr,
     membershipEndDate: membershipEndDateStr,
   };
@@ -307,70 +304,34 @@ export async function getUserProfile(uid: string): Promise<CompanyUserProfile | 
   }
 }
 
-export async function createCompanyUser(registrationData: CompanyRegisterData): Promise<{ profile: CompanyUserProfile | null; error?: string }> {
+export async function createCompanyUser(uid: string, registrationData: Omit<CompanyRegisterData, 'password'>): Promise<{ profile: CompanyUserProfile | null; error?: string }> {
   try {
-    const { password, isActive: initialIsActive, ...profileDataFromForm } = registrationData;
-    if (!password) {
-      return { profile: null, error: "Şifre kayıt için zorunludur." };
-    }
+    const userDocRef = doc(db, USERS_COLLECTION, uid);
 
-    const usersRef = collection(db, USERS_COLLECTION);
-    const qEmail = query(usersRef, where("email", "==", profileDataFromForm.email));
-    const emailCheckSnapshot = await getDocs(qEmail);
-    if (!emailCheckSnapshot.empty) {
-      return { profile: null, error: "Bu e-posta adresi zaten kayıtlı." };
-    }
+    // This function assumes the user has already been created in Firebase Auth
+    // and checks for email/username duplicates are done there.
 
-    const qUsername = query(usersRef, where("username", "==", profileDataFromForm.username));
-    const usernameCheckSnapshot = await getDocs(qUsername);
-    if (!usernameCheckSnapshot.empty) {
-        return { profile: null, error: "Bu kullanıcı adı zaten alınmış." };
-    }
-
-    const companyData = profileDataFromForm as Omit<CompanyRegisterData, 'password' | 'isActive'>;
-
-    if (!companyData.username || !companyData.name || !companyData.category || !companyData.contactFullName || !companyData.mobilePhone || !companyData.companyType || !companyData.addressCountry || !companyData.addressCity || !companyData.fullAddress) {
-        return { profile: null, error: "Lütfen tüm zorunlu alanları doldurun." };
-    }
+    const { isActive: initialIsActive, ...profileDataFromForm } = registrationData;
     
-    // Base object with required fields
+    // This is the data that will be stored in the Firestore document.
+    // It includes the password as requested.
     const finalProfileDataForFirestore: any = {
-      email: companyData.email,
+      ...profileDataFromForm,
       role: 'company',
-      name: companyData.name,
-      password: password,
       isActive: initialIsActive === undefined ? false : initialIsActive,
       createdAt: Timestamp.fromDate(new Date()),
-      username: companyData.username,
-      category: companyData.category,
-      companyTitle: companyData.name,
-      contactFullName: companyData.contactFullName,
-      mobilePhone: companyData.mobilePhone,
-      companyType: companyData.companyType,
-      addressCountry: companyData.addressCountry,
-      addressCity: companyData.addressCity,
-      fullAddress: companyData.fullAddress,
-      workingMethods: Array.isArray(companyData.workingMethods) ? companyData.workingMethods : [],
-      workingRoutes: Array.isArray(companyData.workingRoutes) ? companyData.workingRoutes : [],
-      preferredCities: Array.isArray(companyData.preferredCities) ? companyData.preferredCities.filter(c => c) : [],
-      preferredCountries: Array.isArray(companyData.preferredCountries) ? companyData.preferredCountries.filter(c => c) : [],
       membershipStatus: 'Yok',
       membershipEndDate: null,
-      ownedVehicles: Array.isArray(companyData.ownedVehicles) ? companyData.ownedVehicles : [],
-      authDocuments: Array.isArray(companyData.authDocuments) ? companyData.authDocuments : [],
       sponsorships: [],
     };
+    
+    // Add the password back for storage as per the user's request.
+    const originalRequest = registrationData as CompanyRegisterData;
+    finalProfileDataForFirestore.password = originalRequest.password;
 
-    // Conditionally add optional fields only if they have a value
-    if (companyData.logoUrl) finalProfileDataForFirestore.logoUrl = companyData.logoUrl;
-    if (companyData.workPhone) finalProfileDataForFirestore.workPhone = companyData.workPhone;
-    if (companyData.fax) finalProfileDataForFirestore.fax = companyData.fax;
-    if (companyData.website) finalProfileDataForFirestore.website = companyData.website;
-    if (companyData.companyDescription) finalProfileDataForFirestore.companyDescription = companyData.companyDescription;
-    if (companyData.addressDistrict) finalProfileDataForFirestore.addressDistrict = companyData.addressDistrict;
+    await setDoc(userDocRef, finalProfileDataForFirestore);
 
-    const docRef = await addDoc(collection(db, USERS_COLLECTION), finalProfileDataForFirestore);
-    const savedDoc = await getDoc(docRef);
+    const savedDoc = await getDoc(userDocRef);
 
     if (savedDoc.exists()) {
         const converted = convertToUserProfile(savedDoc.data(), savedDoc.id);
@@ -484,6 +445,9 @@ export async function updateUserProfile(uid: string, data: Partial<CompanyUserPr
 
 export async function deleteUserProfile(uid: string): Promise<boolean> {
   try {
+    // This function now only deletes the Firestore document.
+    // Deleting the Firebase Auth user requires the Admin SDK and cannot be done from the client.
+    // The admin will need to manually delete the user from the Firebase Authentication console.
     const docRef = doc(db, USERS_COLLECTION, uid);
     await deleteDoc(docRef);
     return true;

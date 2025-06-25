@@ -213,7 +213,7 @@ export default function UsersPage() {
     e.preventDefault();
     if (!editingUser) return;
     
-    const requiredFields: (keyof CompanyUserProfile)[] = ['name', 'email', 'username', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCountry', 'addressCity', 'fullAddress', 'password'];
+    const requiredFields: (keyof CompanyUserProfile)[] = ['name', 'email', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCountry', 'addressCity', 'fullAddress'];
     for (const field of requiredFields) {
         const value = (currentFormData as any)[field];
         if (!value || (typeof value === 'string' && !value.trim())) {
@@ -223,8 +223,9 @@ export default function UsersPage() {
         }
     }
     
+    // Password is only validated if it's being changed.
     if (currentFormData.password && currentFormData.password.length < 6) {
-        toast({ title: "Hata", description: "Şifre en az 6 karakter olmalıdır.", variant: "destructive" });
+        toast({ title: "Hata", description: "Yeni şifre en az 6 karakter olmalıdır.", variant: "destructive" });
         setFormSubmitting(false);
         return;
     }
@@ -241,6 +242,11 @@ export default function UsersPage() {
     dataToSubmit.name = dataToSubmit.companyTitle || dataToSubmit.name;
     dataToSubmit.preferredCities = (dataToSubmit.preferredCities || []).filter((c: string) => c);
     dataToSubmit.preferredCountries = (dataToSubmit.preferredCountries || []).filter((c: string) => c);
+    
+    // Don't submit password if it hasn't changed.
+    if (!dataToSubmit.password) {
+        delete dataToSubmit.password;
+    }
     
     const { id, createdAt, email, role, ...updateData } = dataToSubmit; 
     
@@ -259,7 +265,7 @@ export default function UsersPage() {
   const handleDelete = async (id: string) => {
     const success = await deleteUserProfile(id); 
     if (success) {
-      toast({ title: "Başarılı", description: "Firma profili silindi.", variant: "destructive" });
+      toast({ title: "Başarılı", description: "Firma profil kaydı Firestore'dan silindi. Firebase Auth kullanıcısını konsoldan silmeyi unutmayın.", variant: "destructive", duration: 7000 });
       handleRefreshAndRefetch();
     } else {
       toast({ title: "Hata", description: "Firma profili silinemedi.", variant: "destructive" });
@@ -273,7 +279,6 @@ export default function UsersPage() {
       const matchesSearch = companyUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             companyUser.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             (companyUser.contactFullName && companyUser.contactFullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                            (companyUser.username && companyUser.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
                             (companyUser.category && companyUser.category.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchesSearch;
     });
@@ -462,7 +467,7 @@ export default function UsersPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          "{user.name}" adlı firma profilini silmek üzeresiniz. Bu işlem geri alınamaz.
+                          "{user.name}" adlı firma profilini silmek üzeresiniz. Bu işlem geri alınamaz ve kullanıcının Firebase Auth kaydını etkilemez.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -545,7 +550,7 @@ export default function UsersPage() {
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Firma ara (Firma, Yetkili, E-posta)..."
+                placeholder="Firma adı veya e-posta ara..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-full"
@@ -610,20 +615,13 @@ export default function UsersPage() {
                             <Input id="edit-companyTitle" value={currentFormData.companyTitle || ''} onChange={(e) => setCurrentFormData(prev => ({ ...prev, name: e.target.value, companyTitle: e.target.value }))} required />
                         </div>
                         <div className="space-y-1.5">
-                            <Label htmlFor="edit-username">Kullanıcı Adı (*)</Label>
-                            <Input id="edit-username" value={currentFormData.username || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, username: e.target.value}))} required />
+                            <Label htmlFor="edit-email">E-posta Adresi (Değiştirilemez)</Label>
+                            <Input id="edit-email" type="email" value={currentFormData.email || ''} disabled />
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="edit-email">E-posta Adresi (*)</Label>
-                            <Input id="edit-email" type="email" value={currentFormData.email || ''} disabled />
-                            <p className="text-xs text-muted-foreground">E-posta adresi değiştirilemez.</p>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="edit-password">Şifre (*)</Label>
-                            <Input id="edit-password" type="password" value={currentFormData.password || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} placeholder="Şifre girin" required/>
-                        </div>
+                     <div className="space-y-1.5">
+                        <Label htmlFor="edit-password">Yeni Şifre (İsteğe Bağlı)</Label>
+                        <Input id="edit-password" type="password" value={currentFormData.password || ''} onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} placeholder="Değiştirmek istemiyorsanız boş bırakın"/>
                     </div>
                      <div className="space-y-1.5">
                         <Label htmlFor="edit-category">Firma Kategorisi (*)</Label>

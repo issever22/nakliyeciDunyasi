@@ -28,7 +28,6 @@ export default function CompanyRegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [logoUrl, setLogoUrl] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [companyTitle, setCompanyTitle] = useState(''); 
@@ -125,7 +124,7 @@ export default function CompanyRegisterForm() {
       toast({ title: "Hata", description: "Lütfen Firma Kategorisi seçin.", variant: "destructive" });
       return;
     }
-    if (!username || !companyTitle || !contactFullName || !mobilePhone || !email || !addressCountry || !addressCity || !fullAddress || !password) {
+    if (!companyTitle || !contactFullName || !mobilePhone || !email || !addressCountry || !addressCity || !fullAddress || !password) {
        toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları (*) doldurun.", variant: "destructive" });
        return;
     }
@@ -142,7 +141,6 @@ export default function CompanyRegisterForm() {
         email,
         password, 
         name: companyTitle, 
-        username,
         category: category as CompanyCategory,
         logoUrl: logoUrl || undefined,
         contactFullName,
@@ -160,16 +158,20 @@ export default function CompanyRegisterForm() {
         workingRoutes: workingRoutes as WorkingRouteType[],
         preferredCities: preferredCities.filter(c => c !== ''),
         preferredCountries: preferredCountries.filter(c => c !== ''),
+        ownedVehicles: [],
+        authDocuments: [],
       };
 
-      const userProfile = await register(registrationData);
-      if (userProfile) {
+      const firebaseUser = await register(registrationData);
+      if (firebaseUser) {
         toast({
           title: "Firma Kaydı Başarılı",
-          description: `Firma hesabınız oluşturuldu: ${userProfile.name}! Onay sonrası aktif olacaktır. Ana sayfaya yönlendiriliyorsunuz...`,
+          description: `Firma hesabınız oluşturuldu: ${companyTitle}! Onay sonrası aktif olacaktır. Ana sayfaya yönlendiriliyorsunuz...`,
         });
         router.push('/');
       } else {
+        // Error handling is now inside the useAuth hook, which throws on failure.
+        // This block might not be reached unless the hook returns null without throwing.
         toast({
           title: "Kayıt Başarısız",
           description: "Lütfen bilgilerinizi kontrol edin ve tekrar deneyin.",
@@ -178,15 +180,9 @@ export default function CompanyRegisterForm() {
       }
     } catch (error: any) {
       console.error("Company registration form error:", error);
-      let description = "Kayıt sırasında bir hata oluştu.";
-      // Firebase specific error codes are no longer relevant here for auth/
-      // Custom errors from useAuth or authService will be in error.message
-      if (error.message) {
-        description = error.message;
-      }
       toast({
         title: "Kayıt Hatası",
-        description: description,
+        description: error.message || "Kayıt sırasında bir hata oluştu.",
         variant: "destructive",
       });
     } finally {
@@ -212,10 +208,10 @@ export default function CompanyRegisterForm() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="company-username">Kullanıcı Adı (*)</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-username" value={username} onChange={(e) => setUsername(e.target.value)} required className="pl-10" autoComplete="username"/>
+              <Label htmlFor="company-email">E-Posta (Giriş için) (*)</Label>
+               <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input id="company-email" type="email" placeholder="info@firma.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="pl-10" autoComplete="email"/>
               </div>
             </div>
             <div className="space-y-2">
@@ -269,22 +265,13 @@ export default function CompanyRegisterForm() {
               <Input id="company-fax" placeholder="0212XXXXXXX" value={fax} onChange={(e) => setFax(e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="company-email">E-Posta (*)</Label>
-               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="company-email" type="email" placeholder="info@firma.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="pl-10" autoComplete="email"/>
-              </div>
-            </div>
-            <div className="space-y-2">
+          <div className="space-y-2">
               <Label htmlFor="company-website">Web Sitesi</Label>
                <div className="relative">
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input id="company-website" placeholder="www.firma.com" value={website} onChange={(e) => setWebsite(e.target.value)} className="pl-10" autoComplete="url"/>
               </div>
             </div>
-          </div>
           <div className="space-y-2">
             <Label htmlFor="company-companyDescription">Firma Tanıtım Yazısı (Opsiyonel)</Label>
             <Textarea id="company-companyDescription" placeholder="Firmanız hakkında kısa bir tanıtım..." value={companyDescription} onChange={(e) => setCompanyDescription(e.target.value)} rows={3} />

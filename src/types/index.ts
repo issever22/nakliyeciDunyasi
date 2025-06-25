@@ -121,8 +121,7 @@ interface BaseUserProfile {
 
 export interface CompanyUserProfile extends BaseUserProfile {
   role: 'company';
-  password: string; 
-  username: string;
+  password?: string; 
   logoUrl?: string;
   companyTitle: string; 
   category: CompanyCategory;
@@ -159,7 +158,6 @@ interface BaseRegisterData {
 export interface CompanyRegisterData extends BaseRegisterData {
   role: 'company';
   password: string; 
-  username: string;
   category: CompanyCategory;
   logoUrl?: string;
   contactFullName: string;

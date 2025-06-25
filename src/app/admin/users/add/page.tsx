@@ -23,6 +23,8 @@ import { transferNotesAndDeleteContact } from '@/services/directoryContactsServi
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
 import { getAllAuthDocs } from '@/services/authDocsService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
 const MAX_PREFERRED_LOCATIONS = 5;
@@ -35,14 +37,13 @@ function AddCompanyForm() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [availableDistricts, setAvailableDistricts] = useState<readonly string[]>([]);
 
-  const [formData, setFormData] = useState<Partial<CompanyRegisterData>>({
+  const [formData, setFormData] = useState<Partial<Omit<CompanyRegisterData, 'username'>>>({
     role: 'company',
     name: searchParams.get('companyName') || '',
     email: searchParams.get('email') || '',
     password: '',
     isActive: true,
     category: 'Nakliyeci',
-    username: '',
     companyTitle: searchParams.get('companyName') || '',
     contactFullName: searchParams.get('name') || '',
     mobilePhone: searchParams.get('phone') || '',
@@ -146,8 +147,8 @@ function AddCompanyForm() {
     e.preventDefault();
     setFormSubmitting(true);
 
-    const requiredFields: (keyof CompanyRegisterData)[] = [
-        'name', 'username', 'email', 'password', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCountry', 'addressCity', 'fullAddress'
+    const requiredFields: (keyof Omit<CompanyRegisterData, 'username'>)[] = [
+        'name', 'email', 'password', 'category', 'contactFullName', 'mobilePhone', 'companyType', 'addressCountry', 'addressCity', 'fullAddress'
     ];
 
     for (const field of requiredFields) {
@@ -164,13 +165,17 @@ function AddCompanyForm() {
     }
 
     try {
-        const payload: CompanyRegisterData = {
+        // Step 1: Create user in Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email!, formData.password!);
+        const firebaseUser = userCredential.user;
+
+        // Step 2: Prepare data for Firestore
+        const payload: Omit<CompanyRegisterData, 'username'> = {
             ...formData,
             name: formData.companyTitle || formData.name!,
             role: 'company',
             email: formData.email!,
             password: formData.password!,
-            username: formData.username!,
             category: formData.category!,
             contactFullName: formData.contactFullName!,
             mobilePhone: formData.mobilePhone!,
@@ -183,7 +188,10 @@ function AddCompanyForm() {
             ownedVehicles: formData.ownedVehicles || [],
             authDocuments: formData.authDocuments || [],
         };
-        const result = await createCompanyUserServerAction(payload);
+
+        // Step 3: Create user profile in Firestore using the server action
+        const result = await createCompanyUserServerAction(firebaseUser.uid, payload);
+        
         if (result.profile) {
             toast({ title: "Başarılı", description: `Firma "${result.profile.name}" başarıyla oluşturuldu.` });
             
@@ -199,10 +207,17 @@ function AddCompanyForm() {
             
             router.push('/admin/users');
         } else {
-            toast({ title: "Hata", description: result.error || "Firma oluşturulurken bir hata oluştu.", variant: "destructive" });
+             await firebaseUser.delete();
+             throw new Error(result.error || "Firma profili oluşturulamadı, Firebase Auth kullanıcısı silindi.");
         }
     } catch (error: any) {
-        toast({ title: "Beklenmedik Hata", description: error.message || "Bir sorun oluştu.", variant: "destructive" });
+        let errorMessage = "Kayıt sırasında bir hata oluştu.";
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = "Bu e-posta adresi zaten kayıtlı. Lütfen farklı bir e-posta kullanın.";
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        toast({ title: "Beklenmedik Hata", description: errorMessage, variant: "destructive" });
     } finally {
         setFormSubmitting(false);
     }
@@ -244,20 +259,14 @@ function AddCompanyForm() {
                         <Label htmlFor="companyTitle">Firma Adı (*)</Label>
                         <Input id="companyTitle" value={formData.companyTitle || ''} onChange={handleInputChange} required />
                     </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="username">Kullanıcı Adı (*)</Label>
-                        <Input id="username" value={formData.username || ''} onChange={handleInputChange} required />
-                    </div>
-                </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
+                     <div className="space-y-1.5">
                         <Label htmlFor="email">E-posta Adresi (*)</Label>
                         <Input id="email" type="email" value={formData.email || ''} onChange={handleInputChange} required />
                     </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="password">Şifre (*)</Label>
-                        <Input id="password" type="password" value={formData.password || ''} onChange={handleInputChange} required placeholder="En az 6 karakter" />
-                    </div>
+                </div>
+                 <div className="space-y-1.5">
+                    <Label htmlFor="password">Şifre (*)</Label>
+                    <Input id="password" type="password" value={formData.password || ''} onChange={handleInputChange} required placeholder="En az 6 karakter" />
                 </div>
             </CardContent>
         </Card>
