@@ -304,30 +304,22 @@ export async function getUserProfile(uid: string): Promise<CompanyUserProfile | 
   }
 }
 
-export async function createCompanyUser(uid: string, registrationData: Omit<CompanyRegisterData, 'password'>): Promise<{ profile: CompanyUserProfile | null; error?: string }> {
+export async function createCompanyUser(uid: string, registrationData: CompanyRegisterData): Promise<{ profile: CompanyUserProfile | null; error?: string }> {
   try {
     const userDocRef = doc(db, USERS_COLLECTION, uid);
 
-    // This function assumes the user has already been created in Firebase Auth
-    // and checks for email/username duplicates are done there.
-
-    const { isActive: initialIsActive, ...profileDataFromForm } = registrationData;
+    const { password, ...profileDataFromForm } = registrationData;
     
-    // This is the data that will be stored in the Firestore document.
-    // It includes the password as requested.
-    const finalProfileDataForFirestore: any = {
+    const finalProfileDataForFirestore = {
       ...profileDataFromForm,
       role: 'company',
-      isActive: initialIsActive === undefined ? false : initialIsActive,
+      isActive: registrationData.isActive === undefined ? false : registrationData.isActive,
       createdAt: Timestamp.fromDate(new Date()),
       membershipStatus: 'Yok',
       membershipEndDate: null,
       sponsorships: [],
+      password: password,
     };
-    
-    // Add the password back for storage as per the user's request.
-    const originalRequest = registrationData as CompanyRegisterData;
-    finalProfileDataForFirestore.password = originalRequest.password;
 
     await setDoc(userDocRef, finalProfileDataForFirestore);
 

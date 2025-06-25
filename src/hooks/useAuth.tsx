@@ -117,8 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const firebaseUser = userCredential.user;
 
       // 2. Create user profile in Firestore
-      const { password, ...profileData } = data; // Don't pass password to server action
-      const result = await createCompanyUserServerAction(firebaseUser.uid, profileData);
+      const result = await createCompanyUserServerAction(firebaseUser.uid, data);
       
       if (result.profile) {
         setUser(result.profile);
