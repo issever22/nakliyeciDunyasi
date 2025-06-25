@@ -427,7 +427,7 @@ export default function HomePage() {
               </div>
                <div className="hidden lg:block">
                   <Image 
-                      src="https://issever.co/wp-content/uploads/2025/06/nakliye-kamyon-1.svg"
+                      src="https://issever.co/wp-content/uploads/2025/06/n-kamyon.svg"
                       alt="Lojistik operasyonlarını gösteren bir görsel"
                       width={600}
                       height={500}
