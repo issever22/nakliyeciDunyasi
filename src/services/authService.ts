@@ -23,6 +23,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { parseISO, isValid } from 'date-fns';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 const USERS_COLLECTION = 'users';
 
@@ -621,3 +622,22 @@ export const getActiveSponsorCompanyIds = async (): Promise<Set<string>> => {
         return new Set<string>();
     }
 };
+
+export async function sendPasswordResetEmailByAdmin(email: string): Promise<{ success: boolean; message: string; }> {
+  if (!email) {
+    return { success: false, message: "E-posta adresi gereklidir." };
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true, message: `Şifre sıfırlama e-postası ${email} adresine gönderildi.` };
+  } catch (error: any) {
+    console.error(`[authService.ts - sendPasswordResetEmailByAdmin] Error:`, error);
+    let errorMessage = "Şifre sıfırlama e-postası gönderilemedi.";
+    if (error.code === 'auth/user-not-found') {
+        errorMessage = "Bu e-posta adresine sahip bir kullanıcı bulunamadı.";
+    } else if (error.message) {
+        errorMessage = error.message;
+    }
+    return { success: false, message: errorMessage };
+  }
+}
