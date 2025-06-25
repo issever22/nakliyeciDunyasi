@@ -1,7 +1,8 @@
 
+
 'use server';
 
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import type { CompanyUserProfile, CompanyRegisterData, CompanyCategory, CompanyFilterOptions, SponsorshipLocation, AdminProfile } from '@/types';
 import {
   collection,
@@ -22,6 +23,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { parseISO, isValid } from 'date-fns';
+import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
 
 const USERS_COLLECTION = 'users';
 
@@ -307,19 +309,16 @@ export async function getUserProfile(uid: string): Promise<CompanyUserProfile | 
 export async function createCompanyUser(uid: string, registrationData: CompanyRegisterData): Promise<{ profile: CompanyUserProfile | null; error?: string }> {
   try {
     const userDocRef = doc(db, USERS_COLLECTION, uid);
-
-    // The password is now coming in registrationData, so no need to extract it separately.
-    const { password, ...profileDataFromForm } = registrationData;
     
     const finalProfileDataForFirestore = {
-      ...profileDataFromForm,
+      ...registrationData,
       role: 'company',
       isActive: registrationData.isActive === undefined ? false : registrationData.isActive,
       createdAt: Timestamp.fromDate(new Date()),
       membershipStatus: 'Yok',
       membershipEndDate: null,
       sponsorships: [],
-      password: password, // Store password here
+      password: registrationData.password, 
     };
 
     await setDoc(userDocRef, finalProfileDataForFirestore);
@@ -449,9 +448,6 @@ export async function updateFirestorePassword(uid: string, newPassword_input: st
 
 export async function deleteUserProfile(uid: string): Promise<boolean> {
   try {
-    // This function now only deletes the Firestore document.
-    // Deleting the Firebase Auth user requires the Admin SDK and cannot be done from the client.
-    // The admin will need to manually delete the user from the Firebase Authentication console.
     const docRef = doc(db, USERS_COLLECTION, uid);
     await deleteDoc(docRef);
     return true;
@@ -460,6 +456,20 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
     return false;
   }
 }
+
+export async function sendPasswordResetEmail(email: string): Promise<{ success: boolean; message: string }> {
+    if (!email) {
+        return { success: false, message: "E-posta adresi bulunamadı." };
+    }
+    try {
+        await firebaseSendPasswordResetEmail(auth, email);
+        return { success: true, message: `Şifre sıfırlama e-postası ${email} adresine başarıyla gönderildi.` };
+    } catch (error: any) {
+        console.error("Error sending password reset email: ", error);
+        return { success: false, message: error.message || "Şifre sıfırlama e-postası gönderilirken bir hata oluştu." };
+    }
+}
+
 
 // SPONSORSHIP FUNCTIONS
 export async function addSponsorshipsToUser(
