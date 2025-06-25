@@ -23,7 +23,6 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { parseISO, isValid } from 'date-fns';
-import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
 
 const USERS_COLLECTION = 'users';
 
@@ -446,6 +445,28 @@ export async function updateFirestorePassword(uid: string, newPassword_input: st
   }
 }
 
+export async function changeUserPasswordByAdmin(uid: string, newPassword_input: string): Promise<{ success: boolean; message: string }> {
+  if (!uid || !newPassword_input) {
+    return { success: false, message: "Kullanıcı ID'si ve yeni şifre gereklidir." };
+  }
+  if (newPassword_input.length < 6) {
+    return { success: false, message: "Yeni şifre en az 6 karakter olmalıdır." };
+  }
+  try {
+    const docRef = doc(db, USERS_COLLECTION, uid);
+    await updateDoc(docRef, { password: newPassword_input });
+    // IMPORTANT: This only updates the password stored in Firestore. It does NOT
+    // change the user's actual Firebase Authentication password. Changing another
+    // user's password requires the Firebase Admin SDK, which is not available here.
+    // For a full password change, the user must use the password reset flow.
+    return { success: true, message: "Firmanın Firestore kaydındaki şifre güncellendi." };
+  } catch (error: any) {
+    console.error("Error updating user password in Firestore by admin: ", error);
+    return { success: false, message: error.message || "Şifre güncellenirken bir hata oluştu." };
+  }
+}
+
+
 export async function deleteUserProfile(uid: string): Promise<boolean> {
   try {
     const docRef = doc(db, USERS_COLLECTION, uid);
@@ -456,20 +477,6 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
     return false;
   }
 }
-
-export async function sendPasswordResetEmail(email: string): Promise<{ success: boolean; message: string }> {
-    if (!email) {
-        return { success: false, message: "E-posta adresi bulunamadı." };
-    }
-    try {
-        await firebaseSendPasswordResetEmail(auth, email);
-        return { success: true, message: `Şifre sıfırlama e-postası ${email} adresine başarıyla gönderildi.` };
-    } catch (error: any) {
-        console.error("Error sending password reset email: ", error);
-        return { success: false, message: error.message || "Şifre sıfırlama e-postası gönderilirken bir hata oluştu." };
-    }
-}
-
 
 // SPONSORSHIP FUNCTIONS
 export async function addSponsorshipsToUser(

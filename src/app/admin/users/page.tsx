@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone, Users as UsersIcon, Truck, FileText } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Building, ShieldAlert, CheckCircle, XCircle, Star, Clock, CalendarIcon, Loader2, List, MapPin, Briefcase, AlertTriangle, Award, Check, StickyNote, CreditCard, Mail, Phone, Users as UsersIcon, Truck, FileText, KeyRound } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { CompanyUserProfile, CompanyCategory, CompanyUserType, WorkingMethodType, WorkingRouteType, TurkishCity, CountryCode, MembershipSetting, CompanyNote, VehicleTypeSetting, AuthDocSetting } from '@/types';
@@ -28,7 +28,6 @@ import {
   getPaginatedAdminUsers, 
   updateUserProfile,
   deleteUserProfile,
-  sendPasswordResetEmail,
 } from '@/services/authService'; 
 import { getAllMemberships } from '@/services/membershipsService';
 import { getAllVehicleTypes } from '@/services/vehicleTypesService';
@@ -41,6 +40,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
+import ChangePasswordByAdminModal from '@/components/admin/users/ChangePasswordByAdminModal';
 
 
 const CLEAR_SELECTION_VALUE = "__CLEAR_SELECTION__";
@@ -77,7 +77,9 @@ export default function UsersPage() {
   const [noteContent, setNoteContent] = useState({ title: '', content: '' });
   const [membershipFee, setMembershipFee] = useState('');
   const [pendingMembershipSelection, setPendingMembershipSelection] = useState<{ status: CompanyUserProfile['membershipStatus'], endDate?: Date } | null>(null);
-  const [isSendingReset, setIsSendingReset] = useState(false);
+  
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [userToChangePassword, setUserToChangePassword] = useState<CompanyUserProfile | null>(null);
 
   const fetchUsers = useCallback(async (isLoadMore = false) => {
     if (isLoadMore) {
@@ -223,12 +225,6 @@ export default function UsersPage() {
         }
     }
     
-    // Password is only validated if it's being changed.
-    if (currentFormData.password && currentFormData.password.length < 6) {
-        toast({ title: "Hata", description: "Yeni şifre en az 6 karakter olmalıdır.", variant: "destructive" });
-        setFormSubmitting(false);
-        return;
-    }
     setFormSubmitting(true);
 
     const dataToSubmit: any = { ...currentFormData };
@@ -242,11 +238,6 @@ export default function UsersPage() {
     dataToSubmit.name = dataToSubmit.companyTitle || dataToSubmit.name;
     dataToSubmit.preferredCities = (dataToSubmit.preferredCities || []).filter((c: string) => c);
     dataToSubmit.preferredCountries = (dataToSubmit.preferredCountries || []).filter((c: string) => c);
-    
-    // Do not submit password if it hasn't changed.
-    if (dataToSubmit.password === editingUser.password) {
-        delete dataToSubmit.password;
-    }
     
     const { id, createdAt, email, role, ...updateData } = dataToSubmit; 
     
@@ -262,16 +253,9 @@ export default function UsersPage() {
     setIsEditDialogOpen(false);
   };
 
-  const handlePasswordReset = async () => {
-    if (!editingUser || !editingUser.email) return;
-    setIsSendingReset(true);
-    const result = await sendPasswordResetEmail(editingUser.email);
-    toast({
-        title: result.success ? "E-posta Gönderildi" : "Hata",
-        description: result.message,
-        variant: result.success ? "default" : "destructive",
-    });
-    setIsSendingReset(false);
+  const handleOpenChangePasswordModal = (user: CompanyUserProfile) => {
+    setUserToChangePassword(user);
+    setIsChangePasswordModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -447,7 +431,7 @@ export default function UsersPage() {
                           </Badge>
                           {user.membershipEndDate && isValid(parseISO(user.membershipEndDate)) && (
                               <span className="text-muted-foreground text-[11px]">
-                                  Bitiş: {format(parseISO(user.membershipEndDate), "dd.MM.yyyy")}
+                                  Bitiş: {format(parseISO(user.membershipEndDate), "dd.MM.yyyy", { locale: tr })}
                               </span>
                           )}
                       </div>
@@ -632,25 +616,25 @@ export default function UsersPage() {
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                          <Label htmlFor="edit-password">Kayıtlı Şifre (Veritabanı)</Label>
-                          <Input 
-                              id="edit-password" 
-                              type="text" 
-                              value={currentFormData.password || ''} 
-                              onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} 
-                              placeholder="Şifre bilgisi yok"
-                          />
-                          <p className="text-xs text-muted-foreground">Bu, yalnızca veritabanında saklanan şifredir. Bunu değiştirmek kullanıcının girişini etkilemez.</p>
-                      </div>
-                      <div className="space-y-1.5">
-                          <Label>Gerçek Şifreyi Sıfırla (Firebase Auth)</Label>
-                          <Button type="button" variant="secondary" onClick={handlePasswordReset} disabled={isSendingReset} className="w-full">
-                              {isSendingReset ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Mail className="mr-2 h-4 w-4" />}
-                              Kullanıcıya Şifre Sıfırlama E-postası Gönder
-                          </Button>
-                          <p className="text-xs text-muted-foreground pt-1">Bu işlem, kullanıcının gerçek giriş şifresini sıfırlaması için e-posta gönderir.</p>
-                      </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-password">Kayıtlı Şifre (Veritabanı)</Label>
+                            <Input 
+                                id="edit-password" 
+                                type="text" 
+                                value={currentFormData.password || ''} 
+                                onChange={(e) => setCurrentFormData(prev => ({...prev, password: e.target.value}))} 
+                                placeholder="Şifre bilgisi yok"
+                            />
+                            <p className="text-xs text-muted-foreground">Bu, yalnızca veritabanında saklanan şifredir.</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Şifreyi Değiştir</Label>
+                            <Button type="button" variant="secondary" onClick={() => editingUser && handleOpenChangePasswordModal(editingUser)} className="w-full">
+                                <KeyRound className="mr-2 h-4 w-4" />
+                                Firma Şifresini Değiştir
+                            </Button>
+                             <p className="text-xs text-muted-foreground pt-1">Bu işlem, kullanıcının veritabanındaki şifresini günceller.</p>
+                        </div>
                     </div>
                      <div className="space-y-1.5">
                         <Label htmlFor="edit-category">Firma Kategorisi (*)</Label>
@@ -980,6 +964,17 @@ export default function UsersPage() {
                 </AlertDialogContent>
             </AlertDialog>
         </>
+      )}
+
+      {userToChangePassword && (
+        <ChangePasswordByAdminModal
+            isOpen={isChangePasswordModalOpen}
+            onClose={() => setIsChangePasswordModalOpen(false)}
+            user={userToChangePassword}
+            onUpdate={() => {
+                handleRefreshAndRefetch();
+            }}
+        />
       )}
 
     </div>
