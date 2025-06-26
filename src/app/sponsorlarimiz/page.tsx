@@ -7,19 +7,23 @@ import { getSponsoredCompanies } from '@/services/authService';
 import CompanyCard from '@/components/company/CompanyCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { AlertTriangle, Award, Star, SearchX, Search } from 'lucide-react';
+import { AlertTriangle, Award, Star, SearchX, Search, Globe, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { COUNTRIES } from '@/lib/locationData';
+import { COUNTRIES, TURKISH_CITIES } from '@/lib/locationData';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 export default function SponsorsPage() {
   const [sponsors, setSponsors] = useState<CompanyUserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'country' | 'city'>('all');
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
 
   useEffect(() => {
     const fetchSponsors = async () => {
@@ -27,7 +31,6 @@ export default function SponsorsPage() {
       setError(null);
       try {
         const fetchedSponsors = await getSponsoredCompanies();
-        // Sponsors should be active
         setSponsors(fetchedSponsors.filter(s => s.isActive));
       } catch (err) {
         console.error("Error fetching sponsors:", err);
@@ -47,10 +50,14 @@ export default function SponsorsPage() {
   const filteredSponsors = useMemo(() => {
     let filtered = sponsors;
 
-    if (filterType === 'country') {
-      filtered = filtered.filter(sponsor => sponsor.sponsorships?.some(s => s.type === 'country'));
-    } else if (filterType === 'city') {
-      filtered = filtered.filter(sponsor => sponsor.sponsorships?.some(s => s.type === 'city'));
+    if (selectedCountry) {
+        filtered = filtered.filter(sponsor => 
+            sponsor.sponsorships?.some(s => s.type === 'country' && s.name === selectedCountry)
+        );
+    } else if (selectedCity) {
+        filtered = filtered.filter(sponsor => 
+            sponsor.sponsorships?.some(s => s.type === 'city' && s.name === selectedCity)
+        );
     }
 
     if (searchTerm.trim()) {
@@ -59,23 +66,20 @@ export default function SponsorsPage() {
             if (sponsor.name.toLowerCase().includes(lowerCaseSearch)) {
                 return true;
             }
-
             const sponsoredCountries = sponsor.sponsorships?.filter(s => s.type === 'country').map(s => getCountryName(s.name).toLowerCase()) || [];
             if (sponsoredCountries.some(name => name.includes(lowerCaseSearch))) {
                 return true;
             }
-
             const sponsoredCities = sponsor.sponsorships?.filter(s => s.type === 'city').map(s => s.name.toLowerCase()) || [];
             if (sponsoredCities.some(name => name.includes(lowerCaseSearch))) {
                 return true;
             }
-
             return false;
         });
     }
 
     return filtered.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-  }, [sponsors, searchTerm, filterType, getCountryName]);
+  }, [sponsors, searchTerm, selectedCountry, selectedCity, getCountryName]);
 
 
   const renderContent = () => {
@@ -179,23 +183,73 @@ export default function SponsorsPage() {
              <Card className="mb-12 shadow-sm">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Search /> Sponsor Filtrele</CardTitle>
-                    <CardDescription>Firma adı, sponsor olunan ülke veya şehire göre arama yapın.</CardDescription>
+                    <CardDescription>Sponsorları firma adı, ülke veya şehire göre arayın ve filtreleyin.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                        <div className="relative flex-grow w-full sm:w-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input
-                                placeholder="Firma adı, ülke veya şehir..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="h-11 text-base pl-10"
-                            />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-1">
+                            <Label htmlFor="search-input">Firma Adı</Label>
+                            <div className="relative mt-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    id="search-input"
+                                    placeholder="Firma adı..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-10 text-sm pl-10"
+                                    disabled={isLoading}
+                                />
+                            </div>
                         </div>
-                        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-                            <Button size="sm" variant={filterType === 'all' ? 'default' : 'ghost'} onClick={() => setFilterType('all')} className="h-8 px-3">Tümü</Button>
-                            <Button size="sm" variant={filterType === 'country' ? 'default' : 'ghost'} onClick={() => setFilterType('country')} className="h-8 px-3">Ülke Sponsorları</Button>
-                            <Button size="sm" variant={filterType === 'city' ? 'default' : 'ghost'} onClick={() => setFilterType('city')} className="h-8 px-3">Şehir Sponsorları</Button>
+                         <div>
+                            <Label htmlFor="country-filter">Ülkeye Göre</Label>
+                             <div className="relative mt-1">
+                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                                <Select
+                                    value={selectedCountry}
+                                    onValueChange={(value) => {
+                                        const country = value === '_ALL_' ? '' : value;
+                                        setSelectedCountry(country);
+                                        if (country) setSelectedCity(''); 
+                                    }}
+                                    disabled={isLoading}
+                                >
+                                    <SelectTrigger id="country-filter" className="pl-10 h-10 text-sm">
+                                        <SelectValue placeholder="Ülke Seçin" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="_ALL_">Tüm Ülkeler</SelectItem>
+                                        {COUNTRIES.filter(c => c.code !== 'OTHER').map(country => (
+                                            <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                             </div>
+                        </div>
+                        <div>
+                            <Label htmlFor="city-filter">Şehire Göre (Türkiye)</Label>
+                            <div className="relative mt-1">
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                                <Select
+                                    value={selectedCity}
+                                    onValueChange={(value) => {
+                                        const city = value === '_ALL_' ? '' : value;
+                                        setSelectedCity(city);
+                                        if (city) setSelectedCountry(''); 
+                                    }}
+                                    disabled={isLoading}
+                                >
+                                    <SelectTrigger id="city-filter" className="pl-10 h-10 text-sm">
+                                        <SelectValue placeholder="Şehir Seçin" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="_ALL_">Tüm Şehirler</SelectItem>
+                                        {TURKISH_CITIES.map(city => (
+                                            <SelectItem key={city} value={city}>{city}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
