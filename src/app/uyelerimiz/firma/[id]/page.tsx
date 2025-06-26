@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from 'react';
+import { useEffect, useState, Suspense, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { CompanyUserProfile, Freight } from '@/types';
 import { getUserProfile } from '@/services/authService';
@@ -47,6 +47,12 @@ function CompanyProfileContent() {
     const [error, setError] = useState<string | null>(null);
 
     const isSponsor = company?.sponsorships && company.sponsorships.length > 0;
+    
+    const getCountryName = useCallback((code: string) => COUNTRIES.find(c => c.code === code)?.name || code, []);
+
+    const sponsoredCountries = useMemo(() => company?.sponsorships?.filter(s => s.type === 'country').map(s => getCountryName(s.name)) || [], [company, getCountryName]);
+    const sponsoredCities = useMemo(() => company?.sponsorships?.filter(s => s.type === 'city').map(s => s.name) || [], [company]);
+
 
     useEffect(() => {
         if (!companyId) return;
@@ -161,6 +167,36 @@ function CompanyProfileContent() {
                         <CardDescription>{company.category}</CardDescription>
                     </CardHeader>
                 </Card>
+
+                {isSponsor && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2"><Star size={18} className="text-amber-500"/> Sponsorluk Bölgeleri</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            {sponsoredCountries.length > 0 && (
+                                <div className="space-y-1">
+                                    <Label className="flex items-center gap-1.5 text-muted-foreground"><Globe size={14}/> Ülkeler</Label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {sponsoredCountries.map(country => (
+                                            <Badge key={country} variant="secondary">{country}</Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {sponsoredCities.length > 0 && (
+                                <div className="space-y-1">
+                                    <Label className="flex items-center gap-1.5 text-muted-foreground"><MapPin size={14}/> Şehirler</Label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {sponsoredCities.map(city => (
+                                            <Badge key={city} variant="outline">{city}</Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                 )}
 
                  <Card>
                     <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Phone size={18}/> İletişim Bilgileri</CardTitle></CardHeader>
