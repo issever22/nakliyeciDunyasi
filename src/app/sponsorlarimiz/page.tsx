@@ -19,6 +19,7 @@ export default function SponsorsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'country' | 'city'>('all');
 
   useEffect(() => {
     const fetchSponsors = async () => {
@@ -46,21 +47,24 @@ export default function SponsorsPage() {
   const filteredSponsors = useMemo(() => {
     let filtered = sponsors;
 
+    if (filterType === 'country') {
+      filtered = filtered.filter(sponsor => sponsor.sponsorships?.some(s => s.type === 'country'));
+    } else if (filterType === 'city') {
+      filtered = filtered.filter(sponsor => sponsor.sponsorships?.some(s => s.type === 'city'));
+    }
+
     if (searchTerm.trim()) {
         const lowerCaseSearch = searchTerm.toLowerCase();
-        filtered = sponsors.filter(sponsor => {
-            // Check company name
+        filtered = filtered.filter(sponsor => {
             if (sponsor.name.toLowerCase().includes(lowerCaseSearch)) {
                 return true;
             }
 
-            // Check sponsored countries
             const sponsoredCountries = sponsor.sponsorships?.filter(s => s.type === 'country').map(s => getCountryName(s.name).toLowerCase()) || [];
             if (sponsoredCountries.some(name => name.includes(lowerCaseSearch))) {
                 return true;
             }
 
-            // Check sponsored cities
             const sponsoredCities = sponsor.sponsorships?.filter(s => s.type === 'city').map(s => s.name.toLowerCase()) || [];
             if (sponsoredCities.some(name => name.includes(lowerCaseSearch))) {
                 return true;
@@ -71,7 +75,7 @@ export default function SponsorsPage() {
     }
 
     return filtered.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-  }, [sponsors, searchTerm, getCountryName]);
+  }, [sponsors, searchTerm, filterType, getCountryName]);
 
 
   const renderContent = () => {
@@ -129,7 +133,7 @@ export default function SponsorsPage() {
               <SearchX className="mx-auto h-20 w-20 text-muted-foreground mb-6" />
               <h2 className="text-2xl font-semibold mb-3 text-foreground">Sonuç Bulunamadı</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
-                "{searchTerm}" aramasına uygun sponsor bulunamadı.
+                Seçtiğiniz kriterlere uygun sponsor bulunamadı.
               </p>
             </div>
         );
@@ -178,14 +182,21 @@ export default function SponsorsPage() {
                     <CardDescription>Firma adı, sponsor olunan ülke veya şehire göre arama yapın.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="relative max-w-lg">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input
-                            placeholder="Firma adı, ülke veya şehir..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="h-11 text-base pl-10"
-                        />
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="relative flex-grow w-full sm:w-auto">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                            <Input
+                                placeholder="Firma adı, ülke veya şehir..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="h-11 text-base pl-10"
+                            />
+                        </div>
+                        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+                            <Button size="sm" variant={filterType === 'all' ? 'default' : 'ghost'} onClick={() => setFilterType('all')} className="h-8 px-3">Tümü</Button>
+                            <Button size="sm" variant={filterType === 'country' ? 'default' : 'ghost'} onClick={() => setFilterType('country')} className="h-8 px-3">Ülke Sponsorları</Button>
+                            <Button size="sm" variant={filterType === 'city' ? 'default' : 'ghost'} onClick={() => setFilterType('city')} className="h-8 px-3">Şehir Sponsorları</Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
