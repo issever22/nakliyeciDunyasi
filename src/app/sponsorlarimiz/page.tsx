@@ -44,66 +44,35 @@ export default function SponsorsPage() {
   }, []);
 
   const filteredSponsors = useMemo(() => {
-    if (!searchTerm.trim()) {
-        return sponsors;
+    let filtered = sponsors;
+
+    if (searchTerm.trim()) {
+        const lowerCaseSearch = searchTerm.toLowerCase();
+        filtered = sponsors.filter(sponsor => {
+            // Check company name
+            if (sponsor.name.toLowerCase().includes(lowerCaseSearch)) {
+                return true;
+            }
+
+            // Check sponsored countries
+            const sponsoredCountries = sponsor.sponsorships?.filter(s => s.type === 'country').map(s => getCountryName(s.name).toLowerCase()) || [];
+            if (sponsoredCountries.some(name => name.includes(lowerCaseSearch))) {
+                return true;
+            }
+
+            // Check sponsored cities
+            const sponsoredCities = sponsor.sponsorships?.filter(s => s.type === 'city').map(s => s.name.toLowerCase()) || [];
+            if (sponsoredCities.some(name => name.includes(lowerCaseSearch))) {
+                return true;
+            }
+
+            return false;
+        });
     }
-    const lowerCaseSearch = searchTerm.toLowerCase();
 
-    return sponsors.filter(sponsor => {
-        // Check company name
-        if (sponsor.name.toLowerCase().includes(lowerCaseSearch)) {
-            return true;
-        }
-
-        // Check sponsored countries
-        const sponsoredCountries = sponsor.sponsorships?.filter(s => s.type === 'country').map(s => getCountryName(s.name).toLowerCase()) || [];
-        if (sponsoredCountries.some(name => name.includes(lowerCaseSearch))) {
-            return true;
-        }
-
-        // Check sponsored cities
-        const sponsoredCities = sponsor.sponsorships?.filter(s => s.type === 'city').map(s => s.name.toLowerCase()) || [];
-        if (sponsoredCities.some(name => name.includes(lowerCaseSearch))) {
-            return true;
-        }
-
-        return false;
-    });
+    return filtered.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
   }, [sponsors, searchTerm, getCountryName]);
 
-  const { countrySponsors, citySponsors } = useMemo(() => {
-    const countrySponsors: CompanyUserProfile[] = [];
-    const citySponsors: CompanyUserProfile[] = [];
-    
-    filteredSponsors.forEach(sponsor => {
-      const hasCountrySponsorship = sponsor.sponsorships?.some(s => s.type === 'country');
-      if (hasCountrySponsorship) {
-        countrySponsors.push(sponsor);
-      } else {
-        citySponsors.push(sponsor);
-      }
-    });
-
-    const sortByName = (a: CompanyUserProfile, b: CompanyUserProfile) => a.name.localeCompare(b.name, 'tr');
-    countrySponsors.sort(sortByName);
-    citySponsors.sort(sortByName);
-
-    return { countrySponsors, citySponsors };
-  }, [filteredSponsors]);
-
-  const renderSponsorList = (sponsorList: CompanyUserProfile[], title: string) => {
-    if (sponsorList.length === 0) return null;
-    return (
-        <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-center">{title}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {sponsorList.map(sponsor => (
-                    <CompanyCard key={sponsor.id} company={sponsor} isSponsor={true} />
-                ))}
-            </div>
-        </div>
-    )
-  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -167,9 +136,13 @@ export default function SponsorsPage() {
     }
 
     return (
-        <div className="space-y-16">
-            {renderSponsorList(countrySponsors, "Ülke Sponsorlarımız")}
-            {renderSponsorList(citySponsors, "Şehir Sponsorlarımız")}
+        <div className="space-y-8">
+            <h2 className="text-3xl font-bold text-center">Sponsorlarımız</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredSponsors.map(sponsor => (
+                    <CompanyCard key={sponsor.id} company={sponsor} isSponsor={true} />
+                ))}
+            </div>
         </div>
     );
   };
