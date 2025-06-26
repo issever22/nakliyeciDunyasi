@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText, Search, Users as UsersIcon, Home as HomeIcon } from 'lucide-react';
+import { Bell, LogOut, UserCircle, Truck as AppIcon, PlusCircle, Loader2, Info, Menu, MessageSquareText, Search, Users as UsersIcon, Home as HomeIcon, Star } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -174,10 +174,6 @@ export default function Header() {
   const isHakkimizdaActive = useMemo(() => {
       const paths = ['/hakkimizda', '/tasarladigimiz-afisler', '/tasarladigimiz-logolar', '/tasarladigimiz-siteler'];
       return paths.some(p => pathname.startsWith(p));
-  }, [pathname]);
-
-  const isUyelerimizActive = useMemo(() => {
-    return pathname.startsWith('/uyelerimiz/') && !pathname.startsWith('/uyelerimiz/firma/');
   }, [pathname]);
 
   const isBizeUlasinActive = useMemo(() => {
@@ -376,21 +372,18 @@ export default function Header() {
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/arama/firmalar">Firmalar</Link>
                   </Button>
+                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
+                    <Link href="/sponsorlarimiz">
+                        <Star size={20} className="mr-2"/> Sponsorlarımız
+                    </Link>
+                  </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/hakkimizda">Hakkımızda</Link>
                   </Button>
                   <Button variant="ghost" asChild className="w-full justify-start text-base" onClick={closeMobileMenu}>
                     <Link href="/iletisim">İletişim</Link>
                   </Button>
-                  <Separator className="my-2"/>
-                  <p className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Üyelerimiz</p>
-                  {COMPANY_CATEGORIES.map((category) => (
-                    <Button variant="ghost" asChild className="w-full justify-start text-base pl-6" onClick={closeMobileMenu} key={category.slug}>
-                      <Link href={`/uyelerimiz/${category.slug}`}>{category.label} Üyelerimiz</Link>
-                    </Button>
-                  ))}
-
-
+                 
                   {isAuthenticated && user && (
                       <>
                       <Separator className="my-2"/>
@@ -472,20 +465,11 @@ export default function Header() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuTrigger className={cn(isUyelerimizActive && 'bg-accent text-accent-foreground')}>Üyelerimiz</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] lg:w-[600px] md:grid-cols-2">
-                    {COMPANY_CATEGORIES.map((category) => (
-                      <ListItem
-                        key={category.slug}
-                        title={`${category.label} Üyelerimiz`}
-                        href={`/uyelerimiz/${category.slug}`}
-                      >
-                        {category.description}
-                      </ListItem>
-                    ))}
-                  </ul>
-                </NavigationMenuContent>
+                <Link href="/sponsorlarimiz" legacyBehavior passHref>
+                  <NavigationMenuLink active={pathname.startsWith('/sponsorlarimiz')} className={navigationMenuTriggerStyle()}>
+                    Sponsorlarımız
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
                             
               <NavigationMenuItem>
