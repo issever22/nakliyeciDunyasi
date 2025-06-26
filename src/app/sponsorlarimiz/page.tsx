@@ -7,15 +7,18 @@ import { getSponsoredCompanies } from '@/services/authService';
 import CompanyCard from '@/components/company/CompanyCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { AlertTriangle, Award, Star, SearchX } from 'lucide-react';
+import { AlertTriangle, Award, Star, SearchX, Search } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { COUNTRIES } from '@/lib/locationData';
 
 export default function SponsorsPage() {
   const [sponsors, setSponsors] = useState<CompanyUserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchSponsors = async () => {
@@ -34,13 +37,45 @@ export default function SponsorsPage() {
     };
     fetchSponsors();
   }, []);
+  
+  const getCountryName = useMemo(() => {
+    const countryMap = new Map(COUNTRIES.map(c => [c.code, c.name]));
+    return (code: string) => countryMap.get(code) || code;
+  }, []);
 
-  // Separate sponsors into country and city sponsors for potentially different display sections
+  const filteredSponsors = useMemo(() => {
+    if (!searchTerm.trim()) {
+        return sponsors;
+    }
+    const lowerCaseSearch = searchTerm.toLowerCase();
+
+    return sponsors.filter(sponsor => {
+        // Check company name
+        if (sponsor.name.toLowerCase().includes(lowerCaseSearch)) {
+            return true;
+        }
+
+        // Check sponsored countries
+        const sponsoredCountries = sponsor.sponsorships?.filter(s => s.type === 'country').map(s => getCountryName(s.name).toLowerCase()) || [];
+        if (sponsoredCountries.some(name => name.includes(lowerCaseSearch))) {
+            return true;
+        }
+
+        // Check sponsored cities
+        const sponsoredCities = sponsor.sponsorships?.filter(s => s.type === 'city').map(s => s.name.toLowerCase()) || [];
+        if (sponsoredCities.some(name => name.includes(lowerCaseSearch))) {
+            return true;
+        }
+
+        return false;
+    });
+  }, [sponsors, searchTerm, getCountryName]);
+
   const { countrySponsors, citySponsors } = useMemo(() => {
     const countrySponsors: CompanyUserProfile[] = [];
     const citySponsors: CompanyUserProfile[] = [];
     
-    sponsors.forEach(sponsor => {
+    filteredSponsors.forEach(sponsor => {
       const hasCountrySponsorship = sponsor.sponsorships?.some(s => s.type === 'country');
       if (hasCountrySponsorship) {
         countrySponsors.push(sponsor);
@@ -49,24 +84,26 @@ export default function SponsorsPage() {
       }
     });
 
-    // Sort alphabetically
     const sortByName = (a: CompanyUserProfile, b: CompanyUserProfile) => a.name.localeCompare(b.name, 'tr');
     countrySponsors.sort(sortByName);
     citySponsors.sort(sortByName);
 
     return { countrySponsors, citySponsors };
-  }, [sponsors]);
+  }, [filteredSponsors]);
 
-  const renderSponsorList = (sponsorList: CompanyUserProfile[], title: string) => (
-    <div className="space-y-8">
-        <h2 className="text-3xl font-bold text-center">{title}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {sponsorList.map(sponsor => (
-                <CompanyCard key={sponsor.id} company={sponsor} isSponsor={true} />
-            ))}
+  const renderSponsorList = (sponsorList: CompanyUserProfile[], title: string) => {
+    if (sponsorList.length === 0) return null;
+    return (
+        <div className="space-y-8">
+            <h2 className="text-3xl font-bold text-center">{title}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {sponsorList.map(sponsor => (
+                    <CompanyCard key={sponsor.id} company={sponsor} isSponsor={true} />
+                ))}
+            </div>
         </div>
-    </div>
-  );
+    )
+  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -117,10 +154,22 @@ export default function SponsorsPage() {
       );
     }
 
+    if (filteredSponsors.length === 0) {
+        return (
+            <div className="text-center py-16 bg-card border border-dashed rounded-lg shadow">
+              <SearchX className="mx-auto h-20 w-20 text-muted-foreground mb-6" />
+              <h2 className="text-2xl font-semibold mb-3 text-foreground">Sonuç Bulunamadı</h2>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                "{searchTerm}" aramasına uygun sponsor bulunamadı.
+              </p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-16">
-            {countrySponsors.length > 0 && renderSponsorList(countrySponsors, "Ülke Sponsorlarımız")}
-            {citySponsors.length > 0 && renderSponsorList(citySponsors, "Şehir Sponsorlarımız")}
+            {renderSponsorList(countrySponsors, "Ülke Sponsorlarımız")}
+            {renderSponsorList(citySponsors, "Şehir Sponsorlarımız")}
         </div>
     );
   };
@@ -150,6 +199,23 @@ export default function SponsorsPage() {
         </Card>
 
         <section className="container mx-auto px-4">
+             <Card className="mb-12 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Search /> Sponsor Filtrele</CardTitle>
+                    <CardDescription>Firma adı, sponsor olunan ülke veya şehire göre arama yapın.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="relative max-w-lg">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                            placeholder="Firma adı, ülke veya şehir..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="h-11 text-base pl-10"
+                        />
+                    </div>
+                </CardContent>
+            </Card>
             {renderContent()}
         </section>
 
